@@ -141,18 +141,6 @@ end
     @test_nowarn verify_physical_dims(ψ, dims)
     @test is_right_normalized(ψ)
 
-    # from here - move to the attic
-    AA = tensor(ψ)
-
-    @test rank(ψ) == size(AA)
-    @test norm(AA) ≈ 1
-    @test size(AA) == size(A)
-
-    vA = vec(A)
-    nA = norm(vA)
-    @test abs(1 - abs(dot(vec(AA), vA ./ nA))) < ϵ
-    #@test AA ≈ A ./ norm(A) # this is true "module phase"
-
     B = randn(T, dims...)
     ϕ = MPS(B, :left)
 
@@ -160,17 +148,6 @@ end
     @test_nowarn verify_bonds(ϕ)
     @test_nowarn verify_physical_dims(ϕ, dims)
     @test is_left_normalized(ϕ)
-
-    BB = tensor(ϕ)
-
-    @test rank(ϕ) == size(BB)
-    @test norm(BB) ≈ 1
-    @test sqrt(sum(abs.(B) .^ 2)) ≈ norm(B)
-
-    vB = vec(B)
-    nB = norm(vB)
-    @test abs(1 - abs(dot(vec(BB), vB ./ nB))) < ϵ
-    #@test BB ≈ B ./ norm(B) # this is true "module phase"
 
     χ = MPS(A, :left)
 

@@ -9,16 +9,6 @@ export left_env, right_env, dot!
 # ---------------------------------------------------------------
 #
 
-function LinearAlgebra.dot(ψ::AbstractMPS, state::Union{Vector, NTuple})
-    C = I
-
-    for (M, σ) ∈ zip(ψ, state)
-        i = idx(σ)
-        C = M[:, i, :]' * (C * M[:, i, :])
-    end
-    tr(C)
-end
-
 function LinearAlgebra.dot(ϕ::AbstractMPS, ψ::AbstractMPS)
     T = promote_type(eltype(ψ), eltype(ϕ))
     C = ones(T, 1, 1)

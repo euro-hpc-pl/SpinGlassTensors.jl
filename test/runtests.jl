@@ -24,7 +24,7 @@ my_tests = []
 # end
 
 my_tests = []
-# include("test_helpers.jl")
+
 push!(my_tests,
       "base.jl",
       "contractions.jl",

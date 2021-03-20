@@ -21,6 +21,14 @@ function LinearAlgebra.dot(ϕ::AbstractMPS, ψ::AbstractMPS)
     tr(C)
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+Prepares left environment. Returns 
+```math
+\\bra{\\psi} O \\ket{\\phi}
+```
+"""
 function left_env(ϕ::AbstractMPS, ψ::AbstractMPS)
     l = length(ψ)
     T = promote_type(eltype(ψ), eltype(ϕ))
@@ -53,6 +61,14 @@ end
     L
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+Prepares right environment. Returns 
+```math
+\\bra{\\psi} O \\ket{\\phi}
+```
+"""
 # NOT tested yet
 function right_env(ϕ::AbstractMPS, ψ::AbstractMPS)
     L = length(ψ)

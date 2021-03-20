@@ -1,5 +1,18 @@
 export truncate!, canonise!, compress
 
+
+"""
+$(TYPEDSIGNATURES)
+
+Truncates MPS. Creates left environment and then compresses MPS variationally.
+Args:
+    ψ (AbstractMPS): MPS.
+    Dcut (Int): bond dimension.
+    tol (Number): condition for overlap convergence of one sweep.
+    max_sweeps (Int): maximal number of sweeps during variational compression.
+Returns:
+    compressed MPS.
+"""
 function compress(ψ::AbstractMPS, Dcut::Int, tol::Number=1E-8, max_sweeps::Int=4)
 
     # Initial guess - truncated ψ
@@ -32,6 +45,15 @@ function compress(ψ::AbstractMPS, Dcut::Int, tol::Number=1E-8, max_sweeps::Int=
     ϕ
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+Performs right canonisation of MPS and then left canonize MPS. Truncation is done by SVD.
+Args:
+    ψ (AbstractMPS): MPS
+Returns:
+    Canonised MPS
+"""
 function canonise!(ψ::AbstractMPS)
     canonise!(ψ, :right)
     canonise!(ψ, :left)

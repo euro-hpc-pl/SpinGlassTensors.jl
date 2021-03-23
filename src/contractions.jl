@@ -22,8 +22,7 @@ function LinearAlgebra.dot(ϕ::AbstractMPS, ψ::AbstractMPS)
 end
 
 """
-$(TYPEDSIGNATURES)
-
+    left_env(ϕ::AbstractMPS, ψ::AbstractMPS)
 Prepares left environment. Returns 
 ```math
 \\bra{\\psi} O \\ket{\\phi}
@@ -62,8 +61,7 @@ end
 end
 
 """
-$(TYPEDSIGNATURES)
-
+    right_env(ϕ::AbstractMPS, ψ::AbstractMPS)
 Prepares right environment. Returns 
 ```math
 \\bra{\\psi} O \\ket{\\phi}
@@ -108,16 +106,14 @@ end
 
 
 """
-$(TYPEDSIGNATURES)
-
+    LinearAlgebra.norm(ψ::AbstractMPS)
 Calculates the norm of an MPS \$\\ket{\\phi}\$
 """
 LinearAlgebra.norm(ψ::AbstractMPS) = sqrt(abs(dot(ψ, ψ)))
 
 
 """
-$(TYPEDSIGNATURES)
-
+    LinearAlgebra.dot(ϕ::AbstractMPS, O::Union{Vector, NTuple}, ψ::AbstractMPS)
 Calculates \$\\bra{\\phi} O \\ket{\\psi}\$
 
 # Details

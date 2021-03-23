@@ -2,7 +2,8 @@ export truncate!, canonise!, compress
 
 
 """
-    compress(ψ::AbstractMPS, Dcut::Int, tol::Number=1E-8, max_sweeps::Int=4)
+$(TYPEDSIGNATURES)
+
 Truncates MPS. Creates left environment and then compresses MPS variationally.
 # Args:
     * ψ (AbstractMPS): MPS.
@@ -45,7 +46,8 @@ function compress(ψ::AbstractMPS, Dcut::Int, tol::Number=1E-8, max_sweeps::Int=
 end
 
 """
-    canonise!(ψ::AbstractMPS)
+$(TYPEDSIGNATURES)
+
 Performs right canonisation of MPS and then left canonize MPS. Truncation is done by SVD.
 # Args:
     * ψ (AbstractMPS): MPS

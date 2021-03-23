@@ -1,7 +1,8 @@
 export rq
 
 """
-    LinearAlgebra.qr(M::AbstractMatrix, Dcut::Int, args...)
+$(TYPEDSIGNATURES)
+
 Wraper to QR.
 """
 function LinearAlgebra.qr(M::AbstractMatrix, Dcut::Int, args...)
@@ -12,7 +13,8 @@ function LinearAlgebra.qr(M::AbstractMatrix, Dcut::Int, args...)
 end
 
 """
-    rq(M::AbstractMatrix, Dcut::Int, args...)
+$(TYPEDSIGNATURES)
+
 Wraper to QR.
 """
 function rq(M::AbstractMatrix, Dcut::Int, args...)
@@ -31,7 +33,8 @@ function _qr_fix(Q::T, R::AbstractMatrix) where {T <: AbstractMatrix}
 end
 
 """
-    LinearAlgebra.svd(A::AbstractMatrix, Dcut::Int, args...)
+$(TYPEDSIGNATURES)
+
 Wraper to SVD.
 """
 function LinearAlgebra.svd(A::AbstractMatrix, Dcut::Int, args...)

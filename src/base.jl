@@ -41,7 +41,18 @@ end
 @inline Base.size(a::AbstractTensorNetwork) = (length(a.tensors), )
 @inline Base.eachindex(a::AbstractTensorNetwork) = eachindex(a.tensors)
 
+"""
+$(TYPEDSIGNATURES)
+
+Returns rank of MPS tensors.
+"""
 @inline LinearAlgebra.rank(ψ::AbstractMPS) = Tuple(size(A, 2) for A ∈ ψ)
+
+"""
+$(TYPEDSIGNATURES)
+
+Returns physical dimension of MPS tensors at given site.
+"""
 @inline physical_dim(ψ::AbstractMPS, i::Int) = size(ψ[i], 2)
 
 @inline MPS(A::AbstractArray) = MPS(A, :right)
@@ -50,6 +61,11 @@ end
 @inline MPS(A::AbstractArray, ::Val{:right}, Dcut::Int, args...) = _left_sweep_SVD(MPS, A, Dcut, args...)
 @inline MPS(A::AbstractArray, ::Val{:left}, Dcut::Int, args...) = _right_sweep_SVD(MPS, A, Dcut, args...)
 
+"""
+$(TYPEDSIGNATURES)
+
+Remove the dimension specified by i from every MPS tensor.
+"""
 @inline dropindices(ψ::AbstractMPS, i::Int=2) = (dropdims(A, dims=i) for A ∈ ψ)
 
 function MPS(states::Vector{Vector{T}}) where {T <: Number}
@@ -91,10 +107,20 @@ end
 
 Base.randn(::Type{MPO}, args...) = randn(MPO{Float64}, args...)
 
+"""
+$(TYPEDSIGNATURES)
+
+Check whether MPS is left normalized.
+"""
 is_left_normalized(ψ::MPS) = all(
     I(size(A, 3)) ≈ @tensor Id[x, y] := conj(A[α, σ, x]) * A[α, σ, y] order = (α, σ) for A ∈ ψ
 )
 
+"""
+$(TYPEDSIGNATURES)
+
+Check whether MPS is right normalized.
+"""
 is_right_normalized(ϕ::MPS) = all(
     I(size(B, 1)) ≈ @tensor Id[x, y] := B[x, σ, α] * conj(B[y, σ, α]) order = (α, σ) for B in ϕ
 )
@@ -104,12 +130,22 @@ function _verify_square(ψ::AbstractMPS)
     @assert isqrt.(dims) .^ 2 == dims "Incorrect MPS dimensions"
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+Check whether MPS has correct physical dimension at given site.
+"""
 function verify_physical_dims(ψ::AbstractMPS, dims::NTuple)
     for i ∈ eachindex(ψ)
         @assert physical_dim(ψ, i) == dims[i] "Incorrect physical dim at site $(i)."
     end
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+Check whether MPS has correct sizes.
+"""
 function verify_bonds(ψ::AbstractMPS)
     L = length(ψ)
 

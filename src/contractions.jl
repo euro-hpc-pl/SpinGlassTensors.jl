@@ -106,14 +106,12 @@ end
     R
 end
 
-
 """
 $(TYPEDSIGNATURES)
 
 Calculates the norm of an MPS \$\\ket{\\phi}\$
 """
 LinearAlgebra.norm(ψ::AbstractMPS) = sqrt(abs(dot(ψ, ψ)))
-
 
 """
 $(TYPEDSIGNATURES)
@@ -128,7 +126,6 @@ Calculates the matrix element of \$O\$
 ```
 in one pass, utlizing `TensorOperations`.
 """
-
 function LinearAlgebra.dot(ϕ::AbstractMPS, O::Union{Vector, NTuple}, ψ::AbstractMPS) #where T <: AbstractMatrix
     S = promote_type(eltype(ψ), eltype(ϕ), eltype(O[1]))
     C = similar(ψ[1], S, (1, 1))
@@ -142,7 +139,6 @@ function LinearAlgebra.dot(ϕ::AbstractMPS, O::Union{Vector, NTuple}, ψ::Abstra
     end
     tr(C)
 end
-
 
 function LinearAlgebra.dot(O::AbstractMPO, ψ::AbstractMPS)
     L = length(ψ)

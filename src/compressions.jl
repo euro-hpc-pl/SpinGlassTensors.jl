@@ -63,6 +63,13 @@ canonise!(ψ::AbstractMPS, s::Symbol) = canonise!(ψ, Val(s))
 canonise!(ψ::AbstractMPS, ::Val{:right}) = _left_sweep_SVD!(ψ)
 canonise!(ψ::AbstractMPS, ::Val{:left}) = _right_sweep_SVD!(ψ)
 
+"""
+$(TYPEDSIGNATURES)
+
+Truncate MPS by SVD.
+# Returns:
+    Truncated MPS
+"""
 truncate!(ψ::AbstractMPS, s::Symbol, Dcut::Int) = truncate!(ψ, Val(s), Dcut)
 truncate!(ψ::AbstractMPS, ::Val{:right}, Dcut::Int) = _left_sweep_SVD!(ψ, Dcut)
 truncate!(ψ::AbstractMPS, ::Val{:left}, Dcut::Int) = _right_sweep_SVD!(ψ, Dcut)

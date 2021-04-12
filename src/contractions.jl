@@ -21,6 +21,9 @@ function LinearAlgebra.dot(ϕ::AbstractMPS, ψ::AbstractMPS)
     tr(C)
 end
 
+"""
+Creates left environment
+"""
 function left_env(ϕ::AbstractMPS, ψ::AbstractMPS)
     l = length(ψ)
     T = promote_type(eltype(ψ), eltype(ϕ))
@@ -112,7 +115,6 @@ Calculates the matrix element of \$O\$
 ```
 in one pass, utlizing `TensorOperations`.
 """
-
 function LinearAlgebra.dot(ϕ::AbstractMPS, O::Union{Vector, NTuple}, ψ::AbstractMPS) #where T <: AbstractMatrix
     S = promote_type(eltype(ψ), eltype(ϕ), eltype(O[1]))
     C = similar(ψ[1], S, (1, 1))

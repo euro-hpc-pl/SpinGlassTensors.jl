@@ -13,7 +13,7 @@ TensorOperations = "6aa20fa7-93e2-5fca-9bc0-fbd0db3c71a2"
 
 [compat]
 DocStringExtensions = "0.8"
-LowRankApprox = "0.4"
+LowRankApprox = "0.4, 0.5"
 Memoize = "0.4"
 TensorCast = "0.3"
 TensorOperations = "3.0.1"

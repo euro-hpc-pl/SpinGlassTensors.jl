@@ -181,7 +181,7 @@ end
     @testset "Equal tuples with MPS and MPO have the same hash" begin
         tuple_1 = (ψ, W, [1, 2, 3])
         tuple_2 = (ϕ, V, [1, 2, 3])
-        @test  tuple_1 == tuple_2
+        @test tuple_1 == tuple_2
         @test hash(tuple_1) == hash(tuple_2)
     end
 end

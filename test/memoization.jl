@@ -9,7 +9,7 @@ d = 3
 sites = 5
 T = Float64
 
-@testset "Calling left_env with equal arguments results in a cache hit" begin
+@testset "Results of left_env are correctly cached" begin
     # Cache is global, therefore we need to reset it to obtain meaningful
     # results here.
     empty!(memoize_cache(left_env))
@@ -22,20 +22,16 @@ T = Float64
     σ = [1, 2, 3]
     η = [1, 2, 3]
 
-    # Should result in 4 calls total (top-level + 3 recursive)
-    env_1 = left_env(ψ, σ) 
-    @test length(memoize_cache(left_env)) == 4
+    envs = [left_env(mps, v) for mps in (ψ, ϕ) for v ∈ (σ, η)]
 
-    env_2 = left_env(ψ, η)
+    @testset "Calls made with equal arguments result in a cache hit" begin
+        # Should result in 4 calls total (top-level + 3 recursive)    
+        @test length(memoize_cache(left_env)) == 4
+    end
 
-    env_3 = left_env(ϕ, σ)
-    
-    env_4 = left_env(ϕ, η)
-    
-    @test env_1 == env_2 == env_3 == env_4
-
-    # No additional calls should be made, thus size of cache should still be equal to 4
-    @test length(memoize_cache(left_env)) == 4
+    @testset "Cached results are equal to the ones computed during first call" begin
+        @test all(env->env==envs[1], envs)
+    end    
 end
 
 
@@ -57,7 +53,7 @@ end
         right_env(mps, mpo, v) for mps in (ψ, ϕ) for mpo ∈ (W, V) for v ∈ (σ, η)
     ]
     
-    @testset "Calls made with equal arguments results in a cache hit" begin
+    @testset "Calls made with equal arguments result in a cache hit" begin
         # Should result in 6 calls total (top-level + 5 recursive)
         @test length(memoize_cache(right_env)) == 6
     end

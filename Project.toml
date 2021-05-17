@@ -1,7 +1,7 @@
 name = "SpinGlassTensors"
 uuid = "7584fc6a-5a23-4eeb-8277-827aab0146ea"
 authors = ["Łukasz Pawela <lukasz.pawela@gmail.com>", "Konrad Jałowiecki <dexter2206@gmail.com>", "Bartłomiej Gardas <bartek.gardas@gmail.com>"]
-version = "0.1.0"
+version = "0.1.1"
 
 [deps]
 DocStringExtensions = "ffbed154-4ef7-542d-bbb7-c09d3a79fcae"
@@ -21,7 +21,8 @@ julia = "1.5"
 
 [extras]
 Logging = "56ddb016-857b-54e1-b83d-db4d58db5568"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Logging", "Test"]
+test = ["Logging", "Test", "Random"]

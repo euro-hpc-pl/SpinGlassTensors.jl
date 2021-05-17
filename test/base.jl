@@ -156,3 +156,32 @@ end
 end
 
 end
+
+
+@testset "Objects with equal tensors have the same hash" begin
+    D = 10
+    d = 4
+    sites = 5
+    T = ComplexF64
+
+    ψ = randn(MPS{T}, sites, D, d)
+    ϕ = copy(ψ)
+
+    W = randn(MPO{T}, sites, D, d)
+    V = copy(W)
+
+    @testset "Equal MPSs have the same hash" begin
+        @test hash(ψ) == hash(ϕ)
+    end
+
+    @testset "Equal MPOs have the same hash" begin
+        @test hash(W) == hash(V)
+    end
+
+    @testset "Equal tuples with MPS and MPO have the same hash" begin
+        tuple_1 = (ψ, W, [1, 2, 3])
+        tuple_2 = (ϕ, V, [1, 2, 3])
+        @test tuple_1 == tuple_2
+        @test hash(tuple_1) == hash(tuple_2)
+    end
+end

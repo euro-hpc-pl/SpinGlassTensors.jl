@@ -23,14 +23,13 @@ my_tests = []
 #     )
 # end
 
-my_tests = []
-
-push!(my_tests,
-      "base.jl",
-      "contractions.jl",
-      "compressions.jl",
-      "identities.jl",
-)
+my_tests = [
+    "base.jl",
+    "memoization.jl",
+    "contractions.jl",
+    "compressions.jl",
+    "identities.jl"
+]
 
 for my_test in my_tests
     include(my_test)

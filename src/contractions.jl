@@ -43,7 +43,7 @@ function left_env(ϕ::AbstractMPS, ψ::AbstractMPS)
     L
 end
 
-@memoize function left_env(ϕ::AbstractMPS, σ::Vector{Int})
+@memoize Dict function left_env(ϕ::AbstractMPS, σ::Vector{Int})
     l = length(σ)
     if l == 0
         L = [1.]
@@ -76,7 +76,7 @@ function right_env(ϕ::AbstractMPS, ψ::AbstractMPS)
     R
 end
 
-@memoize function right_env(ϕ::AbstractMPS{T}, W::AbstractMPO{T}, σ::Union{Vector, NTuple}) where {T}
+@memoize Dict function right_env(ϕ::AbstractMPS{T}, W::AbstractMPO{T}, σ::Union{Vector, NTuple}) where {T}
     l = length(σ)
     #k = length(ϕ)
     k = length(W)

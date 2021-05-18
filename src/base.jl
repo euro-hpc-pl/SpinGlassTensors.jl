@@ -25,14 +25,14 @@ for (T, N) ∈ ((:PEPSRow, 5), (:MPO, 4), (:MPS, 3))
         @inline Base.setindex!(a::$AT, A::AbstractArray{<:Number, $N}, i::Int) = a.tensors[i] = A
         @inline bond_dimension(a::$AT) = maximum(size.(a.tensors, $N))
         Base.hash(a::$T, h::UInt) = hash(a.tensors, h)
+        @inline Base.:(==)(a::$T, b::$T) = a.tensors == b.tensors
+        @inline Base.:(≈)(a::$T, b::$T)  = a.tensors ≈ b.tensors
         Base.copy(a::$T) = $T(copy(a.tensors))
 
         @inline Base.eltype(::$AT{T}) where {T} = T
     end
 end
 
-@inline Base.:(==)(a::AbstractTensorNetwork, b::AbstractTensorNetwork) = a.tensors == b.tensors
-@inline Base.:(≈)(a::AbstractTensorNetwork, b::AbstractTensorNetwork)  = a.tensors ≈ b.tensors
 
 @inline Base.getindex(a::AbstractTensorNetwork, i) = getindex(a.tensors, i)
 @inline Base.iterate(a::AbstractTensorNetwork) = iterate(a.tensors)

@@ -27,7 +27,7 @@ function LinearAlgebra.svd(A::AbstractMatrix, Dcut::Int, args...)
     d = diag(U)
     ph = d ./ abs.(d)
     for i ∈ eachindex(ph)
-        @inbounds ph[i] = ifelse(isapprox(ph[i], 0, atol=1e-14), 1, ph[i])
+        @inbounds ph[i] = ifelse(isapprox(d[i], 0, atol=1e-14), 1, ph[i])
     end
     return  U * Diagonal(ph), Σ, V * Diagonal(ph)
 end

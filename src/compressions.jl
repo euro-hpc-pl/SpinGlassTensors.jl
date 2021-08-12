@@ -61,7 +61,7 @@ function _right_sweep_SVD!(ψ::AbstractMPS, Dcut::Int=typemax(Int))
 
         # create new
         d = physical_dim(ψ, i)
-        @cast A[x, σ, y] |= U[(x, σ), y] (σ:d)
+        @cast A[x, σ, y] |= U[(x, σ), y] (σ ∈ 1:d)
         ψ[i] = A
     end
     ψ[end] *= tr(V)
@@ -83,7 +83,7 @@ function _left_sweep_SVD!(ψ::AbstractMPS, Dcut::Int=typemax(Int))
 
         # create new
         d = physical_dim(ψ, i)
-        @cast B[x, σ, y] |= V'[x, (σ, y)] (σ:d)
+        @cast B[x, σ, y] |= V'[x, (σ, y)] (σ ∈ 1:d)
         ψ[i] = B
     end
     ψ[1] *= tr(U)
@@ -108,7 +108,7 @@ function _left_sweep_var!!(ϕ::AbstractMPS, env::Vector{<:AbstractMatrix}, ψ::A
         Q = rq(MM, Dcut)
 
         d = size(M, 2)
-        @cast B[x, σ, y] |= Q[x, (σ, y)] (σ:d)
+        @cast B[x, σ, y] |= Q[x, (σ, y)] (σ ∈ 1:d)
 
         # update ϕ and right environment
         ϕ[i] = B
@@ -138,7 +138,7 @@ function _right_sweep_var!!(ϕ::AbstractMPS, env::Vector{<:AbstractMatrix}, ψ::
         Q = qr(B, Dcut)
 
         d = size(ϕ[i], 2)
-        @cast A[x, σ, y] |= Q[(x, σ), y] (σ:d)
+        @cast A[x, σ, y] |= Q[(x, σ), y] (σ ∈ 1:d)
 
         # update ϕ and left environment
         ϕ[i] = A
@@ -162,14 +162,14 @@ function _right_sweep_SVD(::Type{T}, A::AbstractArray, Dcut::Int=typemax(Int), a
 
         # reshape
         VV = conj.(transpose(V))
-        @cast M[(x, σ), y] |= VV[x, (σ, y)] (σ:d)
+        @cast M[(x, σ), y] |= VV[x, (σ, y)] (σ ∈ 1:d)
 
         # decompose
         U, Σ, V = svd(M, Dcut, args...)
         V *= Diagonal(Σ)
 
         # create MPS
-        @cast B[x, σ, y] |= U[(x, σ), y] (σ:d)
+        @cast B[x, σ, y] |= U[(x, σ), y] (σ ∈ 1:d)
         ψ[i] = B
     end
     ψ
@@ -186,7 +186,7 @@ function _left_sweep_SVD(::Type{T}, A::AbstractArray, Dcut::Int=typemax(Int), ar
         d = size(A, i)
 
         # reshape
-        @cast M[x, (σ, y)] |= U[(x, σ), y] (σ:d)
+        @cast M[x, (σ, y)] |= U[(x, σ), y] (σ ∈ 1:d)
 
         # decompose
         U, Σ, V = svd(M, Dcut, args...)
@@ -194,7 +194,7 @@ function _left_sweep_SVD(::Type{T}, A::AbstractArray, Dcut::Int=typemax(Int), ar
 
         # create MPS
         VV = conj.(transpose(V))
-        @cast B[x, σ, y] |= VV[x, (σ, y)] (σ:d)
+        @cast B[x, σ, y] |= VV[x, (σ, y)] (σ ∈ 1:d)
         ψ[i] = B
     end
     ψ

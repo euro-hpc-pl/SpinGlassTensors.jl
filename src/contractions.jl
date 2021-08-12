@@ -15,7 +15,7 @@ function LinearAlgebra.dot(ϕ::AbstractMPS, ψ::AbstractMPS)
     for (A, B) ∈ zip(ψ, ϕ)
         @tensor C[x, y] := conj(B)[β, σ, x] * C[β, α] * A[α, σ, y] order = (α, β, σ)
     end
-    C[]
+    tr(C)
 end
 
 """
@@ -115,7 +115,7 @@ function LinearAlgebra.dot(ϕ::AbstractMPS, O::Union{Vector, NTuple}, ψ::Abstra
     for (A, W, B) ∈ zip(ϕ, O, ψ)
         @tensor C[x, y] := conj(A)[β, σ, x] * W[σ, η] * C[β, α] * B[α, η, y] order = (α, η, β, σ)
     end
-    C[]
+    tr(C)
 end
 
 

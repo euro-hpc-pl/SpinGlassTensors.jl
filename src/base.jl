@@ -61,7 +61,7 @@ end
 function (::Type{T})(ψ::AbstractMPS) where {T <:AbstractMPO}
     _verify_square(ψ)
     T([
-        @cast W[x, σ, y, η] |= A[x, (σ, η), y] (σ:isqrt(size(A, 2)))
+        @cast W[x, σ, y, η] |= A[x, (σ, η), y] (σ ∈ 1:isqrt(size(A, 2)))
         for A in ψ
     ])
 end

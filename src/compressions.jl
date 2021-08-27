@@ -53,8 +53,7 @@ function _right_sweep_SVD!(ψ::AbstractMPS, Dcut::Int=typemax(Int))
         C = (Diagonal(Σ) ./ Σ[1]) * V'
 
         # attach
-        @tensor M[x, σ, y] := C[x, α] * A[α, σ, y]
-        @cast   M̃[(x, σ), y] |= M[x, σ, y]
+        @matmul M̃[(x, σ), y] := sum(α) C[x, α] * A[α, σ, y]
 
         # decompose
         U, Σ, V = svd(M̃, Dcut)
@@ -74,9 +73,8 @@ function _left_sweep_SVD!(ψ::AbstractMPS, Dcut::Int=typemax(Int))
         B = ψ[i]
         C = U * (Diagonal(Σ) ./ Σ[1])
 
-        # attach
-        @tensor M[x, σ, y]   := B[x, σ, α] * C[α, y]
-        @cast   M̃[x, (σ, y)] |= M[x, σ, y]
+        # attach    
+        @matmul M̃[x, (σ, y)] := sum(α) B[x, σ, α] * C[α, y]
 
         # decompose
         U, Σ, V = svd(M̃, Dcut)
@@ -101,10 +99,10 @@ function _left_sweep_var!!(ϕ::AbstractMPS, env::Vector{<:AbstractMatrix}, ψ::A
 
         # optimize site
         M = ψ[i]
-        @tensor M̃[x, σ, y] := L[x, β] * M[β, σ, α] * R[α, y] order = (α, β)
 
-        # right canonize it
-        @cast MM[x, (σ, y)] |= M̃[x, σ, y]
+        @matmul MM[x, σ, α] := sum(β) L[x, β] * M[β, σ, α] 
+        @matmul MM[x, (σ, y)] := sum(α) MM[x, σ, α] * R[α, y]
+
         Q = rq(MM, Dcut)
 
         d = size(M, 2)
@@ -131,10 +129,9 @@ function _right_sweep_var!!(ϕ::AbstractMPS, env::Vector{<:AbstractMatrix}, ψ::
 
         # optimize site
         M = ψ[i]
-        @tensor M̃[x, σ, y] := L[x, β] * M[β, σ, α] * R[α, y] order = (α, β)
+        @matmul M̃[x, σ, α] := sum(β) L[x, β] * M[β, σ, α]
+        @matmul B[(x, σ), y] := sum(α) M̃[x, σ, α] * R[α, y]
 
-        # left canonize it
-        @cast B[(x, σ), y] |= M̃[x, σ, y]
         Q = qr(B, Dcut)
 
         d = size(ϕ[i], 2)

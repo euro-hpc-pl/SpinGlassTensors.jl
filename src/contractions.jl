@@ -44,7 +44,7 @@ end
         m = σ[l]
         L̃ = left_env(ϕ, σ[1:l-1])
         M = ϕ[l]
-        @reduce L[x] := sum(α) L̃[α] * M[α, $m, x]
+        @matmul L[x] := sum(α) L̃[α] * M[α, $m, x]
     end
     L
 end
@@ -124,7 +124,7 @@ function LinearAlgebra.dot(O::AbstractMPO, ψ::AbstractMPS)
     T = typeof(ψ)
     ϕ = T.name.wrapper(S, length(ψ))
     for (i, (A, B)) ∈ enumerate(zip(O, ψ))
-        @reduce N[(x, a), σ, (y, b)] := sum(η) A[x, σ, y, η] * B[a, η, b]
+        @matmul N[(x, a), σ, (y, b)] := sum(η) A[x, σ, y, η] * B[a, η, b]
         ϕ[i] = N
     end
     ϕ
@@ -133,7 +133,7 @@ end
 
 function dot!(ψ::AbstractMPS, O::AbstractMPO)
     for (i, (A, B)) ∈ enumerate(zip(ψ, O))
-        @reduce N[(x, a), σ, (y, b)] := sum(η) B[x, σ, y, η] * A[a, η, b]
+        @matmul N[(x, a), σ, (y, b)] := sum(η) B[x, σ, y, η] * A[a, η, b]
         ψ[i] = N
     end
 end
@@ -144,7 +144,7 @@ function LinearAlgebra.dot(O1::AbstractMPO, O2::AbstractMPO)
     T = typeof(O1)
     O = T.name.wrapper(S, length(O1))
     for (i, (A, B)) ∈ enumerate(zip(O1, O2))
-        @reduce V[(x, a), σ, (y, b), η] := sum(γ) A[x, σ, y, γ] * B[a, γ, b, η]
+        @matmul V[(x, a), σ, (y, b), η] := sum(γ) A[x, σ, y, γ] * B[a, γ, b, η]
         O[i] = V
     end
     O

@@ -12,11 +12,13 @@ IdentityMPO(::Type{S}, ::Type{T}) where {S <: Number, T <: AbstractArray} = Iden
 
 const IdentityMPSorMPO = Union{IdentityMPO, IdentityMPS}
 
+
 @inline function Base.getindex(::IdentityMPS{S, T}, ::Int) where {S, T}
     ret = similar(T{S}, (1, 1, 1))
     ret[1] = one(S)
     ret
 end
+
 
 @inline function Base.getindex(::IdentityMPO{S, T}, ::Int) where {S, T}
     ret = similar(T{S}, (1, 1, 1, 1))
@@ -24,21 +26,15 @@ end
     ret
 end
 
+
 LinearAlgebra.dot(O::AbstractMPO, ::IdentityMPO) = O
 LinearAlgebra.dot(::IdentityMPO, O::AbstractMPO) = O
 Base.length(::IdentityMPSorMPO) = Inf
 
-function LinearAlgebra.dot(O::AbstractMPO, ::IdentityMPS)
-    L = length(O)
-    T = eltype(O)
-    ψ = MPS(T, L) #FIXME: this will fail with specialized MPS types
-    for i ∈ eachindex(ψ)
-        B = O[i]
-        @reduce A[x, σ, y] |= sum(η) B[x, σ, y, η]
-        ψ[i] = A
-    end
-    ψ
-end
+
+LinearAlgebra.dot(O::AbstractMPO, ::IdentityMPS) = 
+MPS([dropdims(sum(A, dims=4), dims=4) for A ∈ O])
+
 
 LinearAlgebra.dot(::IdentityMPO, ψ::AbstractMPS) = ψ
 LinearAlgebra.dot(ψ::AbstractMPS, ::IdentityMPO) = ψ

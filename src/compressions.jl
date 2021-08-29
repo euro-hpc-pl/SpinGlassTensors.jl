@@ -47,9 +47,7 @@ truncate!(ψ::AbstractMPS, ::Val{:left}, Dcut::Int) = _right_sweep_SVD!(ψ, Dcut
 
 function _right_sweep_SVD!(ψ::AbstractMPS, Dcut::Int=typemax(Int))
     Σ = V = ones(eltype(ψ), 1, 1)
-
-    for i ∈ eachindex(ψ)
-        A = ψ[i]
+    for (i, A) ∈ enumerate(ψ)
         C = (Diagonal(Σ) ./ Σ[1]) * V'
 
         # attach
@@ -66,9 +64,9 @@ function _right_sweep_SVD!(ψ::AbstractMPS, Dcut::Int=typemax(Int))
     ψ[end] *= tr(V)
 end
 
+
 function _left_sweep_SVD!(ψ::AbstractMPS, Dcut::Int=typemax(Int))
     Σ = U = ones(eltype(ψ), 1, 1)
-
     for i ∈ length(ψ):-1:1
         B = ψ[i]
         C = U * (Diagonal(Σ) ./ Σ[1])
@@ -87,6 +85,7 @@ function _left_sweep_SVD!(ψ::AbstractMPS, Dcut::Int=typemax(Int))
     ψ[1] *= tr(U)
 end
 
+
 function _left_sweep_var!!(ϕ::AbstractMPS, env::Vector{<:AbstractMatrix}, ψ::AbstractMPS, Dcut::Int)
     S = eltype(ϕ)
 
@@ -99,23 +98,23 @@ function _left_sweep_var!!(ϕ::AbstractMPS, env::Vector{<:AbstractMatrix}, ψ::A
 
         # optimize site
         M = ψ[i]
-
-        @matmul MM[x, σ, α] := sum(β) L[x, β] * M[β, σ, α] 
+        @tensor MM[x, σ, α] := L[x, β] * M[β, σ, α] 
         @matmul MM[x, (σ, y)] := sum(α) MM[x, σ, α] * R[α, y]
 
         Q = rq(MM, Dcut)
 
-        d = size(M, 2)
+        d = physical_dim(ψ, i)
         @cast B[x, σ, y] |= Q[x, (σ, y)] (σ ∈ 1:d)
 
         # update ϕ and right environment
         ϕ[i] = B
         A = ψ[i]
 
-        @tensor RR[x, y] := A[x, σ, α] * R[α, β] * conj(B[y, σ, β]) order = (β, α, σ)
+        @tensor RR[x, y] := A[x, σ, α] * R[α, β] * conj(B)[y, σ, β] order = (β, α, σ)
         env[i] = RR
     end
 end
+
 
 function _right_sweep_var!!(ϕ::AbstractMPS, env::Vector{<:AbstractMatrix}, ψ::AbstractMPS, Dcut::Int)
     S = eltype(ϕ)
@@ -123,18 +122,17 @@ function _right_sweep_var!!(ϕ::AbstractMPS, env::Vector{<:AbstractMatrix}, ψ::
     # overwrite the overlap
     env[1] = ones(S, 1, 1)
 
-    for i ∈ eachindex(ψ)
+    for (i, M) ∈ enumerate(ψ)
         L = env[i]
         R = env[i+1]
 
         # optimize site
-        M = ψ[i]
-        @matmul M̃[x, σ, α] := sum(β) L[x, β] * M[β, σ, α]
+        @tensor M̃[x, σ, α] := L[x, β] * M[β, σ, α]
         @matmul B[(x, σ), y] := sum(α) M̃[x, σ, α] * R[α, y]
 
         Q = qr(B, Dcut)
 
-        d = size(ϕ[i], 2)
+        d = physical_dim(ψ, i)
         @cast A[x, σ, y] |= Q[(x, σ), y] (σ ∈ 1:d)
 
         # update ϕ and left environment
@@ -151,7 +149,6 @@ end
 function _right_sweep_SVD(::Type{T}, A::AbstractArray, Dcut::Int=typemax(Int), args...) where {T <: AbstractMPS}
     rank = ndims(A)
     ψ = T(eltype(A), rank)
-
     V = reshape(copy(conj(A)), (length(A), 1))
 
     for i ∈ 1:rank

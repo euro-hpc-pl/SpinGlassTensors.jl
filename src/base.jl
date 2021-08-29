@@ -6,7 +6,7 @@ const State = Union{Vector, NTuple}
 
 abstract type AbstractTensorNetwork{T} end
 
-for (T, N) ∈ ((:MPO, 4), (:MPS, 3))
+for (T, N) ∈ ((:PEPSRow, 5), (:MPO, 4), (:MPS, 3))
     AT = Symbol(:Abstract, T)
     @eval begin
         export $AT

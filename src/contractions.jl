@@ -115,18 +115,26 @@ end
 
 
 function LinearAlgebra.dot(O::AbstractMPO, ψ::AbstractMPS)
-    MPS([
+    S = promote_type(eltype(ψ), eltype(O))
+    T = typeof(ψ)
+    ϕ = T.name.wrapper(S, length(ψ))
+    for (i, (A, B)) ∈ enumerate(zip(O, ψ))
         @matmul N[(x, a), σ, (y, b)] := sum(η) A[x, σ, y, η] * B[a, η, b]
-        for (A, B) ∈ zip(O, ψ)
-    ])
+        ϕ[i] = N
+    end
+    ϕ
 end
 
 
 function LinearAlgebra.dot(O1::AbstractMPO, O2::AbstractMPO)
-    MPO([
+    S = promote_type(eltype(O1), eltype(O2))
+    T = typeof(O1)
+    O = T.name.wrapper(S, length(O1))
+    for (i, (A, B)) ∈ enumerate(zip(O1, O2))
         @matmul V[(x, a), σ, (y, b), η] := sum(γ) A[x, σ, y, γ] * B[a, γ, b, η]
-        for (A, B) ∈ zip(O1, O2)
-    ])
+        O[i] = V
+    end
+    O
 end 
 
 Base.:(*)(A::AbstractTensorNetwork, B::AbstractTensorNetwork) = dot(A, B)

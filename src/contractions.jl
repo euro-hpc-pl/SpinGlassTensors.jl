@@ -27,7 +27,6 @@ function left_env(ϕ::AbstractMPS, ψ::AbstractMPS)
     L = Vector{S}(undef, length(ψ)+1)
     L[1] = similar(ψ[1], T, (1, 1))
     L[1][1, 1] = one(T)
-
     for (i, (A, B)) ∈ enumerate(zip(ψ, ϕ))
         C = L[i]
         @tensor C[x, y] := conj(B)[β, σ, x] * C[β, α] * A[α, σ, y] order = (α, β, σ)
@@ -36,20 +35,18 @@ function left_env(ϕ::AbstractMPS, ψ::AbstractMPS)
     L
 end
 
+# TODO: remove it 
 @memoize Dict function left_env(ϕ::AbstractMPS, σ::Vector{Int})
     l = length(σ)
-    if l == 0
-        L = ones(typeof(ϕ), 1)
-    else
-        m = σ[l]
-        L̃ = left_env(ϕ, σ[1:l-1])
-        M = ϕ[l]
-        @matmul L[x] := sum(α) L̃[α] * M[α, $m, x]
-    end
+    if l == 0 return ones(eltype(ϕ), 1) end
+    m = σ[l]
+    L̃ = left_env(ϕ, σ[1:l-1])
+    M = ϕ[l]
+    @matmul L[x] := sum(α) L̃[α] * M[α, $m, x]
     L
 end
 
-# NOT tested yet
+
 function right_env(ϕ::AbstractMPS, ψ::AbstractMPS)
     L = length(ψ)
     T = promote_type(eltype(ψ), eltype(ϕ))
@@ -57,11 +54,9 @@ function right_env(ϕ::AbstractMPS, ψ::AbstractMPS)
     R = Vector{S}(undef, L+1)
     R[end] = similar(ψ[1], T, (1, 1))
     R[end][1, 1] = one(T)
-
     for i ∈ L:-1:1
         M = ψ[i]
         M̃ = conj.(ϕ[i])
-
         D = R[i+1]
         @tensor D[x, y] := M[x, σ, α] * D[α, β] * M̃[y, σ, β] order = (β, α, σ)
         R[i] = D
@@ -69,19 +64,20 @@ function right_env(ϕ::AbstractMPS, ψ::AbstractMPS)
     R
 end
 
+# TODO: remove it 
 @memoize Dict function right_env(ϕ::AbstractMPS{T}, W::AbstractMPO{T}, σ::Union{Vector, NTuple}) where {T}
     l = length(σ)
-    k = length(W)
     if l == 0
         R = similar(ϕ[1], T, (1, 1))
         R[1, 1] = one(T)
-    else
-        R̃ = right_env(ϕ, W, σ[2:l])
-        M = ϕ[k-l+1]
-        M̃ = W[k-l+1]
-        K = @view M̃[:, σ[1], :, :]
-        @tensor R[x, y] := K[y, β, γ] * M[x, γ, α] * R̃[α, β] order = (β, γ, α)
+        return R
     end
+    k = length(W)
+    R̃ = right_env(ϕ, W, σ[2:l])
+    M = ϕ[k-l+1]
+    M̃ = W[k-l+1]
+    K = @view M̃[:, σ[1], :, :]
+    @tensor R[x, y] := K[y, β, γ] * M[x, γ, α] * R̃[α, β] order = (β, γ, α)
     R
 end
 
@@ -119,14 +115,10 @@ end
 
 
 function LinearAlgebra.dot(O::AbstractMPO, ψ::AbstractMPS)
-    S = promote_type(eltype(ψ), eltype(O))
-    T = typeof(ψ)
-    ϕ = T.name.wrapper(S, length(ψ))
-    for (i, (A, B)) ∈ enumerate(zip(O, ψ))
+    MPS([
         @matmul N[(x, a), σ, (y, b)] := sum(η) A[x, σ, y, η] * B[a, η, b]
-        ϕ[i] = N
-    end
-    ϕ
+        for (A, B) ∈ zip(O, ψ)
+    ])
 end
 
 
@@ -139,14 +131,10 @@ end
 
 
 function LinearAlgebra.dot(O1::AbstractMPO, O2::AbstractMPO)
-    S = promote_type(eltype(O1), eltype(O2))
-    T = typeof(O1)
-    O = T.name.wrapper(S, length(O1))
-    for (i, (A, B)) ∈ enumerate(zip(O1, O2))
+    MPO([
         @matmul V[(x, a), σ, (y, b), η] := sum(γ) A[x, σ, y, γ] * B[a, γ, b, η]
-        O[i] = V
-    end
-    O
-end
+        for (A, B) ∈ zip(O1, O2)
+    ])
+end 
 
 Base.:(*)(A::AbstractTensorNetwork, B::AbstractTensorNetwork) = dot(A, B)

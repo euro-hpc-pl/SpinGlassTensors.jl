@@ -35,7 +35,7 @@ function left_env(ϕ::AbstractMPS, ψ::AbstractMPS)
     L
 end
 
-# TODO: remove it 
+# TODO: remove it (after SpinGlassEngine is updated)
 @memoize Dict function left_env(ϕ::AbstractMPS, σ::Vector{Int})
     l = length(σ)
     if l == 0 return ones(eltype(ϕ), 1) end
@@ -64,7 +64,7 @@ function right_env(ϕ::AbstractMPS, ψ::AbstractMPS)
     R
 end
 
-# TODO: remove it 
+# TODO: remove it (after SpinGlassEngine is updated)
 @memoize Dict function right_env(ϕ::AbstractMPS{T}, W::AbstractMPO{T}, σ::Union{Vector, NTuple}) where {T}
     l = length(σ)
     if l == 0
@@ -119,14 +119,6 @@ function LinearAlgebra.dot(O::AbstractMPO, ψ::AbstractMPS)
         @matmul N[(x, a), σ, (y, b)] := sum(η) A[x, σ, y, η] * B[a, η, b]
         for (A, B) ∈ zip(O, ψ)
     ])
-end
-
-
-function dot!(ψ::AbstractMPS, O::AbstractMPO)
-    for (i, (A, B)) ∈ enumerate(zip(ψ, O))
-        @matmul N[(x, a), σ, (y, b)] := sum(η) B[x, σ, y, η] * A[a, η, b]
-        ψ[i] = N
-    end
 end
 
 

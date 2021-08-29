@@ -39,7 +39,7 @@ end
 @memoize Dict function left_env(ϕ::AbstractMPS, σ::Vector{Int})
     l = length(σ)
     if l == 0
-        L = [1.]
+        L = ones(typeof(ϕ), 1)
     else
         m = σ[l]
         L̃ = left_env(ϕ, σ[1:l-1])
@@ -76,11 +76,11 @@ end
         R = similar(ϕ[1], T, (1, 1))
         R[1, 1] = one(T)
     else
-        m = σ[1]
         R̃ = right_env(ϕ, W, σ[2:l])
         M = ϕ[k-l+1]
         M̃ = W[k-l+1]
-        @reduce R[x, y] := sum(α, β, γ) M̃[y, $m, β, γ] * M[x, γ, α] * R̃[α, β]
+        K = @view M̃[:, σ[1], :, :]
+        @tensor R[x, y] := K[y, β, γ] * M[x, γ, α] * R̃[α, β] order = (β, γ, α)
     end
     R
 end
@@ -111,7 +111,6 @@ function LinearAlgebra.dot(ϕ::AbstractMPS, O::Union{Vector, NTuple}, ψ::Abstra
     S = promote_type(eltype(ψ), eltype(ϕ), eltype(O[1]))
     C = similar(ψ[1], S, (1, 1))
     C[1, 1] = one(S)
-
     for (A, W, B) ∈ zip(ϕ, O, ψ)
         @tensor C[x, y] := conj(A)[β, σ, x] * W[σ, η] * C[β, α] * B[α, η, y] order = (α, η, β, σ)
     end

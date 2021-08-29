@@ -32,11 +32,7 @@ function LinearAlgebra.dot(O::AbstractMPO, ::IdentityMPS)
     L = length(O)
     T = eltype(O)
     ψ = MPS(T, L) #FIXME: this will fail with specialized MPS types
-    for i ∈ eachindex(ψ)
-        B = O[i]
-        @reduce A[x, σ, y] |= sum(η) B[x, σ, y, η]
-        ψ[i] = A
-    end
+    for (i, B) ∈ enumerate(O) ψ[i] = dropdims(sum(B, dims=4), dims=4) end
     ψ
 end
 

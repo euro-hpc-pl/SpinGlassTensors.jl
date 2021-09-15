@@ -27,12 +27,18 @@ for (T, N) ∈ ((:PEPSRow, 5), (:MPO, 4), (:MPS, 3))
         Base.hash(a::$T, h::UInt) = hash(a.tensors, h)
         @inline Base.:(==)(a::$T, b::$T) = a.tensors == b.tensors
         @inline Base.:(≈)(a::$T, b::$T)  = a.tensors ≈ b.tensors
-        Base.copy(a::$T) = $T(copy(a.tensors))
+        Base.copy(a::$T) = $T(copy(a.tensors)) # there is something wrong with this
 
         @inline Base.eltype(::$AT{T}) where {T} = T
     end
 end
 
+function copy_mps(ψ::AbstractTensorNetwork)
+    L = length(ψ)
+    ϕ = MPS(eltype(ψ), L)
+    for i ∈ 1:L ϕ[i] = copy(ψ[i]) end
+    ϕ
+end
 
 @inline Base.getindex(a::AbstractTensorNetwork, i) = getindex(a.tensors, i)
 @inline Base.iterate(a::AbstractTensorNetwork) = iterate(a.tensors)

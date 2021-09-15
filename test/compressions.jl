@@ -13,6 +13,15 @@ T = Float64
 χ = randn(MPS{T}, sites, D, d)
 Φ = randn(MPS{T}, sites, D, d)
 
+
+@testset "Copy and truncate" begin
+    ψ̃ = copy_mps(ψ)
+    @test ψ̃ ≈ ψ
+    truncate!(ψ̃, :right, Dcut)
+    truncate!(ψ, :right, Dcut)
+    @test ψ * ψ̃ ≈ 1 
+end
+
 @testset "Canonisation (left)" begin
     canonise!(ψ, :left)
     @test is_left_normalized(ψ)

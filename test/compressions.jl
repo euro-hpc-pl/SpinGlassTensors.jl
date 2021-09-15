@@ -15,15 +15,15 @@ T = Float64
 
 
 @testset "Copy and truncate" begin
-    ψ̃ = copy_mps(ψ)
-    @test ψ̃ ≈ ψ
-    truncate!(ψ̃, :right, Dcut)
+    ψ̃ = copy(ψ)
+    @test ψ̃ == ψ
     truncate!(ψ, :right, Dcut)
+    truncate!(ψ̃, :right, Dcut)
     @test ψ * ψ ≈ ψ̃ * ψ̃ ≈ 1 
     @test ψ * ψ̃ ≈ ψ̃ * ψ ≈ 1 
 end
 
-@testset "Canonisation (left)" begin
+@testset "Canonisation (left)" begin 
     canonise!(ψ, :left)
     @test is_left_normalized(ψ)
     @test dot(ψ, ψ) ≈ 1

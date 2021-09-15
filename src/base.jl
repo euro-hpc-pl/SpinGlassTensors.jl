@@ -1,6 +1,6 @@
 export bond_dimension, is_left_normalized, is_right_normalized
 export verify_bonds, verify_physical_dims, tensor, rank, physical_dim
-export State, dropindices, copy_mps
+export State, dropindices
 
 const State = Union{Vector, NTuple}
 
@@ -33,12 +33,6 @@ for (T, N) ∈ ((:PEPSRow, 5), (:MPO, 4), (:MPS, 3))
     end
 end
 
-function copy_mps(ψ::AbstractTensorNetwork)
-    L = length(ψ)
-    ϕ = MPS(eltype(ψ), L)
-    for i ∈ 1:L ϕ[i] = copy(ψ[i]) end
-    ϕ
-end
 
 @inline Base.getindex(a::AbstractTensorNetwork, i) = getindex(a.tensors, i)
 @inline Base.iterate(a::AbstractTensorNetwork) = iterate(a.tensors)

@@ -19,7 +19,8 @@ T = Float64
     @test ψ̃ ≈ ψ
     truncate!(ψ̃, :right, Dcut)
     truncate!(ψ, :right, Dcut)
-    @test ψ * ψ̃ ≈ 1 
+    @test ψ * ψ ≈ ψ̃ * ψ̃ ≈ 1 
+    @test ψ * ψ̃ ≈ ψ̃ * ψ ≈ 1 
 end
 
 @testset "Canonisation (left)" begin

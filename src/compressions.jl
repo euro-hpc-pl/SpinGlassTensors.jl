@@ -46,7 +46,9 @@ truncate!(ψ::AbstractMPS, ::Val{:right}, Dcut::Int) = _left_sweep_SVD!(ψ, Dcut
 truncate!(ψ::AbstractMPS, ::Val{:left}, Dcut::Int) = _right_sweep_SVD!(ψ, Dcut)
 
 function _right_sweep_SVD!(ψ::AbstractMPS, Dcut::Int=typemax(Int))
-    Σ = V = ones(eltype(ψ), 1, 1)
+    Σ = ones(eltype(ψ), 1, 1)
+    V = ones(eltype(ψ), 1, 1)
+
     for (i, A) ∈ enumerate(ψ)
         C = (Diagonal(Σ) ./ Σ[1]) * V'
 
@@ -66,7 +68,9 @@ end
 
 
 function _left_sweep_SVD!(ψ::AbstractMPS, Dcut::Int=typemax(Int))
-    Σ = U = ones(eltype(ψ), 1, 1)
+    Σ = ones(eltype(ψ), 1, 1)
+    U = ones(eltype(ψ), 1, 1)
+
     for i ∈ length(ψ):-1:1
         B = ψ[i]
         C = U * (Diagonal(Σ) ./ Σ[1])
@@ -142,7 +146,7 @@ function _right_sweep_var!!(ϕ::AbstractMPS, env::Vector{<:AbstractMatrix}, ψ::
         @tensor LL[x, y] := conj(A[β, σ, x]) * L[β, α] * B[α, σ, y] order = (α, β, σ)
         env[i+1] = LL
     end
-    real(env[end][1])
+    env[end][1]
 end
 
 

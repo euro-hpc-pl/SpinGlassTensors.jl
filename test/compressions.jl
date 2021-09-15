@@ -36,18 +36,17 @@ end
     ψ = randn(MPS{T}, sites, D, d)
     ψ̃ = copy(ψ)
     @test ψ̃ == ψ
-    for dir ∈ (:left, :right)
-        SpinGlassTensors._left_sweep_SVD!(ψ, Dcut)
-        SpinGlassTensors._left_sweep_SVD!(ψ̃, Dcut)
 
-        @test is_right_normalized(ψ)
-        @test is_right_normalized(ψ̃)
-        @test bond_dimension(ψ̃) == bond_dimension(ψ) 
-        @test all(size(A) == size(B) for (A, B) ∈ zip(ψ, ψ̃))
-        @test typeof(ψ̃) == typeof(ψ)
-        @test ψ * ψ ≈ ψ̃ * ψ̃ ≈ 1 
-        @test ψ * ψ̃ ≈ ψ̃ * ψ ≈ 1 # Does not pass 
-    end    
+    SpinGlassTensors._left_sweep_SVD!(ψ, Dcut)
+    SpinGlassTensors._left_sweep_SVD!(ψ̃, Dcut)
+
+    @test is_right_normalized(ψ)
+    @test is_right_normalized(ψ̃)
+    @test bond_dimension(ψ̃) == bond_dimension(ψ) 
+    @test all(size(A) == size(B) for (A, B) ∈ zip(ψ, ψ̃))
+    @test typeof(ψ̃) == typeof(ψ)
+    @test ψ * ψ ≈ ψ̃ * ψ̃ ≈ 1 
+    @test ψ * ψ̃ ≈ ψ̃ * ψ ≈ 1 # Does not pass   
 end
 
 

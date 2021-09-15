@@ -21,8 +21,11 @@ T = Float64
     truncate!(ψ̃, :right, Dcut)
     @test is_right_normalized(ψ)
     @test is_right_normalized(ψ̃)
+    @test bond_dimension(ψ̃) == bond_dimension(ψ) 
+    @test all(size.(ψ̃) .== size.(ψ))
+    @test typeof(ψ̃) == typeof(ψ)
     @test ψ * ψ ≈ ψ̃ * ψ̃ ≈ 1 
-    @test ψ * ψ̃ ≈ ψ̃ * ψ ≈ 1 
+    @test ψ * ψ̃ ≈ ψ̃ * ψ ≈ 1 # Does not pass 
 end
 
 @testset "Canonisation (left)" begin 

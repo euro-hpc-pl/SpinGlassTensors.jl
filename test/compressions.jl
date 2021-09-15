@@ -4,7 +4,7 @@ D = 10
 Dcut = 5
 
 d = 2
-sites = 5
+sites = 20
 
 T = Float64
 
@@ -19,6 +19,8 @@ T = Float64
     @test ψ̃ == ψ
     truncate!(ψ, :right, Dcut)
     truncate!(ψ̃, :right, Dcut)
+    @test is_right_normalized(ψ)
+    @test is_right_normalized(ψ̃)
     @test ψ * ψ ≈ ψ̃ * ψ̃ ≈ 1 
     @test ψ * ψ̃ ≈ ψ̃ * ψ ≈ 1 
 end

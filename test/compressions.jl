@@ -32,6 +32,24 @@ T = Float64
 end
 
 
+@testset "Copy and canonise!" begin
+    ψ̃ = copy(ψ)
+    @test ψ̃ == ψ
+    for dir ∈ (:left, :right)
+        canonise!(ψ, :right)
+        canonise!(ψ̃, :right)
+
+        @test is_right_normalized(ψ)
+        @test is_right_normalized(ψ̃)
+        @test bond_dimension(ψ̃) == bond_dimension(ψ) 
+        @test all(size(A) == size(B) for (A, B) ∈ zip(ψ, ψ̃))
+        @test typeof(ψ̃) == typeof(ψ)
+        @test ψ * ψ ≈ ψ̃ * ψ̃ ≈ 1 
+        @test ψ * ψ̃ ≈ ψ̃ * ψ ≈ 1 
+    end    
+end
+
+
 @testset "Canonisation (left)" begin 
     canonise!(ψ, :left)
     @test is_left_normalized(ψ)

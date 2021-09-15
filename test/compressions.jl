@@ -17,16 +17,20 @@ T = Float64
 @testset "Copy and truncate" begin
     ψ̃ = copy(ψ)
     @test ψ̃ == ψ
-    truncate!(ψ, :right, Dcut)
-    truncate!(ψ̃, :right, Dcut)
-    @test is_right_normalized(ψ)
-    @test is_right_normalized(ψ̃)
-    @test bond_dimension(ψ̃) == bond_dimension(ψ) 
-    @test all(size.(ψ̃) .== size.(ψ))
-    @test typeof(ψ̃) == typeof(ψ)
-    @test ψ * ψ ≈ ψ̃ * ψ̃ ≈ 1 
-    @test ψ * ψ̃ ≈ ψ̃ * ψ ≈ 1 # Does not pass 
+    for dir ∈ (:left, :right)
+        truncate!(ψ, :right, Dcut)
+        truncate!(ψ̃, :right, Dcut)
+
+        @test is_right_normalized(ψ)
+        @test is_right_normalized(ψ̃)
+        @test bond_dimension(ψ̃) == bond_dimension(ψ) 
+        @test all(size(A) == size(B) for (A, B) ∈ zip(ψ, ψ̃))
+        @test typeof(ψ̃) == typeof(ψ)
+        @test ψ * ψ ≈ ψ̃ * ψ̃ ≈ 1 
+        @test ψ * ψ̃ ≈ ψ̃ * ψ ≈ 1 # Does not pass 
+    end    
 end
+
 
 @testset "Canonisation (left)" begin 
     canonise!(ψ, :left)

@@ -1,18 +1,16 @@
 export rq
 
-function LinearAlgebra.qr(M::AbstractMatrix, Dcut::Int, args...)
-    fact = pqrfact(M, rank=Dcut, args...)
-    Q = fact[:Q]
-    R = fact[:R]
+function LinearAlgebra.qr(M::AbstractMatrix, args...)
+    Q, R, _ = pqr(M, args...)
     return _qr_fix(Q, R)
 end
 
-function rq(M::AbstractMatrix, Dcut::Int, args...)
-    fact = pqrfact(:c, conj.(M), rank=Dcut, args...)
-    Q = fact[:Q]
-    R = fact[:R]
+
+function rq(M::AbstractMatrix, args...)
+    Q, R, _ = pqr(M', args...)
     return _qr_fix(Q, R)'
 end
+
 
 function _qr_fix(Q::T, R::AbstractMatrix) where {T <: AbstractMatrix}
     d = diag(R)
@@ -25,6 +23,7 @@ function _qr_fix(Q::T, R::AbstractMatrix) where {T <: AbstractMatrix}
     return transpose(ph) .* q
 end
 
+
 function LinearAlgebra.svd(A::AbstractMatrix, Dcut::Int, args...)
     U, Σ, V = psvd(A, rank=Dcut, args...)
     d = diag(U)
@@ -34,3 +33,5 @@ function LinearAlgebra.svd(A::AbstractMatrix, Dcut::Int, args...)
     ph = d ./ abs.(d)
     return  U * Diagonal(ph), Σ, V * Diagonal(ph)
 end
+
+

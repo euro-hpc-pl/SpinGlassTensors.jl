@@ -1,7 +1,6 @@
 export truncate!, canonise!, compress
 
 function compress(ψ::AbstractMPS, Dcut::Int, tol::Number=1E-8, max_sweeps::Int=4)
-
     # Initial guess - truncated ψ
     ϕ = copy(ψ)
     truncate!(ϕ, :right, Dcut)
@@ -16,8 +15,8 @@ function compress(ψ::AbstractMPS, Dcut::Int, tol::Number=1E-8, max_sweeps::Int=
     @info "Compressing down to" Dcut
 
     for sweep ∈ 1:max_sweeps
-        _left_sweep_var!!(ϕ, env, ψ, Dcut)
-        overlap = _right_sweep_var!!(ϕ, env, ψ, Dcut)
+        _left_sweep_var!!(ϕ, env, ψ)
+        overlap = _right_sweep_var!!(ϕ, env, ψ)
 
         diff = abs(overlap_before - abs(overlap))
         @info "Convergence" diff
@@ -32,14 +31,17 @@ function compress(ψ::AbstractMPS, Dcut::Int, tol::Number=1E-8, max_sweeps::Int=
     ϕ
 end
 
+
 function canonise!(ψ::AbstractMPS)
     canonise!(ψ, :right)
     canonise!(ψ, :left)
 end
 
+
 canonise!(ψ::AbstractMPS, s::Symbol) = canonise!(ψ, Val(s))
 canonise!(ψ::AbstractMPS, ::Val{:right}) = _left_sweep_SVD!(ψ)
 canonise!(ψ::AbstractMPS, ::Val{:left}) = _right_sweep_SVD!(ψ)
+
 
 truncate!(ψ::AbstractMPS, s::Symbol, Dcut::Int) = truncate!(ψ, Val(s), Dcut)
 truncate!(ψ::AbstractMPS, ::Val{:right}, Dcut::Int) = _left_sweep_SVD!(ψ, Dcut)
@@ -51,7 +53,7 @@ function _right_sweep_SVD!(ψ::AbstractMPS, Dcut::Int=typemax(Int))
     V = ones(eltype(ψ), 1, 1)
 
     for (i, A) ∈ enumerate(ψ)
-        C = (Diagonal(Σ) ./ Σ[1]) * V'
+        C = (Diagonal(Σ) ./ sum(Σ)) * V'
 
         # attach
         @matmul M̃[(x, σ), y] := sum(α) C[x, α] * A[α, σ, y]
@@ -74,7 +76,7 @@ function _left_sweep_SVD!(ψ::AbstractMPS, Dcut::Int=typemax(Int))
 
     for i ∈ length(ψ):-1:1
         B = ψ[i]
-        C = U * (Diagonal(Σ) ./ Σ[1])
+        C = U * (Diagonal(Σ) ./ sum(Σ))
 
         # attach    
         @matmul M̃[x, (σ, y)] := sum(α) B[x, σ, α] * C[α, y]
@@ -91,7 +93,7 @@ function _left_sweep_SVD!(ψ::AbstractMPS, Dcut::Int=typemax(Int))
 end
 
 
-function _left_sweep_var!!(ϕ::AbstractMPS, env::Vector{<:AbstractMatrix}, ψ::AbstractMPS, Dcut::Int)
+function _left_sweep_var!!(ϕ::AbstractMPS, env::Vector{<:AbstractMatrix}, ψ::AbstractMPS)
     # overwrite the overlap
     env[end] = ones(eltype(ϕ), 1, 1)
 
@@ -104,7 +106,7 @@ function _left_sweep_var!!(ϕ::AbstractMPS, env::Vector{<:AbstractMatrix}, ψ::A
         @tensor M̄[x, σ, α] := L[x, β] * M[β, σ, α] 
         @matmul M̃[x, (σ, y)] := sum(α) M̄[x, σ, α] * R[α, y]
 
-        Q = rq(M̃, Dcut)
+        Q = rq(M̃)
 
         d = physical_dim(ψ, i)
         @cast B[x, σ, y] |= Q[x, (σ, y)] (σ ∈ 1:d)
@@ -119,7 +121,7 @@ function _left_sweep_var!!(ϕ::AbstractMPS, env::Vector{<:AbstractMatrix}, ψ::A
 end
 
 
-function _right_sweep_var!!(ϕ::AbstractMPS, env::Vector{<:AbstractMatrix}, ψ::AbstractMPS, Dcut::Int)
+function _right_sweep_var!!(ϕ::AbstractMPS, env::Vector{<:AbstractMatrix}, ψ::AbstractMPS)
     # overwrite the overlap
     env[1] = ones(eltype(ϕ), 1, 1)
 
@@ -131,7 +133,7 @@ function _right_sweep_var!!(ϕ::AbstractMPS, env::Vector{<:AbstractMatrix}, ψ::
         @tensor M̄[x, σ, α] := L[x, β] * M[β, σ, α]
         @matmul M̃[(x, σ), y] := sum(α) M̄[x, σ, α] * R[α, y]
 
-        Q = qr(M̃, Dcut)
+        Q = qr(M̃)
 
         d = physical_dim(ψ, i)
         @cast A[x, σ, y] |= Q[(x, σ), y] (σ ∈ 1:d)

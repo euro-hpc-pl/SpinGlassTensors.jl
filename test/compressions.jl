@@ -1,10 +1,10 @@
 @testset "Canonisation and Compression" begin
 
 D = 10
-Dcut = 5
+Dcut = 9
 
 d = 2
-sites = 20
+sites = 10
 
 T = Float64
 
@@ -23,7 +23,7 @@ T = Float64
 
         @test is_right_normalized(ψ)
         @test is_right_normalized(ψ̃)
-        @test bond_dimension(ψ̃) == bond_dimension(ψ) 
+        @test bond_dimension(ψ̃) == bond_dimension(ψ) == Dcut
         @test all(size(A) == size(B) for (A, B) ∈ zip(ψ, ψ̃))
         @test typeof(ψ̃) == typeof(ψ)
         @test ψ * ψ ≈ ψ̃ * ψ̃ ≈ 1 
@@ -42,7 +42,7 @@ end
 
     @test is_right_normalized(ψ)
     @test is_right_normalized(ψ̃)
-    @test bond_dimension(ψ̃) == bond_dimension(ψ) 
+    @test bond_dimension(ψ̃) == bond_dimension(ψ) == Dcut
     @test all(size(A) == size(B) for (A, B) ∈ zip(ψ, ψ̃))
     @test typeof(ψ̃) == typeof(ψ)
     @test ψ * ψ ≈ ψ̃ * ψ̃ ≈ 1 

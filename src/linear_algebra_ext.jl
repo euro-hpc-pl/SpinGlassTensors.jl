@@ -26,7 +26,6 @@ function _qr_fix(Q::T, R::AbstractMatrix) where {T <: AbstractMatrix}
 end
 
 function LinearAlgebra.svd(A::AbstractMatrix, Dcut::Int, args...)
-    n = size(A, 2)
     trunc = min(Dcut, size(A)...)
     # U, Σ, V = psvd(A, rank=Dcut, args...)
     U, Σ, V = svd(A)

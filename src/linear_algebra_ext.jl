@@ -1,6 +1,7 @@
-export rq
+export rq, qr
 
-function LinearAlgebra.qr(M::AbstractMatrix, args...)
+
+function qr(M::AbstractMatrix, args...)
     Q, R, _ = pqr(M, args...)
     return _qr_fix(Q, R)
 end
@@ -29,7 +30,7 @@ function LinearAlgebra.svd(A::AbstractMatrix, Dcut::Int, args...)
     # U, Σ, V = psvd(A, rank=Dcut, args...)
     U, Σ, V = svd(A)
     U = U[:, 1:trunc]
-    Σ = Σ[1:trunc]
+    Σ = Σ[1:trunc] ./ sum(Σ)
     V = V[:, 1:trunc]
 
     d = diag(U)

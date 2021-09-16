@@ -45,6 +45,7 @@ truncate!(ψ::AbstractMPS, s::Symbol, Dcut::Int) = truncate!(ψ, Val(s), Dcut)
 truncate!(ψ::AbstractMPS, ::Val{:right}, Dcut::Int) = _left_sweep_SVD!(ψ, Dcut)
 truncate!(ψ::AbstractMPS, ::Val{:left}, Dcut::Int) = _right_sweep_SVD!(ψ, Dcut)
 
+
 function _right_sweep_SVD!(ψ::AbstractMPS, Dcut::Int=typemax(Int))
     Σ = ones(eltype(ψ), 1, 1)
     V = ones(eltype(ψ), 1, 1)
@@ -91,10 +92,8 @@ end
 
 
 function _left_sweep_var!!(ϕ::AbstractMPS, env::Vector{<:AbstractMatrix}, ψ::AbstractMPS, Dcut::Int)
-    S = eltype(ϕ)
-
     # overwrite the overlap
-    env[end] = ones(S, 1, 1)
+    env[end] = ones(eltype(ϕ), 1, 1)
 
     for i ∈ length(ψ):-1:1
         L = env[i]
@@ -102,10 +101,10 @@ function _left_sweep_var!!(ϕ::AbstractMPS, env::Vector{<:AbstractMatrix}, ψ::A
 
         # optimize site
         M = ψ[i]
-        @tensor MM[x, σ, α] := L[x, β] * M[β, σ, α] 
-        @matmul MM[x, (σ, y)] := sum(α) MM[x, σ, α] * R[α, y]
+        @tensor M̄[x, σ, α] := L[x, β] * M[β, σ, α] 
+        @matmul M̃[x, (σ, y)] := sum(α) M̄[x, σ, α] * R[α, y]
 
-        Q = rq(MM, Dcut)
+        Q = rq(M̃, Dcut)
 
         d = physical_dim(ψ, i)
         @cast B[x, σ, y] |= Q[x, (σ, y)] (σ ∈ 1:d)
@@ -114,27 +113,25 @@ function _left_sweep_var!!(ϕ::AbstractMPS, env::Vector{<:AbstractMatrix}, ψ::A
         ϕ[i] = B
         A = ψ[i]
 
-        @tensor RR[x, y] := A[x, σ, α] * R[α, β] * conj(B)[y, σ, β] order = (β, α, σ)
-        env[i] = RR
+        @tensor R̃[x, y] := A[x, σ, α] * R[α, β] * conj(B)[y, σ, β] order = (β, α, σ)
+        env[i] = R̃
     end
 end
 
 
 function _right_sweep_var!!(ϕ::AbstractMPS, env::Vector{<:AbstractMatrix}, ψ::AbstractMPS, Dcut::Int)
-    S = eltype(ϕ)
-
     # overwrite the overlap
-    env[1] = ones(S, 1, 1)
+    env[1] = ones(eltype(ϕ), 1, 1)
 
     for (i, M) ∈ enumerate(ψ)
         L = env[i]
         R = env[i+1]
 
         # optimize site
-        @tensor M̃[x, σ, α] := L[x, β] * M[β, σ, α]
-        @matmul B[(x, σ), y] := sum(α) M̃[x, σ, α] * R[α, y]
+        @tensor M̄[x, σ, α] := L[x, β] * M[β, σ, α]
+        @matmul M̃[(x, σ), y] := sum(α) M̄[x, σ, α] * R[α, y]
 
-        Q = qr(B, Dcut)
+        Q = qr(M̃, Dcut)
 
         d = physical_dim(ψ, i)
         @cast A[x, σ, y] |= Q[(x, σ), y] (σ ∈ 1:d)
@@ -143,8 +140,8 @@ function _right_sweep_var!!(ϕ::AbstractMPS, env::Vector{<:AbstractMatrix}, ψ::
         ϕ[i] = A
         B = ψ[i]
 
-        @tensor LL[x, y] := conj(A[β, σ, x]) * L[β, α] * B[α, σ, y] order = (α, β, σ)
-        env[i+1] = LL
+        @tensor L̃[x, y] := conj(A[β, σ, x]) * L[β, α] * B[α, σ, y] order = (α, β, σ)
+        env[i+1] = L̃
     end
     env[end][1]
 end

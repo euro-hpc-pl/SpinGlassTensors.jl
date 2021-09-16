@@ -7,7 +7,6 @@ d = 2
 sites = 10
 
 T = Float64
-
 ψ = randn(MPS{T}, sites, D, d)
 ϕ = randn(MPS{T}, sites, D, d)
 χ = randn(MPS{T}, sites, D, d)
@@ -17,17 +16,17 @@ T = Float64
 @testset "Copy and truncate" begin
     ψ̃ = copy(ψ)
     @test ψ̃ == ψ
-    for dir ∈ (:left, :right)
-        truncate!(ψ, :right, Dcut)
-        truncate!(ψ̃, :right, Dcut)
+    for (direction, predicate) ∈ ((:left, is_left_normalized), (:right, is_right_normalized))
+        truncate!(ψ, direction, Dcut)
+        truncate!(ψ̃, direction, Dcut)
 
-        @test is_right_normalized(ψ)
-        @test is_right_normalized(ψ̃)
-        @test bond_dimension(ψ̃) == bond_dimension(ψ) == Dcut
+        @test predicate(ψ)
+        @test predicate(ψ̃)
+        @test bond_dimension(ψ̃) == bond_dimension(ψ) 
         @test all(size(A) == size(B) for (A, B) ∈ zip(ψ, ψ̃))
         @test typeof(ψ̃) == typeof(ψ)
-        @test ψ * ψ ≈ ψ̃ * ψ̃ ≈ 1 
-        @test ψ * ψ̃ ≈ ψ̃ * ψ ≈ 1 # Does not pass 
+        @test ψ * ψ ≈ ψ̃ * ψ̃ ≈ 1
+        @test ψ * ψ̃ ≈ ψ̃ * ψ ≈ 1
     end    
 end
 

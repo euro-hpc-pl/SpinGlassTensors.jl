@@ -1,13 +1,13 @@
-export RQ, QR
+export rqf, qrf
 
 
-function QR(M::AbstractMatrix, args...)
+function qrf(M::AbstractMatrix, args...)
     Q, R, _ = pqr(M, args...)
     return _qr_fix(Q, R)
 end
 
 
-function RQ(M::AbstractMatrix, args...)
+function rqf(M::AbstractMatrix, args...)
     Q, R, _ = pqr(M', args...)
     return _qr_fix(Q, R)'
 end

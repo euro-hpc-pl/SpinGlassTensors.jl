@@ -106,7 +106,7 @@ function _left_sweep_var!!(ϕ::AbstractMPS, env::Vector{<:AbstractMatrix}, ψ::A
         @tensor M̄[x, σ, α] := L[x, β] * M[β, σ, α] 
         @matmul M̃[x, (σ, y)] := sum(α) M̄[x, σ, α] * R[α, y]
 
-        Q = RQ(M̃)
+        Q = rqf(M̃)
 
         d = physical_dim(ψ, i)
         @cast B[x, σ, y] |= Q[x, (σ, y)] (σ ∈ 1:d)
@@ -133,7 +133,7 @@ function _right_sweep_var!!(ϕ::AbstractMPS, env::Vector{<:AbstractMatrix}, ψ::
         @tensor M̄[x, σ, α] := L[x, β] * M[β, σ, α]
         @matmul M̃[(x, σ), y] := sum(α) M̄[x, σ, α] * R[α, y]
 
-        Q = QR(M̃)
+        Q = qrf(M̃)
 
         d = physical_dim(ψ, i)
         @cast A[x, σ, y] |= Q[(x, σ), y] (σ ∈ 1:d)

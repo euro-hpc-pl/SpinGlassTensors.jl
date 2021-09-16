@@ -27,7 +27,7 @@ for (T, N) ∈ ((:PEPSRow, 5), (:MPO, 4), (:MPS, 3))
         Base.hash(a::$T, h::UInt) = hash(a.tensors, h)
         @inline Base.:(==)(a::$T, b::$T) = a.tensors == b.tensors
         @inline Base.:(≈)(a::$T, b::$T)  = a.tensors ≈ b.tensors
-        Base.copy(a::$T) = $T(copy(a.tensors)) # there is something wrong with this
+        Base.copy(a::$T) = $T(deepcopy(a.tensors))
 
         @inline Base.eltype(::$AT{T}) where {T} = T
     end

@@ -26,7 +26,14 @@ function _qr_fix(Q::T, R::AbstractMatrix) where {T <: AbstractMatrix}
 end
 
 function LinearAlgebra.svd(A::AbstractMatrix, Dcut::Int, args...)
-    U, Σ, V = psvd(A, rank=Dcut, args...)
+    n = size(A, 2)
+    trunc = min(Dcut, size(A)...)
+    # U, Σ, V = psvd(A, rank=Dcut, args...)
+    U, Σ, V = svd(A)
+    U = U[:, 1:trunc]
+    Σ = Σ[1:trunc]
+    V = V[:, 1:trunc]
+
     d = diag(U)
     for i ∈ eachindex(d)
         @inbounds d[i] = ifelse(isapprox(d[i], 0, atol=1e-14), 1, d[i])

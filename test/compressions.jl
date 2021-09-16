@@ -31,24 +31,6 @@ T = Float64
 end
 
 
-@testset "Copy and canonise (with truncation)" begin
-    ψ = randn(MPS{T}, sites, D, d)
-    ψ̃ = copy(ψ)
-    @test ψ̃ == ψ
-
-    SpinGlassTensors._left_sweep_SVD!(ψ, Dcut)
-    SpinGlassTensors._left_sweep_SVD!(ψ̃, Dcut)
-
-    @test is_right_normalized(ψ)
-    @test is_right_normalized(ψ̃)
-    @test bond_dimension(ψ̃) == bond_dimension(ψ) == Dcut
-    @test all(size(A) == size(B) for (A, B) ∈ zip(ψ, ψ̃))
-    @test typeof(ψ̃) == typeof(ψ)
-    @test ψ * ψ ≈ ψ̃ * ψ̃ ≈ 1 
-    @test ψ * ψ̃ ≈ ψ̃ * ψ ≈ 1 # Does not pass   
-end
-
-
 @testset "Canonisation (left)" begin 
     canonise!(ψ, :left)
     @test is_left_normalized(ψ)

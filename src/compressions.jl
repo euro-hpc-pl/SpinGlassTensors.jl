@@ -16,8 +16,8 @@ function compress(ψ::AbstractMPS, Dcut::Int, tol::Number=1E-8, max_sweeps::Int=
     @info "Compressing down to" Dcut
 
     for sweep ∈ 1:max_sweeps
-        _left_sweep_var!!(ϕ, env, ψ, Dcut)
-        overlap = _right_sweep_var!!(ϕ, env, ψ, Dcut)
+        _left_sweep_var!!(ϕ, env, ψ)
+        overlap = _right_sweep_var!!(ϕ, env, ψ)
 
         diff = abs(overlap_before - abs(overlap))
         @info "Convergence" diff
@@ -38,55 +38,53 @@ function canonise!(ψ::AbstractMPS)
 end
 
 canonise!(ψ::AbstractMPS, s::Symbol) = canonise!(ψ, Val(s))
-canonise!(ψ::AbstractMPS, ::Val{:right}) = _left_sweep_SVD!(ψ)
-canonise!(ψ::AbstractMPS, ::Val{:left}) = _right_sweep_SVD!(ψ)
+canonise!(ψ::AbstractMPS, ::Val{:right}) = _left_sweep!(ψ)
+canonise!(ψ::AbstractMPS, ::Val{:left}) = _right_sweep!(ψ)
 
 truncate!(ψ::AbstractMPS, s::Symbol, Dcut::Int) = truncate!(ψ, Val(s), Dcut)
-truncate!(ψ::AbstractMPS, ::Val{:right}, Dcut::Int) = _left_sweep_SVD!(ψ, Dcut)
-truncate!(ψ::AbstractMPS, ::Val{:left}, Dcut::Int) = _right_sweep_SVD!(ψ, Dcut)
+truncate!(ψ::AbstractMPS, ::Val{:right}, Dcut::Int) = _left_sweep!(ψ, Dcut)
+truncate!(ψ::AbstractMPS, ::Val{:left}, Dcut::Int) = _right_sweep!(ψ, Dcut)
 
-function _right_sweep_SVD!(ψ::AbstractMPS, Dcut::Int=typemax(Int))
-    Σ = V = ones(eltype(ψ), 1, 1)
+function _right_sweep!(ψ::AbstractMPS, Dcut::Int=typemax(Int))
+    R = ones(eltype(ψ), 1, 1)
+
     for (i, A) ∈ enumerate(ψ)
-        C = (Diagonal(Σ) ./ Σ[1]) * V'
-
         # attach
-        @matmul M̃[(x, σ), y] := sum(α) C[x, α] * A[α, σ, y]
+        @matmul M̃[(x, σ), y] := sum(α) R[x, α] * A[α, σ, y]
 
         # decompose
-        U, Σ, V = svd(M̃, Dcut)
+        Q, R = qr(M̃, Dcut)
 
         # create new
-        d = physical_dim(ψ, i)
-        @cast A[x, σ, y] |= U[(x, σ), y] (σ ∈ 1:d)
+        @cast A[x, σ, y] |= Q[(x, σ), y] (σ ∈ 1:size(A, 2))
         ψ[i] = A
     end
-    ψ[end] *= tr(V)
+    ψ[end] #*= tr(R)
 end
 
 
-function _left_sweep_SVD!(ψ::AbstractMPS, Dcut::Int=typemax(Int))
-    Σ = U = ones(eltype(ψ), 1, 1)
+function _left_sweep!(ψ::AbstractMPS, Dcut::Int=typemax(Int))
+    R = ones(eltype(ψ), 1, 1)
+
     for i ∈ length(ψ):-1:1
         B = ψ[i]
-        C = U * (Diagonal(Σ) ./ Σ[1])
 
         # attach    
-        @matmul M̃[x, (σ, y)] := sum(α) B[x, σ, α] * C[α, y]
+        @matmul M̃[x, (σ, y)] := sum(α) B[x, σ, α] * R[α, y]
 
         # decompose
-        U, Σ, V = svd(M̃, Dcut)
+        R, Q = rq(M̃, Dcut)
 
         # create new
         d = physical_dim(ψ, i)
-        @cast B[x, σ, y] |= V'[x, (σ, y)] (σ ∈ 1:d)
+        @cast B[x, σ, y] |= Q[x, (σ, y)] (σ ∈ 1:size(B, 2))
         ψ[i] = B
     end
-    ψ[1] *= tr(U)
+    ψ[1] #*= tr(R)
 end
 
 
-function _left_sweep_var!!(ϕ::AbstractMPS, env::Vector{<:AbstractMatrix}, ψ::AbstractMPS, Dcut::Int)
+function _left_sweep_var!!(ϕ::AbstractMPS, env::Vector{<:AbstractMatrix}, ψ::AbstractMPS)
     S = eltype(ϕ)
 
     # overwrite the overlap
@@ -101,10 +99,9 @@ function _left_sweep_var!!(ϕ::AbstractMPS, env::Vector{<:AbstractMatrix}, ψ::A
         @tensor MM[x, σ, α] := L[x, β] * M[β, σ, α] 
         @matmul MM[x, (σ, y)] := sum(α) MM[x, σ, α] * R[α, y]
 
-        Q = rq(MM, Dcut)
+        _, Q = rq(MM, typemax(Int))
 
-        d = physical_dim(ψ, i)
-        @cast B[x, σ, y] |= Q[x, (σ, y)] (σ ∈ 1:d)
+        @cast B[x, σ, y] |= Q[x, (σ, y)] (σ ∈ 1:size(M, 2))
 
         # update ϕ and right environment
         ϕ[i] = B
@@ -116,7 +113,7 @@ function _left_sweep_var!!(ϕ::AbstractMPS, env::Vector{<:AbstractMatrix}, ψ::A
 end
 
 
-function _right_sweep_var!!(ϕ::AbstractMPS, env::Vector{<:AbstractMatrix}, ψ::AbstractMPS, Dcut::Int)
+function _right_sweep_var!!(ϕ::AbstractMPS, env::Vector{<:AbstractMatrix}, ψ::AbstractMPS)
     S = eltype(ϕ)
 
     # overwrite the overlap
@@ -130,10 +127,9 @@ function _right_sweep_var!!(ϕ::AbstractMPS, env::Vector{<:AbstractMatrix}, ψ::
         @tensor M̃[x, σ, α] := L[x, β] * M[β, σ, α]
         @matmul B[(x, σ), y] := sum(α) M̃[x, σ, α] * R[α, y]
 
-        Q = qr(B, Dcut)
+        Q, _ = qr(B, typemax(Int))
 
-        d = physical_dim(ψ, i)
-        @cast A[x, σ, y] |= Q[(x, σ), y] (σ ∈ 1:d)
+        @cast A[x, σ, y] |= Q[(x, σ), y] (σ ∈ 1:size(M, 2))
 
         # update ϕ and left environment
         ϕ[i] = A

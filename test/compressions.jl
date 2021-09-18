@@ -15,7 +15,10 @@ T = Float64
 
 
 @testset "Canonisation (left)" begin
-    canonise!(ψ, :left)
+    a = norm(ψ)
+    println(a)
+    b = canonise!(ψ, :left)
+    @test a ≈ b
     @test is_left_normalized(ψ)
     @test dot(ψ, ψ) ≈ 1
 end
@@ -30,31 +33,23 @@ end
     @test abs(dot(ϕ, ψ)) <= norm(ϕ) * norm(ψ)
 end
 
-
-@testset "Canonisation (both)" begin
-    canonise!(χ)
-    @test dot(χ, χ) ≈ 1
-end
-
-
 @testset "Truncation (SVD, right)" begin
-    truncate!(ψ, :right, Dcut)
+    canonise!(ψ, :right, Dcut)
     @test dot(ψ, ψ) ≈ 1
 end
-
 
 @testset "Truncation (SVD, left)" begin
-    truncate!(ψ, :left, Dcut)
+    canonise!(ψ, :left, Dcut)
     @test dot(ψ, ψ) ≈ 1
 end
-
 
 @testset "<left|right>" begin
     ϵ = 1E-14
-    ψ  = randn(MPS{T}, sites, D, d)
+    ψ = randn(MPS{T}, sites, D, d)
 
     l = copy(ψ)
-    r = copy(l)
+    r = copy(ψ)
+
     canonise!(l, :left)
     @test is_left_normalized(l)
 

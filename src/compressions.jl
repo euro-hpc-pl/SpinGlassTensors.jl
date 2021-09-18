@@ -1,10 +1,9 @@
 export truncate!, canonise!, compress
 
 function compress(ψ::AbstractMPS, Dcut::Int, tol::Number=1E-8, max_sweeps::Int=4)
-
     # Initial guess - truncated ψ
     ϕ = copy(ψ)
-    truncate!(ϕ, :right, Dcut)
+    canonise!(ϕ, :right, Dcut)
 
     # Create environment
     env = left_env(ϕ, ψ)
@@ -32,18 +31,19 @@ function compress(ψ::AbstractMPS, Dcut::Int, tol::Number=1E-8, max_sweeps::Int=
     ϕ
 end
 
-function canonise!(ψ::AbstractMPS)
-    canonise!(ψ, :right)
-    canonise!(ψ, :left)
+
+function canonise!(ψ::AbstractMPS, s::Symbol, Dcut::Int=typemax(Int))
+    @assert s ∈ (:left, :right)
+    if s == :right
+        nrm = _right_sweep!(ψ, typemax(Int))
+        _left_sweep!(ψ, Dcut)
+    else
+        nrm = _left_sweep!(ψ, typemax(Int))
+        _right_sweep!(ψ, Dcut)
+    end
+    nrm
 end
 
-canonise!(ψ::AbstractMPS, s::Symbol) = canonise!(ψ, Val(s))
-canonise!(ψ::AbstractMPS, ::Val{:right}) = _left_sweep!(ψ)
-canonise!(ψ::AbstractMPS, ::Val{:left}) = _right_sweep!(ψ)
-
-truncate!(ψ::AbstractMPS, s::Symbol, Dcut::Int) = truncate!(ψ, Val(s), Dcut)
-truncate!(ψ::AbstractMPS, ::Val{:right}, Dcut::Int) = _left_sweep!(ψ, Dcut)
-truncate!(ψ::AbstractMPS, ::Val{:left}, Dcut::Int) = _right_sweep!(ψ, Dcut)
 
 function _right_sweep!(ψ::AbstractMPS, Dcut::Int=typemax(Int))
     R = ones(eltype(ψ), 1, 1)
@@ -56,10 +56,10 @@ function _right_sweep!(ψ::AbstractMPS, Dcut::Int=typemax(Int))
         Q, R = qr(M̃, Dcut)
 
         # create new
-        @cast A[x, σ, y] |= Q[(x, σ), y] (σ ∈ 1:size(A, 2))
+        @cast A[x, σ, y] := Q[(x, σ), y] (σ ∈ 1:size(A, 2))
         ψ[i] = A
     end
-    ψ[end] #*= tr(R)
+    R[1] 
 end
 
 
@@ -77,10 +77,10 @@ function _left_sweep!(ψ::AbstractMPS, Dcut::Int=typemax(Int))
 
         # create new
         d = physical_dim(ψ, i)
-        @cast B[x, σ, y] |= Q[x, (σ, y)] (σ ∈ 1:size(B, 2))
+        @cast B[x, σ, y] := Q[x, (σ, y)] (σ ∈ 1:size(B, 2))
         ψ[i] = B
     end
-    ψ[1] #*= tr(R)
+    R[1] 
 end
 
 
@@ -101,7 +101,7 @@ function _left_sweep_var!!(ϕ::AbstractMPS, env::Vector{<:AbstractMatrix}, ψ::A
 
         _, Q = rq(MM, typemax(Int))
 
-        @cast B[x, σ, y] |= Q[x, (σ, y)] (σ ∈ 1:size(M, 2))
+        @cast B[x, σ, y] := Q[x, (σ, y)] (σ ∈ 1:size(M, 2))
 
         # update ϕ and right environment
         ϕ[i] = B
@@ -129,7 +129,7 @@ function _right_sweep_var!!(ϕ::AbstractMPS, env::Vector{<:AbstractMatrix}, ψ::
 
         Q, _ = qr(B, typemax(Int))
 
-        @cast A[x, σ, y] |= Q[(x, σ), y] (σ ∈ 1:size(M, 2))
+        @cast A[x, σ, y] := Q[(x, σ), y] (σ ∈ 1:size(M, 2))
 
         # update ϕ and left environment
         ϕ[i] = A
@@ -159,7 +159,7 @@ function _right_sweep_SVD(::Type{T}, A::AbstractArray, Dcut::Int=typemax(Int), a
         V *= Diagonal(Σ)
 
         # create MPS
-        @cast B[x, σ, y] |= U[(x, σ), y] (σ ∈ 1:d)
+        @cast B[x, σ, y] := U[(x, σ), y] (σ ∈ 1:d)
         ψ[i] = B
     end
     ψ

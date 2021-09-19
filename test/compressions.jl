@@ -1,10 +1,10 @@
 @testset "Canonisation and Compression" begin
 
-D = 10
-Dcut = 5
+D = 16
+Dcut = 8
 
 d = 2
-sites = 5
+sites = 10
 
 T = Float64
 
@@ -32,12 +32,14 @@ end
 end
 
 @testset "Copy and canonise twice" begin
+    nrm = norm(ψ)
     ψ̃ = copy(ψ)
     @test ψ̃ == ψ
     for (direction, predicate) ∈ ((:left, is_left_normalized), (:right, is_right_normalized))
-        canonise!(ψ, direction, Dcut)
-        canonise!(ψ̃, direction, Dcut)
+        nrm1 = canonise!(ψ, direction, Dcut)
+        nrm2 = canonise!(ψ̃, direction, Dcut)
 
+        @test nrm1 ≈ nrm2 ≈ nrm
         @test predicate(ψ)
         @test predicate(ψ̃)
         @test bond_dimension(ψ̃) == bond_dimension(ψ) 
@@ -88,18 +90,13 @@ end
 @testset "Variational compression" begin
     Dcut = 5
     tol = 1E-4
-    max_sweeps = 5
-
-    canonise!(Φ, :right)
-    @test is_right_normalized(Φ)
-    @test norm(Φ) ≈ 1
+    max_sweeps = 10
 
     Ψ = compress(Φ, Dcut, tol, max_sweeps)
 
     @test norm(Ψ) ≈ 1
-    @test is_right_normalized(Ψ)
-
-    @test 1 - abs(dot(Ψ, Φ)) < 1e-14
+    @test is_left_normalized(Ψ)
+    @test is_right_normalized(Ψ) == false
 end
 
 end

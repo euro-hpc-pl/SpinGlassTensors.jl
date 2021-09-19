@@ -3,7 +3,7 @@ export canonise!, compress
 function compress(ψ::AbstractMPS, Dcut::Int, tol::Number=1E-8, max_sweeps::Int=4)
     # Initial guess - truncated ψ
     ϕ = copy(ψ)
-    canonise!(ϕ, :right, Dcut)
+    canonise!(ϕ, :left, Dcut)
 
     # Create environment
     env = left_env(ϕ, ψ)
@@ -15,8 +15,8 @@ function compress(ψ::AbstractMPS, Dcut::Int, tol::Number=1E-8, max_sweeps::Int=
     @info "Compressing down to" Dcut
 
     for sweep ∈ 1:max_sweeps
-        _right_sweep_var!!(ϕ, env, ψ)
-        overlap = _left_sweep_var!!(ϕ, env, ψ)
+        _left_sweep_var!!(ϕ, env, ψ)
+        overlap = _right_sweep_var!!(ϕ, env, ψ)
 
         diff = abs(overlap_before - abs(overlap))
         @info "Convergence" diff

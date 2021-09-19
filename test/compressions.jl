@@ -91,17 +91,15 @@ end
     max_sweeps = 5
 
     canonise!(Φ, :right)
-    @test dot(Φ, Φ) ≈ 1
+    @test is_right_normalized(Φ)
+    @test norm(Φ) ≈ 1
 
     Ψ = compress(Φ, Dcut, tol, max_sweeps)
 
-    @test dot(Ψ, Ψ) ≈ 1
+    @test norm(Ψ) ≈ 1
+    @test is_right_normalized(Ψ)
 
-    overlap = dot(Ψ, Φ)
-    dist1 = 2 - 2 * abs(overlap)
-    dist2 = norm(Ψ)^2 + norm(Φ)^2 - 2 * abs(overlap)
-
-    @test abs(dist1 - dist2) < 1e-14
+    @test 1 - abs(dot(Ψ, Φ)) < 1e-14
 end
 
 end

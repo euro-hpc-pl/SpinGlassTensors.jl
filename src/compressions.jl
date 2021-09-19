@@ -15,8 +15,8 @@ function compress(ψ::AbstractMPS, Dcut::Int, tol::Number=1E-8, max_sweeps::Int=
     @info "Compressing down to" Dcut
 
     for sweep ∈ 1:max_sweeps
-        _left_sweep_var!!(ϕ, env, ψ)
-        overlap = _right_sweep_var!!(ϕ, env, ψ)
+        _right_sweep_var!!(ϕ, env, ψ)
+        overlap = _left_sweep_var!!(ϕ, env, ψ)
 
         diff = abs(overlap_before - abs(overlap))
         @info "Convergence" diff
@@ -113,6 +113,7 @@ function _left_sweep_var!!(ϕ::AbstractMPS, env::Vector{<:AbstractMatrix}, ψ::A
         @tensor RR[x, y] := A[x, σ, α] * R[α, β] * conj(B)[y, σ, β] order = (β, α, σ)
         env[i] = RR
     end
+    env[1][1]
 end
 
 

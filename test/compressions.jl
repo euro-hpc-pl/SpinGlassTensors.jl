@@ -31,6 +31,22 @@ end
     @test dot(ϕ, ϕ) ≈ 1
 end
 
+@testset "Copy and canonise twice" begin
+    ψ̃ = copy(ψ)
+    @test ψ̃ == ψ
+    for (direction, predicate) ∈ ((:left, is_left_normalized), (:right, is_right_normalized))
+        canonise!(ψ, direction, Dcut)
+        canonise!(ψ̃, direction, Dcut)
+
+        @test predicate(ψ)
+        @test predicate(ψ̃)
+        @test bond_dimension(ψ̃) == bond_dimension(ψ) 
+        @test all(size(A) == size(B) for (A, B) ∈ zip(ψ, ψ̃))
+        @test typeof(ψ̃) == typeof(ψ)
+        @test norm(ψ) ≈ norm(ψ̃) ≈ 1 
+        @test abs(ψ * ψ̃) ≈ abs(ψ̃ * ψ) ≈ 1 
+    end    
+end
 
 @testset "Cauchy-Schwarz inequality (after truncation)" begin
     @test abs(dot(ϕ, ψ)) <= norm(ϕ) * norm(ψ)
@@ -38,12 +54,14 @@ end
 
 @testset "Truncation (SVD, right)" begin
     canonise!(ψ, :right, Dcut)
-    @test dot(ψ, ψ) ≈ 1
+    @test is_right_normalized(ψ)
+    @test norm(ψ) ≈ 1
 end
 
 @testset "Truncation (SVD, left)" begin
     canonise!(ψ, :left, Dcut)
-    @test dot(ψ, ψ) ≈ 1
+    @test is_left_normalized(ψ)
+    @test norm(ψ) ≈ 1
 end
 
 

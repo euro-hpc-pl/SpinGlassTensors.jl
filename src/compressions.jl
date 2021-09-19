@@ -1,4 +1,4 @@
-export truncate!, canonise!, compress
+export canonise!, compress
 
 function compress(ψ::AbstractMPS, Dcut::Int, tol::Number=1E-8, max_sweeps::Int=4)
     # Initial guess - truncated ψ
@@ -41,7 +41,7 @@ function canonise!(ψ::AbstractMPS, s::Symbol, Dcut::Int=typemax(Int))
         nrm = _left_sweep!(ψ, typemax(Int))
         _right_sweep!(ψ, Dcut)
     end
-    nrm
+    abs(nrm)
 end
 
 
@@ -61,7 +61,7 @@ function _right_sweep!(ψ::AbstractMPS, Dcut::Int=typemax(Int))
         @cast A[x, σ, y] := Q[(x, σ), y] (σ ∈ 1:size(A, 2))
         ψ[i] = A
     end
-    abs(R[1]) 
+    R[1] 
 end
 
 
@@ -84,19 +84,16 @@ function _left_sweep!(ψ::AbstractMPS, Dcut::Int=typemax(Int))
         @cast B[x, σ, y] := Q[x, (σ, y)] (σ ∈ 1:size(B, 2))
         ψ[i] = B
     end
-    abs(R[1]) 
+    R[1]
 end
 
 
 function _left_sweep_var!!(ϕ::AbstractMPS, env::Vector{<:AbstractMatrix}, ψ::AbstractMPS)
-    S = eltype(ϕ)
-
     # overwrite the overlap
-    env[end] = ones(S, 1, 1)
+    env[end] = ones(eltype(ϕ), 1, 1)
 
     for i ∈ length(ψ):-1:1
-        L = env[i]
-        R = env[i+1]
+        L, R = env[i], env[i+1]
 
         # optimize site
         M = ψ[i]
@@ -120,14 +117,11 @@ end
 
 
 function _right_sweep_var!!(ϕ::AbstractMPS, env::Vector{<:AbstractMatrix}, ψ::AbstractMPS)
-    S = eltype(ϕ)
-
     # overwrite the overlap
-    env[1] = ones(S, 1, 1)
+    env[1] = ones(eltype(ϕ), 1, 1)
 
     for (i, M) ∈ enumerate(ψ)
-        L = env[i]
-        R = env[i+1]
+        L, R = env[i], env[i+1]
 
         # optimize site
         @tensor M̃[x, σ, α] := L[x, β] * M[β, σ, α]
@@ -145,7 +139,7 @@ function _right_sweep_var!!(ϕ::AbstractMPS, env::Vector{<:AbstractMatrix}, ψ::
         @tensor LL[x, y] := conj(A[β, σ, x]) * L[β, α] * B[α, σ, y] order = (α, β, σ)
         env[i+1] = LL
     end
-    real(env[end][1])
+    env[end][1]
 end
 
 
@@ -176,7 +170,6 @@ end
 function _left_sweep_SVD(::Type{T}, A::AbstractArray, Dcut::Int=typemax(Int), args...) where {T <: AbstractMPS}
     rank = ndims(A)
     ψ = T(eltype(A), rank)
-
     U = reshape(copy(A), (length(A), 1))
 
     for i ∈ rank:-1:1

@@ -4,8 +4,7 @@ export rq
 function LinearAlgebra.qr(M::AbstractMatrix, Dcut::Int, args...)
     F = pqrfact(M, rank=Dcut, args...)
     q, r, p = F[:Q], F[:R], F[:p]
-
-    _qr_fix(q, r[:,p])
+    _qr_fix(q, r)
 end
 
 

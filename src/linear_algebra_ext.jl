@@ -27,7 +27,7 @@ function _qr_fix(Q::T, R::AbstractMatrix) where {T <: AbstractMatrix}
     q * Diagonal(ph), Diagonal(ph) * r
 end
 
-
+#=
 function LinearAlgebra.svd(A::AbstractMatrix, Dcut::Int, args...)
     U, Σ, V = psvd(A, rank=Dcut, args...)
     d = diag(U)
@@ -36,4 +36,20 @@ function LinearAlgebra.svd(A::AbstractMatrix, Dcut::Int, args...)
     end
     ph = d ./ abs.(d)
     return  U * Diagonal(ph), Σ, V * Diagonal(ph)
+end
+=#
+
+function LinearAlgebra.svd(A::AbstractMatrix, Dcut::Int, args...)
+    U, Σ, V = svd(A)
+    δ = min(Dcut, size(Σ)...)
+    U = U[:, 1:δ]
+    Σ = Σ[1:δ] 
+    V = V[:, 1:δ]
+
+    d = diag(U)
+    for i ∈ eachindex(d)
+        @inbounds d[i] = ifelse(isapprox(d[i], 0, atol=1e-14), 1, d[i])
+    end
+    ph = d ./ abs.(d)
+    U * Diagonal(ph), Σ, V * Diagonal(ph)
 end

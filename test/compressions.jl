@@ -4,7 +4,7 @@ D = 16
 Dcut = 8
 
 d = 2
-sites = 10
+sites = 100
 
 T = Float64
 
@@ -88,11 +88,16 @@ end
 
 
 @testset "Variational compression" begin
-    Dcut = 5
-    tol = 1E-4
-    max_sweeps = 10
+    Dcut = 8
+    tol = 1E-10
+    max_sweeps = 100
+
+    x = copy(Φ)
+    canonise!(x, :left)
 
     Ψ = compress(Φ, Dcut, tol, max_sweeps)
+
+    println(dot(x, Ψ))
 
     @test norm(Ψ) ≈ 1
     @test is_left_normalized(Ψ)

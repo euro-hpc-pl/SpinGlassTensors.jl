@@ -14,9 +14,9 @@ T = Float64
 Φ = randn(MPS{T}, sites, D, d)
 
 
+
 @testset "Canonisation (left)" begin
     a = norm(ψ)
-    println(a)
     b = canonise!(ψ, :left)
     @test a ≈ b
     @test is_left_normalized(ψ)
@@ -24,10 +24,13 @@ T = Float64
 end
 
 @testset "Canonisation (right)" begin
-    canonise!(ϕ, :right)
+    a = norm(ϕ)
+    b = canonise!(ϕ, :right)
+    @test a ≈ b 
     @test is_right_normalized(ϕ)
     @test dot(ϕ, ϕ) ≈ 1
 end
+
 
 @testset "Cauchy-Schwarz inequality (after truncation)" begin
     @test abs(dot(ϕ, ψ)) <= norm(ϕ) * norm(ψ)
@@ -42,6 +45,7 @@ end
     canonise!(ψ, :left, Dcut)
     @test dot(ψ, ψ) ≈ 1
 end
+
 
 @testset "<left|right>" begin
     ϵ = 1E-14

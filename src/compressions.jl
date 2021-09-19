@@ -53,13 +53,15 @@ function _right_sweep!(ψ::AbstractMPS, Dcut::Int=typemax(Int))
         @matmul M̃[(x, σ), y] := sum(α) R[x, α] * A[α, σ, y]
 
         # decompose
-        Q, R = qr(M̃, Dcut)
+        #Q, R = qr(M̃, Dcut)
+        Q, S, V = svd(M̃, Dcut)
+        R = Diagonal(S) * V'
 
         # create new
         @cast A[x, σ, y] := Q[(x, σ), y] (σ ∈ 1:size(A, 2))
         ψ[i] = A
     end
-    R[1] 
+    abs(R[1]) 
 end
 
 
@@ -73,14 +75,16 @@ function _left_sweep!(ψ::AbstractMPS, Dcut::Int=typemax(Int))
         @matmul M̃[x, (σ, y)] := sum(α) B[x, σ, α] * R[α, y]
 
         # decompose
-        R, Q = rq(M̃, Dcut)
+        #R, Q = rq(M̃, Dcut)
+        U, Σ, V = svd(M̃, Dcut) 
+        R = U * Diagonal(Σ)
+        Q = V'
 
         # create new
-        d = physical_dim(ψ, i)
         @cast B[x, σ, y] := Q[x, (σ, y)] (σ ∈ 1:size(B, 2))
         ψ[i] = B
     end
-    R[1] 
+    abs(R[1]) 
 end
 
 
@@ -99,7 +103,9 @@ function _left_sweep_var!!(ϕ::AbstractMPS, env::Vector{<:AbstractMatrix}, ψ::A
         @tensor MM[x, σ, α] := L[x, β] * M[β, σ, α] 
         @matmul MM[x, (σ, y)] := sum(α) MM[x, σ, α] * R[α, y]
 
-        _, Q = rq(MM, typemax(Int))
+        #_, Q = rq(MM, typemax(Int))
+        _, _, V = svd(MM, typemax(Int)) 
+        Q = V'
 
         @cast B[x, σ, y] := Q[x, (σ, y)] (σ ∈ 1:size(M, 2))
 
@@ -127,7 +133,8 @@ function _right_sweep_var!!(ϕ::AbstractMPS, env::Vector{<:AbstractMatrix}, ψ::
         @tensor M̃[x, σ, α] := L[x, β] * M[β, σ, α]
         @matmul B[(x, σ), y] := sum(α) M̃[x, σ, α] * R[α, y]
 
-        Q, _ = qr(B, typemax(Int))
+        #Q, _ = qr(B, typemax(Int))
+        Q, _, _ = svd(B, typemax(Int))
 
         @cast A[x, σ, y] := Q[(x, σ), y] (σ ∈ 1:size(M, 2))
 

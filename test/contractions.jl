@@ -74,9 +74,12 @@ end
     T = ComplexF64
 
     ψ = randn(MPS{T}, sites, D, d)
-    σ = 2 * (rand(sites) .< 0.5) .- 1
+    state = 2 * (rand(sites) .< 0.5) .- 1
 
-    @test_broken tensor(ψ, σ) ≈ left_env(ψ, map(idx, σ))[]
+    C = I
+    for (A, σ) ∈ zip(ψ, state) C *= A[:, idx(σ), :] end
+    
+    @test tr(C) ≈ left_env(ψ, map(idx, state))[]
 end
 
 @testset "right_env correctly contracts MPO with MPS for a given configuration" begin

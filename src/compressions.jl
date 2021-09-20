@@ -47,15 +47,9 @@ end
 
 function _right_sweep!(ψ::AbstractMPS, Dcut::Int=typemax(Int), args...)
     R = ones(eltype(ψ), 1, 1)
-
-    for (i, A) ∈ enumerate(ψ)
-        # attach
+    for (i, A) ∈ enumerate(ψ)      
         @matmul M̃[(x, σ), y] := sum(α) R[x, α] * A[α, σ, y]
-
-        # decompose
         Q, R = qr_fact(M̃, Dcut, args...)
-
-        # create new
         @cast A[x, σ, y] := Q[(x, σ), y] (σ ∈ 1:size(A, 2))
         ψ[i] = A
     end
@@ -65,17 +59,10 @@ end
 
 function _left_sweep!(ψ::AbstractMPS, Dcut::Int=typemax(Int), args...)
     R = ones(eltype(ψ), 1, 1)
-
     for i ∈ length(ψ):-1:1
-        B = ψ[i]
-
-        # attach    
+        B = ψ[i]   
         @matmul M̃[x, (σ, y)] := sum(α) B[x, σ, α] * R[α, y]
-
-        # decompose
         R, Q = rq_fact(M̃, Dcut, args...)
-
-        # create new
         @cast B[x, σ, y] := Q[x, (σ, y)] (σ ∈ 1:size(B, 2))
         ψ[i] = B
     end
@@ -84,7 +71,6 @@ end
 
 
 function _left_sweep_var!!(ϕ::AbstractMPS, env::Vector{<:AbstractMatrix}, ψ::AbstractMPS, args...)
-    # overwrite the overlap
     env[end] = ones(eltype(ϕ), 1, 1)
 
     for i ∈ length(ψ):-1:1
@@ -111,7 +97,6 @@ end
 
 
 function _right_sweep_var!!(ϕ::AbstractMPS, env::Vector{<:AbstractMatrix}, ψ::AbstractMPS, args...)
-    # overwrite the overlap
     env[1] = ones(eltype(ϕ), 1, 1)
 
     for (i, M) ∈ enumerate(ψ)
@@ -143,14 +128,8 @@ function _right_sweep(A::AbstractArray, Dcut::Int=typemax(Int), args...) where {
 
     for i ∈ 1:rank
         d = size(A, i)
-
-        # reshape
         @cast M[(x, σ), y] := R[x, (σ, y)] (σ ∈ 1:d)
-
-        # decompose
         Q, R = qr_fact(M, Dcut, args...)
-
-        # create MPS
         @cast B[x, σ, y] := Q[(x, σ), y] (σ ∈ 1:d)
         ψ[i] = B
     end
@@ -165,14 +144,8 @@ function _left_sweep(A::AbstractArray, Dcut::Int=typemax(Int), args...) where {T
 
     for i ∈ rank:-1:1
         d = size(A, i)
-
-        # reshape
         @cast M[x, (σ, y)] := R[(x, σ), y] (σ ∈ 1:d)
-
-        # decompose
         R, Q = rq_fact(M, Dcut, args...)
-
-        # create MPS
         @cast B[x, σ, y] := Q[x, (σ, y)] (σ ∈ 1:d)
         ψ[i] = B
     end

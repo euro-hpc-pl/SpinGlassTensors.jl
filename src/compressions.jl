@@ -59,15 +59,9 @@ function truncate!(ψ::AbstractMPS, s::Symbol, Dcut::Int=typemax(Int), args...)
 end
 
 
-function canonise!(ψ::AbstractMPS, s::Symbol, args...)
-    @assert s ∈ (:left, :right)
-    if s == :right
-        nrm = _left_sweep!(ψ, args...)
-    else
-        nrm = _right_sweep!(ψ, args...)
-    end
-    abs(nrm)
-end
+canonise!(ψ::AbstractMPS, s::Symbol) = canonise!(ψ, Val(s))
+canonise!(ψ::AbstractMPS, ::Val{:right}) = _left_sweep!(ψ, typemax(Int))
+canonise!(ψ::AbstractMPS, ::Val{:left}) = _right_sweep!(ψ, typemax(Int))
 
 
 function _right_sweep!(ψ::AbstractMPS, Dcut::Int=typemax(Int), args...)

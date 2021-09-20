@@ -139,13 +139,12 @@ end
 function _right_sweep(A::AbstractArray, Dcut::Int=typemax(Int), args...) where {T <: AbstractMPS}
     rank = ndims(A)
     ψ = MPS(eltype(A), rank)
-    R = reshape(copy(conj(A)), (length(A), 1))
+    R = reshape(copy(A), (1, length(A)))
 
     for i ∈ 1:rank
         d = size(A, i)
 
         # reshape
-        println(i, " ", size(R), " ", d)
         @cast M[(x, σ), y] := R[x, (σ, y)] (σ ∈ 1:d)
 
         # decompose
@@ -179,3 +178,4 @@ function _left_sweep(A::AbstractArray, Dcut::Int=typemax(Int), args...) where {T
     end
     ψ
 end
+

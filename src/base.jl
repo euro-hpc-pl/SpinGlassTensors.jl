@@ -98,6 +98,10 @@ function Base.randn(::Type{MPO{T}}, L::Int, D::Int, d::Int) where {T}
     MPO(randn(MPS{T}, L, D, d^2))
 end
 
+function Base.randn(::Type{MPO{T}}, D::Int, rank::Union{Vector, NTuple}) where {T}
+    MPO(randn(MPS{T}, D, rank .^ 2))
+end
+
 Base.randn(::Type{MPO}, args...) = randn(MPO{Float64}, args...)
 
 is_left_normalized(ψ::MPS) = all(

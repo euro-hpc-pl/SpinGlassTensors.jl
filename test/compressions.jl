@@ -88,7 +88,8 @@ end
     Ψ = copy(Φ)
     canonise!(Ψ, :left)
 
-    compress!(Φ, Dcut, var_tol, var_max_sweeps)
+    overlap = compress!(Φ, Dcut, var_tol, var_max_sweeps)
+    #println(overlap)
 
     @test norm(Φ) ≈ 1
     @test is_left_normalized(Φ)

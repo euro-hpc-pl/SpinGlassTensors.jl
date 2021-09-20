@@ -1,4 +1,7 @@
-export left_env, right_env, dot!
+export 
+    left_env, 
+    right_env, 
+    dot!
 
 # --------------------------- Conventions -----------------------
 #
@@ -34,6 +37,7 @@ function left_env(ϕ::AbstractMPS, ψ::AbstractMPS)
     end
     L
 end
+
 
 # TODO: remove it (after SpinGlassEngine is updated)
 @memoize Dict function left_env(ϕ::AbstractMPS, σ::Vector{Int})

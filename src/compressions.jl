@@ -14,7 +14,7 @@ end
 
 function compress!(ϕ::AbstractMPS, Dcut::Int, tol::Number=1E-8, max_sweeps::Int=4, args...)
     # right canonise ϕ
-    _left_sweep!(ϕ, args...)
+    _left_sweep!(ϕ, args...) 
 
     # Initial guess - truncated ϕ
     ψ = copy(ϕ)
@@ -43,6 +43,7 @@ function compress!(ϕ::AbstractMPS, Dcut::Int, tol::Number=1E-8, max_sweeps::Int
             overlap_before = overlap
         end
     end
+    overlap
 end
 
 

@@ -35,10 +35,10 @@ end
 function canonise!(ψ::AbstractMPS, s::Symbol, Dcut::Int=typemax(Int))
     @assert s ∈ (:left, :right)
     if s == :right
-        nrm = _right_sweep!(ψ, typemax(Int))
+        nrm = _right_sweep!(ψ)
         _left_sweep!(ψ, Dcut)
     else
-        nrm = _left_sweep!(ψ, typemax(Int))
+        nrm = _left_sweep!(ψ)
         _right_sweep!(ψ, Dcut)
     end
     abs(nrm)

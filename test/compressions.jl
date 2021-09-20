@@ -68,7 +68,7 @@ end
 
 
 @testset "<left|right>" begin
-    ϵ = 1E-14
+    ϵ = 1E-10
     ψ = randn(MPS{T}, sites, D, d)
 
     l = copy(ψ)

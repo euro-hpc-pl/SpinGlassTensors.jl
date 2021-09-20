@@ -30,12 +30,12 @@ end
     @test dot(ϕ, ϕ) ≈ 1
 end
 
-@testset "Copy and canonise twice" begin
+@testset "Copy and truncate twice" begin
     ψ̃ = copy(ψ)
     @test ψ̃ == ψ
     for (direction, predicate) ∈ ((:left, is_left_normalized), (:right, is_right_normalized))
-        canonise!(ψ, direction, Dcut)
-        canonise!(ψ̃, direction, Dcut)
+        truncate!(ψ, direction, Dcut)
+        truncate!(ψ̃, direction, Dcut)
 
         @test predicate(ψ)
         @test predicate(ψ̃)
@@ -52,13 +52,13 @@ end
 end
 
 @testset "Truncation (SVD, right)" begin
-    canonise!(ψ, :right, Dcut)
+    truncate!(ψ, :right, Dcut)
     @test is_right_normalized(ψ)
     @test norm(ψ) ≈ 1
 end
 
 @testset "Truncation (SVD, left)" begin
-    canonise!(ψ, :left, Dcut)
+    truncate!(ψ, :left, Dcut)
     @test is_left_normalized(ψ)
     @test norm(ψ) ≈ 1
 end
@@ -91,7 +91,6 @@ end
     compress!(Φ, Dcut, var_tol, var_max_sweeps)
 
     @test norm(Φ) ≈ 1
-    @test abs(dot(Φ, Ψ)) ≈ 1
     @test is_left_normalized(Φ)
     @test is_right_normalized(Φ) == false
 end

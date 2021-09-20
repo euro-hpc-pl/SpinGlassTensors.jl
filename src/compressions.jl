@@ -1,5 +1,6 @@
 export 
     canonise!, 
+    truncate!,
     compress!,
     compress
 
@@ -12,12 +13,12 @@ end
 
 
 function compress!(ϕ::AbstractMPS, Dcut::Int, tol::Number=1E-8, max_sweeps::Int=4, args...)
-    # left canonise what comes in
-    _right_sweep!(ϕ, args...)
+    # right canonise ϕ
+    _left_sweep!(ϕ, args...)
 
     # Initial guess - truncated ϕ
     ψ = copy(ϕ)
-    _left_sweep!(ψ, Dcut, args...)
+    _right_sweep!(ϕ, Dcut, args...)
 
     # Create environment
     env = left_env(ϕ, ψ)
@@ -26,7 +27,7 @@ function compress!(ϕ::AbstractMPS, Dcut::Int, tol::Number=1E-8, max_sweeps::Int
     overlap = Inf
     overlap_before = -Inf
 
-    @info "Compressing down to" Dcut
+    @info "Compressing state down to" Dcut
 
     for sweep ∈ 1:max_sweeps
         _left_sweep_var!!(ϕ, env, ψ, args...)
@@ -45,7 +46,7 @@ function compress!(ϕ::AbstractMPS, Dcut::Int, tol::Number=1E-8, max_sweeps::Int
 end
 
 
-function canonise!(ψ::AbstractMPS, s::Symbol, Dcut::Int=typemax(Int), args...)
+function truncate!(ψ::AbstractMPS, s::Symbol, Dcut::Int=typemax(Int), args...)
     @assert s ∈ (:left, :right)
     if s == :right
         nrm = _right_sweep!(ψ, args...)
@@ -53,6 +54,17 @@ function canonise!(ψ::AbstractMPS, s::Symbol, Dcut::Int=typemax(Int), args...)
     else
         nrm = _left_sweep!(ψ, args...)
         _right_sweep!(ψ, Dcut, args...)
+    end
+    abs(nrm)
+end
+
+
+function canonise!(ψ::AbstractMPS, s::Symbol, args...)
+    @assert s ∈ (:left, :right)
+    if s == :right
+        nrm = _left_sweep!(ψ, args...)
+    else
+        nrm = _right_sweep!(ψ, args...)
     end
     abs(nrm)
 end

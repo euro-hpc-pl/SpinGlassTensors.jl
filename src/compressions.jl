@@ -1,6 +1,6 @@
 export canonise!, compress
 
-function compress(ψ::AbstractMPS, Dcut::Int, tol::Number=1E-8, max_sweeps::Int=4)
+function compress(ψ::AbstractMPS, Dcut::Int, tol::Number=1E-8, max_sweeps::Int=4, args...)
     # Initial guess - truncated ψ
     ϕ = copy(ψ)
     canonise!(ϕ, :left, Dcut)
@@ -15,8 +15,8 @@ function compress(ψ::AbstractMPS, Dcut::Int, tol::Number=1E-8, max_sweeps::Int=
     @info "Compressing down to" Dcut
 
     for sweep ∈ 1:max_sweeps
-        _left_sweep_var!!(ϕ, env, ψ)
-        overlap = _right_sweep_var!!(ϕ, env, ψ)
+        _left_sweep_var!!(ϕ, env, ψ, args...)
+        overlap = _right_sweep_var!!(ϕ, env, ψ, args...)
 
         diff = abs(overlap_before - abs(overlap))
         @info "Convergence" diff
@@ -32,20 +32,20 @@ function compress(ψ::AbstractMPS, Dcut::Int, tol::Number=1E-8, max_sweeps::Int=
 end
 
 
-function canonise!(ψ::AbstractMPS, s::Symbol, Dcut::Int=typemax(Int))
+function canonise!(ψ::AbstractMPS, s::Symbol, Dcut::Int=typemax(Int), args...)
     @assert s ∈ (:left, :right)
     if s == :right
-        nrm = _right_sweep!(ψ)
-        _left_sweep!(ψ, Dcut)
+        nrm = _right_sweep!(ψ, args...)
+        _left_sweep!(ψ, Dcut, args...)
     else
-        nrm = _left_sweep!(ψ)
-        _right_sweep!(ψ, Dcut)
+        nrm = _left_sweep!(ψ, args...)
+        _right_sweep!(ψ, Dcut, args...)
     end
     abs(nrm)
 end
 
 
-function _right_sweep!(ψ::AbstractMPS, Dcut::Int=typemax(Int))
+function _right_sweep!(ψ::AbstractMPS, Dcut::Int=typemax(Int), args...)
     R = ones(eltype(ψ), 1, 1)
 
     for (i, A) ∈ enumerate(ψ)
@@ -53,9 +53,7 @@ function _right_sweep!(ψ::AbstractMPS, Dcut::Int=typemax(Int))
         @matmul M̃[(x, σ), y] := sum(α) R[x, α] * A[α, σ, y]
 
         # decompose
-        #Q, R = qr(M̃, Dcut)
-        Q, S, V = svd(M̃, Dcut)
-        R = Diagonal(S) * V'
+        Q, R = qr_fact(M̃, Dcut, args...)
 
         # create new
         @cast A[x, σ, y] := Q[(x, σ), y] (σ ∈ 1:size(A, 2))
@@ -65,7 +63,7 @@ function _right_sweep!(ψ::AbstractMPS, Dcut::Int=typemax(Int))
 end
 
 
-function _left_sweep!(ψ::AbstractMPS, Dcut::Int=typemax(Int))
+function _left_sweep!(ψ::AbstractMPS, Dcut::Int=typemax(Int), args...)
     R = ones(eltype(ψ), 1, 1)
 
     for i ∈ length(ψ):-1:1
@@ -75,10 +73,7 @@ function _left_sweep!(ψ::AbstractMPS, Dcut::Int=typemax(Int))
         @matmul M̃[x, (σ, y)] := sum(α) B[x, σ, α] * R[α, y]
 
         # decompose
-        #R, Q = rq(M̃, Dcut)
-        U, Σ, V = svd(M̃, Dcut) 
-        R = U * Diagonal(Σ)
-        Q = V'
+        R, Q = rq_fact(M̃, Dcut, args...)
 
         # create new
         @cast B[x, σ, y] := Q[x, (σ, y)] (σ ∈ 1:size(B, 2))
@@ -88,7 +83,7 @@ function _left_sweep!(ψ::AbstractMPS, Dcut::Int=typemax(Int))
 end
 
 
-function _left_sweep_var!!(ϕ::AbstractMPS, env::Vector{<:AbstractMatrix}, ψ::AbstractMPS)
+function _left_sweep_var!!(ϕ::AbstractMPS, env::Vector{<:AbstractMatrix}, ψ::AbstractMPS, args...)
     # overwrite the overlap
     env[end] = ones(eltype(ϕ), 1, 1)
 
@@ -100,9 +95,7 @@ function _left_sweep_var!!(ϕ::AbstractMPS, env::Vector{<:AbstractMatrix}, ψ::A
         @tensor MM[x, σ, α] := L[x, β] * M[β, σ, α] 
         @matmul MM[x, (σ, y)] := sum(α) MM[x, σ, α] * R[α, y]
 
-        #_, Q = rq(MM, typemax(Int))
-        _, _, V = svd(MM, typemax(Int)) 
-        Q = V'
+        _, Q = rq_fact(MM, args...)
 
         @cast B[x, σ, y] := Q[x, (σ, y)] (σ ∈ 1:size(M, 2))
 
@@ -117,7 +110,7 @@ function _left_sweep_var!!(ϕ::AbstractMPS, env::Vector{<:AbstractMatrix}, ψ::A
 end
 
 
-function _right_sweep_var!!(ϕ::AbstractMPS, env::Vector{<:AbstractMatrix}, ψ::AbstractMPS)
+function _right_sweep_var!!(ϕ::AbstractMPS, env::Vector{<:AbstractMatrix}, ψ::AbstractMPS, args...)
     # overwrite the overlap
     env[1] = ones(eltype(ϕ), 1, 1)
 
@@ -128,8 +121,7 @@ function _right_sweep_var!!(ϕ::AbstractMPS, env::Vector{<:AbstractMatrix}, ψ::
         @tensor M̃[x, σ, α] := L[x, β] * M[β, σ, α]
         @matmul B[(x, σ), y] := sum(α) M̃[x, σ, α] * R[α, y]
 
-        #Q, _ = qr(B, typemax(Int))
-        Q, _, _ = svd(B, typemax(Int))
+        Q, _ = qr_fact(B, args...)
 
         @cast A[x, σ, y] := Q[(x, σ), y] (σ ∈ 1:size(M, 2))
 
@@ -144,48 +136,45 @@ function _right_sweep_var!!(ϕ::AbstractMPS, env::Vector{<:AbstractMatrix}, ψ::
 end
 
 
-function _right_sweep_SVD(::Type{T}, A::AbstractArray, Dcut::Int=typemax(Int), args...) where {T <: AbstractMPS}
+function _right_sweep(A::AbstractArray, Dcut::Int=typemax(Int), args...) where {T <: AbstractMPS}
     rank = ndims(A)
-    ψ = T(eltype(A), rank)
-    V = reshape(copy(conj(A)), (length(A), 1))
+    ψ = MPS(eltype(A), rank)
+    R = reshape(copy(conj(A)), (length(A), 1))
 
     for i ∈ 1:rank
         d = size(A, i)
 
         # reshape
-        VV = conj.(transpose(V))
-        @cast M[(x, σ), y] |= VV[x, (σ, y)] (σ ∈ 1:d)
+        println(i, " ", size(R), " ", d)
+        @cast M[(x, σ), y] := R[x, (σ, y)] (σ ∈ 1:d)
 
         # decompose
-        U, Σ, V = svd(M, Dcut, args...)
-        V *= Diagonal(Σ)
+        Q, R = qr_fact(M, Dcut, args...)
 
         # create MPS
-        @cast B[x, σ, y] := U[(x, σ), y] (σ ∈ 1:d)
+        @cast B[x, σ, y] := Q[(x, σ), y] (σ ∈ 1:d)
         ψ[i] = B
     end
     ψ
 end
 
 
-function _left_sweep_SVD(::Type{T}, A::AbstractArray, Dcut::Int=typemax(Int), args...) where {T <: AbstractMPS}
+function _left_sweep(A::AbstractArray, Dcut::Int=typemax(Int), args...) where {T <: AbstractMPS}
     rank = ndims(A)
-    ψ = T(eltype(A), rank)
-    U = reshape(copy(A), (length(A), 1))
+    ψ = MPS(eltype(A), rank)
+    R = reshape(copy(A), (length(A), 1))
 
     for i ∈ rank:-1:1
         d = size(A, i)
 
         # reshape
-        @cast M[x, (σ, y)] |= U[(x, σ), y] (σ ∈ 1:d)
+        @cast M[x, (σ, y)] := R[(x, σ), y] (σ ∈ 1:d)
 
         # decompose
-        U, Σ, V = svd(M, Dcut, args...)
-        U *= Diagonal(Σ)
+        R, Q = rq_fact(M, Dcut, args...)
 
         # create MPS
-        VV = conj.(transpose(V))
-        @cast B[x, σ, y] |= VV[x, (σ, y)] (σ ∈ 1:d)
+        @cast B[x, σ, y] := Q[x, (σ, y)] (σ ∈ 1:d)
         ψ[i] = B
     end
     ψ

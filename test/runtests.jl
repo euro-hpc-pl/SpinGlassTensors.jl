@@ -12,11 +12,10 @@ idx(σ::Int) = (σ == -1) ? 1 : σ + 1
 
 
 my_tests = [
-    #"linear_algebra_ext.jl"
-    #"base.jl",
+    "base.jl",
     #"memoization.jl",
     #"contractions.jl",
-    "compressions.jl",
+    #"compressions.jl",
     #"identities.jl"
 ]
 

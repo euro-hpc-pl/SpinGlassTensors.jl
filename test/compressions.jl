@@ -23,6 +23,7 @@ T = Float64
     @test dot(ψ, ψ) ≈ 1
 end
 
+
 @testset "Canonisation (right)" begin
     a = norm(ϕ)
     b = canonise!(ϕ, :right)
@@ -96,8 +97,6 @@ end
     canonise!(x, :left)
 
     Ψ = compress(Φ, Dcut, tol, max_sweeps)
-
-    println(dot(x, Ψ))
 
     @test norm(Ψ) ≈ 1
     @test is_left_normalized(Ψ)

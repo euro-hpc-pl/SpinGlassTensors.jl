@@ -1,16 +1,17 @@
-export rq
+export rq_fact, qr_fact
 
 
-function LinearAlgebra.qr(M::AbstractMatrix, Dcut::Int, args...)
-    F = pqrfact(M, rank=Dcut, args...)
-    q, r, p = F[:Q], F[:R], F[:p]
-    _qr_fix(q, r)
+function qr_fact(M::AbstractMatrix, Dcut::Int=typemax(Int), args...)
+    F = qr(M, args...)
+    q, r = _qr_fix(Array(F.Q), Array(F.R))
+    if Dcut > min(size(M)...) return q, r end
+    U, Σ, V = svd(r, Dcut)
+    q * U, Diagonal(Σ) * V'
 end
 
 
-function rq(M::AbstractMatrix, Dcut::Int, args...)
-    F = pqrfact(:c, M, rank=Dcut, args...) 
-    q, r = _qr_fix(F[:Q], F[:R])
+function rq_fact(M::AbstractMatrix, Dcut::Int=typemax(Int), args...)
+    q, r = qr_fact(M', args...) 
     r', q'
 end
 
@@ -21,17 +22,14 @@ function _qr_fix(Q::T, R::AbstractMatrix) where {T <: AbstractMatrix}
         @inbounds d[i] = ifelse(isapprox(d[i], 0, atol=1e-14), 1, d[i])
     end
     ph = d ./ abs.(d)
-    idim = size(R, 1)
-    q = T.name.wrapper(Q)[:, 1:idim]
-    r = T.name.wrapper(R)[1:idim, :]
-    q * Diagonal(ph), Diagonal(ph) * r
+    Q * Diagonal(ph), Diagonal(ph) * R
 end
 
 
-function LinearAlgebra.svd(A::AbstractMatrix, Dcut::Int, args...)
+function LinearAlgebra.svd(A::AbstractMatrix, Dcut::Int=typemax(Int), args...)
     # U, Σ, V = psvd(A, rank=Dcut, args...)
  
-    U, Σ, V = svd(A)
+    U, Σ, V = svd(A, args...)
     δ = min(Dcut, size(Σ)...)
     U = U[:, 1:δ]
     Σ = Σ[1:δ] 

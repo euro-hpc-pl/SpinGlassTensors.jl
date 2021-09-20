@@ -1,7 +1,7 @@
 module SpinGlassTensors
     using LinearAlgebra
     using TensorOperations, TensorCast
-    using LowRankApprox
+    #using LowRankApprox
     using Memoize
 
     using DocStringExtensions

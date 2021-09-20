@@ -16,31 +16,25 @@ T = Float64
 
 
 @testset "Canonisation (left)" begin
-    a = norm(ψ)
     b = canonise!(ψ, :left)
-    @test a ≈ b
     @test is_left_normalized(ψ)
     @test dot(ψ, ψ) ≈ 1
 end
 
 
 @testset "Canonisation (right)" begin
-    a = norm(ϕ)
     b = canonise!(ϕ, :right)
-    @test a ≈ b 
     @test is_right_normalized(ϕ)
     @test dot(ϕ, ϕ) ≈ 1
 end
 
 @testset "Copy and canonise twice" begin
-    nrm = norm(ψ)
     ψ̃ = copy(ψ)
     @test ψ̃ == ψ
     for (direction, predicate) ∈ ((:left, is_left_normalized), (:right, is_right_normalized))
-        nrm1 = canonise!(ψ, direction, Dcut)
-        nrm2 = canonise!(ψ̃, direction, Dcut)
+        canonise!(ψ, direction, Dcut)
+        canonise!(ψ̃, direction, Dcut)
 
-        @test nrm1 ≈ nrm2 ≈ nrm
         @test predicate(ψ)
         @test predicate(ψ̃)
         @test bond_dimension(ψ̃) == bond_dimension(ψ) 
@@ -96,7 +90,10 @@ end
     x = copy(Φ)
     canonise!(x, :left)
 
+    canonise!(Φ, :left)
     Ψ = compress(Φ, Dcut, tol, max_sweeps)
+
+    println(dot(x, Ψ))
 
     @test norm(Ψ) ≈ 1
     @test is_left_normalized(Ψ)

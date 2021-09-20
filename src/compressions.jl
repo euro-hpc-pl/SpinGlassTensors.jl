@@ -1,5 +1,6 @@
 export canonise!, compress
 
+
 function compress(ψ::AbstractMPS, Dcut::Int, tol::Number=1E-8, max_sweeps::Int=4, args...)
     # Initial guess - truncated ψ
     ϕ = copy(ψ)
@@ -50,6 +51,7 @@ function _right_sweep!(ψ::AbstractMPS, Dcut::Int=typemax(Int), args...)
     for (i, A) ∈ enumerate(ψ)      
         @matmul M̃[(x, σ), y] := sum(α) R[x, α] * A[α, σ, y]
         Q, R = qr_fact(M̃, Dcut, args...)
+        R = R ./ maximum(abs.(R))
         @cast A[x, σ, y] := Q[(x, σ), y] (σ ∈ 1:size(A, 2))
         ψ[i] = A
     end
@@ -63,6 +65,7 @@ function _left_sweep!(ψ::AbstractMPS, Dcut::Int=typemax(Int), args...)
         B = ψ[i]   
         @matmul M̃[x, (σ, y)] := sum(α) B[x, σ, α] * R[α, y]
         R, Q = rq_fact(M̃, Dcut, args...)
+        R = R ./ maximum(abs.(R))
         @cast B[x, σ, y] := Q[x, (σ, y)] (σ ∈ 1:size(B, 2))
         ψ[i] = B
     end
@@ -130,6 +133,7 @@ function _right_sweep(A::AbstractArray, Dcut::Int=typemax(Int), args...) where {
         d = size(A, i)
         @cast M[(x, σ), y] := R[x, (σ, y)] (σ ∈ 1:d)
         Q, R = qr_fact(M, Dcut, args...)
+        R = R ./ maximum(abs.(R))
         @cast B[x, σ, y] := Q[(x, σ), y] (σ ∈ 1:d)
         ψ[i] = B
     end
@@ -146,6 +150,7 @@ function _left_sweep(A::AbstractArray, Dcut::Int=typemax(Int), args...) where {T
         d = size(A, i)
         @cast M[x, (σ, y)] := R[(x, σ), y] (σ ∈ 1:d)
         R, Q = rq_fact(M, Dcut, args...)
+        R = R ./ maximum(abs.(R))
         @cast B[x, σ, y] := Q[x, (σ, y)] (σ ∈ 1:d)
         ψ[i] = B
     end

@@ -33,6 +33,7 @@ function LinearAlgebra.svd(A::AbstractMatrix, Dcut::Int=typemax(Int), args...)
     δ = min(Dcut, size(Σ)...)
     U = U[:, 1:δ]
     Σ = Σ[1:δ] 
+    Σ ./ sum(Σ) 
     V = V[:, 1:δ]
 
     d = diag(U)

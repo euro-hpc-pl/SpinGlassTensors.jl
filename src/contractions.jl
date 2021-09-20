@@ -58,9 +58,9 @@ function right_env(ϕ::AbstractMPS, ψ::AbstractMPS)
     R[end][1, 1] = one(T)
     for i ∈ L:-1:1
         M = ψ[i]
-        M̃ = conj.(ϕ[i])
+        M̃ = ϕ[i]
         D = R[i+1]
-        @tensor D[x, y] := M[x, σ, α] * D[α, β] * M̃[y, σ, β] order = (β, α, σ)
+        @tensor D[x, y] := M[x, σ, α] * D[α, β] * conj(M̃)[y, σ, β] order = (β, α, σ)
         R[i] = D
     end
     R

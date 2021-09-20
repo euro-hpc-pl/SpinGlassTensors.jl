@@ -1,18 +1,20 @@
 @testset "Canonisation and Compression" begin
 
-D = 16
-Dcut = 8
+D = 32
+Dcut = 16
 
 d = 2
 sites = 100
 
 T = Float64
 
+var_tol = 1E-10
+var_max_sweeps = 100
+
 ψ = randn(MPS{T}, sites, D, d)
 ϕ = randn(MPS{T}, sites, D, d)
 χ = randn(MPS{T}, sites, D, d)
 Φ = randn(MPS{T}, sites, D, d)
-
 
 
 @testset "Canonisation (left)" begin
@@ -83,18 +85,13 @@ end
 
 
 @testset "Variational compression" begin
-    Dcut = 8
-    tol = 1E-10
-    max_sweeps = 100
-
     Ψ = copy(Φ)
     canonise!(Ψ, :left)
 
-    compress!(Φ, Dcut, tol, max_sweeps)
-
-    println(dot(Φ, Ψ))
+    compress!(Φ, Dcut, var_tol, var_max_sweeps)
 
     @test norm(Φ) ≈ 1
+    @test abs(dot(Φ, Ψ)) ≈ 1
     @test is_left_normalized(Φ)
     @test is_right_normalized(Φ) == false
 end

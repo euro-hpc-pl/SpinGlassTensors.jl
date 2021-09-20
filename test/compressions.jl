@@ -87,17 +87,16 @@ end
     tol = 1E-10
     max_sweeps = 100
 
-    x = copy(Φ)
-    canonise!(x, :left)
+    Ψ = copy(Φ)
+    canonise!(Ψ, :left)
 
-    canonise!(Φ, :left)
-    Ψ = compress(Φ, Dcut, tol, max_sweeps)
+    compress!(Φ, Dcut, tol, max_sweeps)
 
-    println(dot(x, Ψ))
+    println(dot(Φ, Ψ))
 
-    @test norm(Ψ) ≈ 1
-    @test is_left_normalized(Ψ)
-    @test is_right_normalized(Ψ) == false
+    @test norm(Φ) ≈ 1
+    @test is_left_normalized(Φ)
+    @test is_right_normalized(Φ) == false
 end
 
 end

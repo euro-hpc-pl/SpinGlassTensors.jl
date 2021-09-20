@@ -1,17 +1,30 @@
-export canonise!, compress
+export 
+    canonise!, 
+    compress!,
+    compress
 
 
-function compress(ψ::AbstractMPS, Dcut::Int, tol::Number=1E-8, max_sweeps::Int=4, args...)
-    # Initial guess - truncated ψ
-    ϕ = copy(ψ)
-    canonise!(ϕ, :left, Dcut)
+function compress(ϕ::AbstractMPS, Dcut::Int, tol::Number=1E-8, max_sweeps::Int=4, args...)
+    ψ = copy(ϕ)
+    compress!(ψ, Dcut, tol, max_sweeps, args...)
+    ψ
+end
+
+
+function compress!(ϕ::AbstractMPS, Dcut::Int, tol::Number=1E-8, max_sweeps::Int=4, args...)
+    # left canonise what comes in
+    _right_sweep!(ϕ, args...)
+
+    # Initial guess - truncated ϕ
+    ψ = copy(ϕ)
+    _left_sweep!(ψ, Dcut, args...)
 
     # Create environment
     env = left_env(ϕ, ψ)
 
     # Variational compression
-    overlap = 0
-    overlap_before = 1
+    overlap = Inf
+    overlap_before = -Inf
 
     @info "Compressing down to" Dcut
 
@@ -29,7 +42,6 @@ function compress(ψ::AbstractMPS, Dcut::Int, tol::Number=1E-8, max_sweeps::Int=
             overlap_before = overlap
         end
     end
-    ϕ
 end
 
 

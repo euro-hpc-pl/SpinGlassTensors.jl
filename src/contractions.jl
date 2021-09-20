@@ -19,7 +19,7 @@ function LinearAlgebra.dot(ϕ::AbstractMPS, ψ::AbstractMPS)
 end
 
 """
-Creates left environment
+Creates left environment (ϕ - bra, ψ - ket)
 """
 function left_env(ϕ::AbstractMPS, ψ::AbstractMPS)
     T = promote_type(eltype(ψ), eltype(ϕ))
@@ -46,7 +46,9 @@ end
     L
 end
 
-
+"""
+Creates right environment (ϕ - bra, ψ - ket)
+"""
 function right_env(ϕ::AbstractMPS, ψ::AbstractMPS)
     L = length(ψ)
     T = promote_type(eltype(ψ), eltype(ϕ))

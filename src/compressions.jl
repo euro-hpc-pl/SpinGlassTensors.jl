@@ -104,7 +104,6 @@ function _left_sweep_var!!(ϕ::AbstractMPS, env::Vector{<:AbstractMatrix}, ψ::A
         @matmul MM[x, (σ, y)] := sum(α) MM[x, σ, α] * R[α, y]
 
         _, Q = rq_fact(MM, args...)
-
         @cast B[x, σ, y] := Q[x, (σ, y)] (σ ∈ 1:size(M, 2))
 
         # update ϕ and right environment
@@ -129,7 +128,6 @@ function _right_sweep_var!!(ϕ::AbstractMPS, env::Vector{<:AbstractMatrix}, ψ::
         @matmul B[(x, σ), y] := sum(α) M̃[x, σ, α] * R[α, y]
 
         Q, _ = qr_fact(B, args...)
-
         @cast A[x, σ, y] := Q[(x, σ), y] (σ ∈ 1:size(M, 2))
 
         # update ϕ and left environment

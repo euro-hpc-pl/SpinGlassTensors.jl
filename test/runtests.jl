@@ -16,6 +16,7 @@ my_tests = [
     "memoization.jl",
     "contractions.jl",
     "compressions.jl",
+    "s_compressions.jl",
     "identities.jl"
 ]
 

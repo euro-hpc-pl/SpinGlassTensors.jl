@@ -4,7 +4,7 @@ export rq_fact, qr_fact
 function qr_fact(M::AbstractMatrix, Dcut::Int=typemax(Int), tol::Float64=1E-12, args...)
     F = qr(M, args...)
     q, r = _qr_fix(Array(F.Q), Array(F.R))
-    if Dcut > max(size(M)...) return q, r end
+    if Dcut > size(q, 2) return q, r end
     U, Σ, V = svd(r, Dcut, tol)
     q * U, Diagonal(Σ) * V'
 end
@@ -36,7 +36,7 @@ function LinearAlgebra.svd(A::AbstractMatrix, Dcut::Int=typemax(Int), tol::Float
 
     U = U[:, 1:δ]
     Σ = Σ[1:δ] 
-    Σ ./ sum(Σ) 
+    Σ ./ sum(Σ .^ 2) 
     V = V[:, 1:δ]
 
     d = diag(U)

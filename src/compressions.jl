@@ -5,7 +5,7 @@ export
     compress
 
 
-#
+# This is for backwards compatibility
 function compress(ϕ::AbstractMPS, Dcut::Int, tol::Number=1E-8, max_sweeps::Int=4, args...)
     ψ = copy(ϕ)
     compress!(ψ, Dcut, tol, max_sweeps, args...)

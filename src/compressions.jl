@@ -38,7 +38,7 @@ function compress!(ϕ::AbstractMPS, Dcut::Int, tol::Number=1E-8, max_sweeps::Int
 
         if diff < tol
             @info "Finished in $sweep sweeps of $(max_sweeps)."
-            return ϕ
+            return overlap
         else
             overlap_before = overlap
         end

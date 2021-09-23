@@ -22,7 +22,7 @@ end
 @inline Base.getindex(ket::AbstractTN, i) = getindex(ket.tensors, i)
 @inline Base.setindex!(ket::AbstractTN, A::AbstractArray, i::Int) = ket.tensors[i] = A
 @inline Base.length(ket::AbstractTN) = length(ket.tensors)
-
+@inline Base.copy(ket::AbstractTN) = AbstractTN(copy(ket.tensors))
 
 mutable struct Mpo <: AbstractMpo
     tensors

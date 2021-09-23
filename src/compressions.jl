@@ -5,6 +5,7 @@ export
     compress
 
 
+#
 function compress(ϕ::AbstractMPS, Dcut::Int, tol::Number=1E-8, max_sweeps::Int=4, args...)
     ψ = copy(ϕ)
     compress!(ψ, Dcut, tol, max_sweeps, args...)
@@ -50,13 +51,12 @@ end
 function truncate!(ψ::AbstractMPS, s::Symbol, Dcut::Int=typemax(Int), args...)
     @assert s ∈ (:left, :right)
     if s == :right
-        nrm = _right_sweep!(ψ, args...)
+        _right_sweep!(ψ, args...)
         _left_sweep!(ψ, Dcut, args...)
     else
-        nrm = _left_sweep!(ψ, args...)
+        _left_sweep!(ψ, args...)
         _right_sweep!(ψ, Dcut, args...)
     end
-    abs(nrm)
 end
 
 
@@ -74,7 +74,6 @@ function _right_sweep!(ψ::AbstractMPS, Dcut::Int=typemax(Int), args...)
         @cast A[x, σ, y] := Q[(x, σ), y] (σ ∈ 1:size(A, 2))
         ψ[i] = A
     end
-    R[1] 
 end
 
 
@@ -88,7 +87,6 @@ function _left_sweep!(ψ::AbstractMPS, Dcut::Int=typemax(Int), args...)
         @cast B[x, σ, y] := Q[x, (σ, y)] (σ ∈ 1:size(B, 2))
         ψ[i] = B
     end
-    R[1]
 end
 
 

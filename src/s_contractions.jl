@@ -11,25 +11,6 @@ function LinearAlgebra.dot(ψ::Mps, ϕ::Mps)
     tr(C)
 end
 
-"""
-$(TYPEDSIGNATURES)
-
-Calculates the norm of an MPS \$\\ket{\\phi}\$
-"""
 LinearAlgebra.norm(ψ::Mps) = sqrt(abs(dot(ψ, ψ)))
 
 
-function LinearAlgebra.dot(O::Mpo, ψ::Mps)
-    
-end
-
-
-function LinearAlgebra.dot(O1::Mpo, O2::Mpo)
-    W = Dict()
-    for i ∈ O1.sites
-        A, B = O1.tensors[i], O2.tensors[i]
-        @matmul V[(x, a), σ, (y, b), η] := sum(γ) A[x, σ, y, γ] * B[a, γ, b, η]
-        push!(W, i => V)
-    end
-    Mpo(W)
-end 

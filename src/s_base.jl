@@ -9,8 +9,7 @@ abstract type AbstractMpo end
 
 
 const AbstractTN = Union{AbstractMps, AbstractMpo}
-const Site = Union{Int, Rational{Int}}
-
+const Site = Union{Int, Rational{Int}} 
 
 mutable struct Mps <: AbstractMps
     tensors

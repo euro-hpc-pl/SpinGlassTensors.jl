@@ -15,7 +15,6 @@ mutable struct Environment <: AbstractEnvironment
         @assert bra.sites == ket.sites
         @assert issubset(bra.sites, mpo.sites)
 
-        # mpo can have sites with indices that are not in bra and ket
         env = Dict(
                    (first(bra.sites), :left) => ones(1, 1, 1),
                    (last(bra.sites), :right) => ones(1, 1, 1)
@@ -201,11 +200,11 @@ function update_env_left(LE::T, A₀::S, M::Dict, B₀::S) where {T, S <: Abstra
 end
 
 
-#       -- A --
-#          |    |
-# RE =  -- M -- RE 
-#          |    |
-#       -- B --
+#      -- A --
+#         |    |
+# R =  -- M -- RE 
+#         |    |
+#      -- B --
 #
 function update_env_right(RE::S, A::S, M::T, B::S) where {T, S <: AbstractArray}
     # for real there is no conjugate, otherwise conj(A)
@@ -218,7 +217,7 @@ end
 function update_env_right(RE::S, A::S, M::T, B::S, ::Val{:c}) where {T, S <: AbstractArray}
     # for real there is no conjugate, otherwise conj(A)
     @tensor R[nt, nc, nb] := RE[ot, oc, ob] * A[nt, α, ot] * 
-                             M[nc,  β, oc, α] * B[nb, β, ob] order = (ot, α, oc, β, ob)
+                             M[nc, β, oc, α] * B[nb, β, ob] order = (ot, α, oc, β, ob)
     R
 end
 
@@ -231,10 +230,17 @@ function update_env_right(RE::S, A₀::S, M::Dict, B₀::S) where {T, S <: Abstr
 end
 
 
-function update_env_right(RE::T, M::S) where {T, S <: AbstractArray} 
+#           --
+#              |
+# R =  -- M -- RE 
+#              |
+#           --
+#
+function update_env_right(RE::T, M::S) where {T, S <: AbstractArray}  
     @tensor R[nt, nc, nb] := M[nc, oc] * RE[nt, oc, nb]
     R
 end
+
 
 
 function project_ket_on_bra(env::Environment, site::Site)
@@ -247,10 +253,22 @@ function project_ket_on_bra(env::Environment, site::Site)
 end
 
 
+#   |    |    |
+#  LE -- M -- RE 
+#   |    |    |
+#     -- B --
+#
 function project_ket_on_bra(LE::S, B::S, M::T, RE::S) where {T, S <: AbstractArray}
-    @tensor C[x, y, z] := LE[k, l, x] * B[k, m, o] * 
+    @tensor A[x, y, z] := LE[k, l, x] * B[k, m, o] * 
                           M[l, y, n, m] * RE[z, n, o] order = (k, l, m, n, o)
-    C
+    A
+end
+
+
+function project_ket_on_bra(LE::S, B::S, M::T, RE::S, ::Val{:c}) where {T, S <: AbstractArray}
+    @tensor A[x, y, z] := LE[k, l, x] * B[k, m, o] * 
+                          M[l, m, n, y] * RE[z, n, o] order = (k, l, m, n, o)
+    A
 end
 
 
@@ -262,13 +280,6 @@ function project_ket_on_bra(LE::S, B₀::S, M::Dict, RE::S) where S <: AbstractA
     T
 end
 
-#=
-function project_ket_on_bra(LE, B, M, RE, :transposed)
-    @tensor T[x, y, z] := LE[k, l, x] * B[k, m, o] * 
-                          M[l, m, n, y] * RE[z, n, o] order = (k, l, m, n, o)
-    T
-end
-=#
 
 function measure_env(env::Environment, site::Site)
     L = update_env_left(

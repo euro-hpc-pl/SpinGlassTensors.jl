@@ -155,14 +155,22 @@ end
 
 #        -- A --
 #      |    |
-# L = LE -- W --  
+# L = LE -- M --  
 #      |    |
 #        -- B --
 #
 function update_env_left(LE::S, A::S, M::T, B::S) where {S, T <: AbstractArray} 
+    # for real there is no conjugate, otherwise conj(A)
     @tensor L[nb, nc, nt] := LE[ob, oc, ot] * A[ot, α, nt] * 
                              M[oc, α, nc, β] * B[ob, β, nb] order = (ot, α, oc, β, ob)  
+    L
+end
+
+
+function update_env_left(LE::S, A::S, M::T, B::S, ::Val{:c}) where {S, T <: AbstractArray} 
     # for real there is no conjugate, otherwise conj(A)
+    @tensor L[nb, nc, nt] := LE[ob, oc, ot] * A[ot, α, nt] * 
+                             M[oc, β, nc, α] * B[ob, β, nb] order = (ot, α, oc, β, ob)  
     L
 end
 
@@ -193,20 +201,24 @@ function update_env_left(LE::T, A₀::S, M::Dict, B₀::S) where {T, S <: Abstra
 end
 
 
-#=
-function update_env_left(LE, T, M, B, :transposed) 
-    @tensor L[nb, nc, nt] := LE[ob, oc, ot] * T[ot, α, nt] * 
-                             M[oc, β, nc, α] * B[ob, β, nb] order = (ot, α, oc, β, ob)  
-    # for real there is no conjugate, otherwise conj(T)
-    L
-end
-=#
-
-
-function update_env_right(RE::S, A::S, M::T, B::S)  where {T, S <: AbstractArray}
+#       -- A --
+#          |    |
+# RE =  -- M -- RE 
+#          |    |
+#       -- B --
+#
+function update_env_right(RE::S, A::S, M::T, B::S) where {T, S <: AbstractArray}
+    # for real there is no conjugate, otherwise conj(A)
     @tensor R[nt, nc, nb] := RE[ot, oc, ob] * A[nt, α, ot] *
                              M[nc, α, oc, β] * B[nb, β, ob] order = (ot, α, oc, β, ob)
-    # for real there is no conjugate, otherwise conj(T)
+    R
+end
+
+
+function update_env_right(RE::S, A::S, M::T, B::S, ::Val{:c}) where {T, S <: AbstractArray}
+    # for real there is no conjugate, otherwise conj(A)
+    @tensor R[nt, nc, nb] := RE[ot, oc, ob] * A[nt, α, ot] * 
+                             M[nc,  β, oc, α] * B[nb, β, ob] order = (ot, α, oc, β, ob)
     R
 end
 
@@ -218,14 +230,6 @@ function update_env_right(RE::S, A₀::S, M::Dict, B₀::S) where {T, S <: Abstr
     update_env_right(RE, A₀, M[0], B₀)
 end
 
-#=
-function update_env_right(RE, T, M, B, :transposed)  
-    @tensor R[nt, nc, nb] := RE[ot, oc, ob] * T[nt, α, ot] * 
-                             M[nc,  β, oc, α] * B[nb, β, ob] order = (ot, α, oc, β, ob)
-    # for real there is no conjugate, otherwise conj(T)
-    R
-end
-=#
 
 function update_env_right(RE::T, M::S) where {T, S <: AbstractArray} 
     @tensor R[nt, nc, nb] := M[nc, oc] * RE[nt, oc, nb]

@@ -32,11 +32,4 @@
         end
 
     end 
-    @testset "dot products of MPO" begin
-        mpo1 = dot(O1, O1)
-        @testset "has correct size" begin
-            @test size(mpo1.tensors[1]) == (1, 2, 4, 2)
-            @test size(mpo1.tensors[2]) == (4, 2, 1, 2)
-        end
-    end
 end

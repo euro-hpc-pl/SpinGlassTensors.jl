@@ -161,7 +161,7 @@ function update_env_left(LE::S, A::S, M::T, B::S) where {S, T <: AbstractArray}
 end
 
 
-function _update_tensor_forward!(A::T, M::Dict, sites::Site) where T <: AbstractArray 
+function _update_tensor_forward!(A::T, M::Dict, sites) where T <: AbstractArray 
     for i ∈ sites
         if i == 0 break end
         B = M[i]
@@ -170,7 +170,7 @@ function _update_tensor_forward!(A::T, M::Dict, sites::Site) where T <: Abstract
 end
 
 
-function _update_tensor_backwards!(A::T, M::Dict, sites::Site) where T <: AbstractArray 
+function _update_tensor_backwards!(A::T, M::Dict, sites) where T <: AbstractArray 
     for i ∈ reverse(sites)
         if i == 0 break end
         B = M[i]

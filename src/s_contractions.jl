@@ -1,4 +1,4 @@
-export dot
+
 
 function LinearAlgebra.dot(ψ::Mps, ϕ::Mps)
     T = promote_type(eltype(ψ.tensors[1]), eltype(ϕ.tensors[1]))

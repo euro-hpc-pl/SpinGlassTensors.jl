@@ -14,20 +14,20 @@ const Site = Union{Int, Rational{Int}}
 mutable struct Mps <: AbstractMps
     tensors
     sites
-    Mps(ket::Dict) = new(ket, sort(collect(keys(ket))))
+    Mps(tensors::Dict) = new(tensors, sort(collect(keys(tensors))))
 end
 
 
 @inline Base.getindex(ket::AbstractTN, i) = getindex(ket.tensors, i)
 @inline Base.setindex!(ket::AbstractTN, A::AbstractArray, i::Int) = ket.tensors[i] = A
 @inline Base.length(ket::AbstractTN) = length(ket.tensors)
-@inline Base.copy(ket::AbstractTN) = Mps(copy(ket.tensors))
+@inline Base.copy(ket::AbstractTN) = AbstractTN(copy(ket.tensors))
 
 
 mutable struct Mpo <: AbstractMpo
     tensors
     sites
-    Mpo(op::Dict) = new(op, sort(collect(keys(op))))
+    Mpo(tensors::Dict) = new(tensors, sort(collect(keys(tensors))))
 end
 
 

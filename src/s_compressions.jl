@@ -153,10 +153,16 @@ function clear_env_site!(env::Environment, site::Site)
 end
 
 
+#        -- A --
+#      |    |
+# L = LE -- W --  
+#      |    |
+#        -- B --
+#
 function update_env_left(LE::S, A::S, M::T, B::S) where {S, T <: AbstractArray} 
     @tensor L[nb, nc, nt] := LE[ob, oc, ot] * A[ot, α, nt] * 
                              M[oc, α, nc, β] * B[ob, β, nb] order = (ot, α, oc, β, ob)  
-    # for real there is no conjugate, otherwise conj(T)
+    # for real there is no conjugate, otherwise conj(A)
     L
 end
 

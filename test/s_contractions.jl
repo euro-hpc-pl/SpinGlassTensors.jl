@@ -7,10 +7,8 @@
     ψ = Mps(randn(MPS{T}, sites, D, d))
     ϕ = Mps(randn(MPS{T}, sites, D, d))
     O1 = Mpo(randn(MPO{T}, sites, D, d))
-    O2 = Mpo(randn(MPO{T}, sites, D, d))
 
-
-    @testset "dot products" begin
+    @testset "dot products of MPS" begin
         @testset "is equal to itself" begin
             @test dot(ψ, ψ) ≈ dot(ψ, ψ)
         end
@@ -30,6 +28,10 @@
             ϕ.tensors[ψ.sites[1]] *= 1/norm(ϕ)
             @test dot(ϕ, ϕ) ≈ 1
         end
-
     end 
+    @testset "dot products of MPO and MPS" begin
+        A = dot(O1, ψ)
+        @test size(A.tensors[1]) == (1, 2, 4)
+        @test size(A.tensors[2]) == (4, 2, 1)
+    end
 end

@@ -1,4 +1,4 @@
-
+export dot, truncate!
 
 function LinearAlgebra.dot(ψ::Mps, ϕ::Mps)
     T = promote_type(eltype(ψ.tensors[1]), eltype(ϕ.tensors[1]))
@@ -13,4 +13,18 @@ end
 
 LinearAlgebra.norm(ψ::Mps) = sqrt(abs(dot(ψ, ψ)))
 
+function LinearAlgebra.dot(O::Mpo, ϕ::Mps)
+    D = Dict()
 
+    for i ∈ ϕ.sites
+        if isinteger(i) == true
+            if i == 0 return end
+            A = O.tensors[i]
+            B = ϕ.tensors[i]
+            @matmul C[(x, a), σ, (y, b)] := sum(η) A[x, σ, y, η] * B[a, η, b]
+            #@tensor C[l, x, r] := B[l, y, r] * A[y, x]
+            push!(D, i => C)
+        end
+    end
+    Mps(D)
+end

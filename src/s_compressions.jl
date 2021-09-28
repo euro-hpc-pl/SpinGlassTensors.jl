@@ -292,3 +292,45 @@ function measure_env(env::Environment, site::Site)
     @tensor L[t, c, b] * R[b, c, t]
 end
 
+
+function truncate!(ψ::Mps, s::Symbol, Dcut::Int=typemax(Int), args...)
+    @assert s ∈ (:left, :right)
+    if s == :right
+        _right_sweep!(ψ, args...)
+        _left_sweep!(ψ, Dcut, args...)
+    else
+        _left_sweep!(ψ, args...)
+        _right_sweep!(ψ, Dcut, args...)
+    end
+end
+
+
+canonise!(ψ::Mps, s::Symbol) = canonise!(ψ, Val(s))
+canonise!(ψ::Mps, ::Val{:right}) = _left_sweep!(ψ, typemax(Int))
+canonise!(ψ::Mps, ::Val{:left}) = _right_sweep!(ψ, typemax(Int))
+
+
+function _right_sweep!(ψ::Mps, Dcut::Int=typemax(Int), args...)
+    R = ones(eltype(ψ.tensors[1]), 1, 1)
+    for i ∈ ψ.sites      
+        A = ψ.tensors[i]
+        @matmul M̃[(x, σ), y] := sum(α) R[x, α] * A[α, σ, y]
+        Q, R = qr_fact(M̃, Dcut, args...)
+        R = R ./ maximum(abs.(R))
+        @cast A[x, σ, y] := Q[(x, σ), y] (σ ∈ 1:size(A, 2))
+        ψ.tensors[i] = A
+    end
+end
+
+
+function _left_sweep!(ψ::Mps, Dcut::Int=typemax(Int), args...)
+    R = ones(eltype(ψ.tensors[1]), 1, 1)
+    for i ∈ length(ψ.sites):-1:1
+        B = ψ.tensors[i]   
+        @matmul M̃[x, (σ, y)] := sum(α) B[x, σ, α] * R[α, y]
+        R, Q = rq_fact(M̃, Dcut, args...)
+        R = R ./ maximum(abs.(R))
+        @cast B[x, σ, y] := Q[x, (σ, y)] (σ ∈ 1:size(B, 2))
+        ψ.tensors[i] = B
+    end
+end

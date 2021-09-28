@@ -276,7 +276,7 @@ function project_ket_on_bra(LE::S, B₀::S, M::Dict, RE::S) where S <: AbstractA
     sites = collect(sort(keys(M)))
     _update_tensor_forward!(B₀, M, sites)
     T = project_ket_on_bra(LE, B₀, M[0], RE)
-    _update_tensor_backwards(T, M, sites)
+    _update_tensor_backwards!(T, M, sites)
     T
 end
 

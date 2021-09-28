@@ -17,12 +17,14 @@ function LinearAlgebra.dot(O::Mpo, ϕ::Mps)
     D = Dict()
 
     for i ∈ ϕ.sites
-        if i == 0 return end
-        A = O.tensors[i]
-        B = ϕ.tensors[i]
-        @matmul C[(x, a), σ, (y, b)] := sum(η) A[x, σ, y, η] * B[a, η, b]
-        #@tensor C[l, x, r] := B[l, y, r] * A[y, x]
-        push!(D, i => C)
+        if isinteger(i) == true
+            if i == 0 return end
+            A = O.tensors[i]
+            B = ϕ.tensors[i]
+            @matmul C[(x, a), σ, (y, b)] := sum(η) A[x, σ, y, η] * B[a, η, b]
+            #@tensor C[l, x, r] := B[l, y, r] * A[y, x]
+            push!(D, i => C)
+        end
     end
     Mps(D)
 end

@@ -14,6 +14,7 @@ end
 LinearAlgebra.norm(ψ::Mps) = sqrt(abs(dot(ψ, ψ)))
 
 
+# Jezu - K%$urwa max
 function LinearAlgebra.dot(O::Mpo, ϕ::Mps, j::Int)
     D = Dict()
     for i ∈ ϕ.sites

@@ -5,7 +5,7 @@ function LinearAlgebra.dot(ψ::Mps, ϕ::Mps)
     C = ones(T, 1, 1)
 
     for i ∈ ψ.sites
-        A, B = ψ.tensors[i], ϕ.tensors[i]
+    for (i, (A, B)) ∈ enumerate(zip(ψ, ϕ))
         @tensor C[x, y] := conj(B)[β, σ, x] * C[β, α] * A[α, σ, y] order = (α, β, σ)
     end
     tr(C)

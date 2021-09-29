@@ -17,7 +17,7 @@ my_tests = [
 #    "contractions.jl",
 #    "compressions.jl",
     "s_compressions.jl",
-    "s_contractions.jl",
+#    "s_contractions.jl",
 #    "identities.jl"
 ]
 

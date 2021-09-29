@@ -87,7 +87,7 @@ function _right_sweep_var!(env::Environment, args...)
 end
 
 
-function _left_nbrs_site(site::Site, sites::NTuple{N, Site}) where N
+function _left_nbrs_site(site::Site, sites)
     # largest x in sites: x < site
     ls = filter(i -> i < site, sites)
     if isempty(ls) return -Inf end
@@ -95,7 +95,7 @@ function _left_nbrs_site(site::Site, sites::NTuple{N, Site}) where N
 end
 
 
-function _right_nbrs_site(site::Site, sites::NTuple{N, Site}) where N
+function _right_nbrs_site(site::Site, sites)
     # smallest x in sites: x > site
     ms = filter(i -> i > site, sites)
     if isempty(ms) return Inf end
@@ -107,7 +107,7 @@ function update_env_left!(env::Environment, site::Site)
     if site <= first(env.bra.sites) return end
 
     ls = _left_nbrs_site(site, env.bra.sites)
-    LL = update_env_left!(
+    LL = update_env_left(
             env.env[(ls, :left)],
             env.bra[ls],
             env.mpo[ls],
@@ -129,7 +129,7 @@ function update_env_right!(env::Environment, site::Site)
     if site >= last(env.bra.sites) return end
 
     rs = _right_nbrs_site(site, env.bra.sites)
-    RR = update_env_right!(  
+    RR = update_env_right(  
             env.env[(rs, :right)],
             env.bra[rs],
             env.mpo[rs],
@@ -174,28 +174,32 @@ function update_env_left(LE::S, A::S, M::T, B::S, ::Val{:c}) where {S, T <: Abst
 end
 
 
-function _update_tensor_forward!(A::T, M::Dict, sites::NTuple{N, Site}) where {N, T <: AbstractArray} 
+function _update_tensor_forward(A::T, M::Dict, sites::NTuple{N, Site}) where {N, T <: AbstractArray} 
+    B = copy(A)
     for i ∈ sites
         if i == 0 return end
-        B = M[i]
-        @tensor A[l, x, r] := A[l, y, r] * B[y, x]
+        C = M[i]
+        @tensor B[l, x, r] := B[l, y, r] * C[y, x]
     end
+    B
 end
 
 
-function _update_tensor_backwards!(A::T, M::Dict, sites::NTuple{N, Site}) where {N, T <: AbstractArray} 
+function _update_tensor_backwards(A::T, M::Dict, sites::NTuple{N, Site}) where {N, T <: AbstractArray} 
+    B = copy(A)
     for i ∈ reverse(sites)
         if i == 0 return end
-        B = M[i]
-        @tensor A[l, x, r] := A[l, y, r] * B[x, y]
+        C = M[i]
+        @tensor B[l, x, r] := B[l, y, r] * C[x, y]
     end
+    B
 end
 
 
-function update_env_left!(LE::T, A₀::S, M::Dict, B₀::S) where {T, S <: AbstractArray} 
+function update_env_left(LE::T, A₀::S, M::Dict, B₀::S) where {T, S <: AbstractArray} 
     sites = collect(sort(keys(M)))
-    _update_tensor_forward!(A₀, M, sites)
-    _update_tensor_backwards!(B₀, M, sites)
+    A =_update_tensor_forward(A₀, M, sites)
+    B = _update_tensor_backwards(B₀, M, sites)
     update_env_left(LE, A₀, M[0], B₀)
 end
 
@@ -222,10 +226,14 @@ function update_env_right(RE::S, A::S, M::T, B::S, ::Val{:c}) where {T, S <: Abs
 end
 
 
+<<<<<<< HEAD
 function update_env_right!(RE::S, A₀::S, M::Dict, B₀::S) where {T, S <: AbstractArray}  # make copy!!!!!
+=======
+function update_env_right(RE::S, A₀::S, M::Dict, B₀::S) where {T, S <: AbstractArray} 
+>>>>>>> b0e7402a884fbeddf796f93e38656321fd4b291a
     sites = collect(sort(keys(M)))
-    _update_tensor_forward!(A₀, M, sites)
-    _update_tensor_backwards!(B₀, M, sites)
+    A = _update_tensor_forward(A₀, M, sites)
+    B = _update_tensor_backwards(B₀, M, sites)
     update_env_right(RE, A₀, M[0], B₀)
 end
 

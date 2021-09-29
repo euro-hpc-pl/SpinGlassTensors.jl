@@ -47,22 +47,16 @@ end
 Mps(ϕ::AbstractMPS) = Mps(Dict(i => A for (i, A) ∈ enumerate(ϕ)))
 Mpo(ϕ::AbstractMPO) = Mpo(Dict(i => A for (i, A) ∈ enumerate(ϕ)))
 
+
 function is_left_normalized(ψ::Mps)
-    D = []
-    for i in ψ.sites
-        push!(D, ψ.tensors[i])
-    end
     all(
-        I(size(A, 3)) ≈ @tensor Id[x, y] := conj(A[α, σ, x]) * A[α, σ, y] order = (α, σ) for A in D
+        I(size(A, 3)) ≈ @tensor Id[x, y] := conj(A[α, σ, x]) * A[α, σ, y] order = (α, σ) for A ∈ ψ
         )
 end
 
+
 function is_right_normalized(ϕ::Mps)
-    D = []
-    for i in ϕ.sites
-        push!(D, ϕ.tensors[i])
-    end
     all(
-    I(size(B, 1)) ≈ @tensor Id[x, y] := B[x, σ, α] * conj(B[y, σ, α]) order = (α, σ) for B in D
+    I(size(B, 1)) ≈ @tensor Id[x, y] := B[x, σ, α] * conj(B[y, σ, α]) order = (α, σ) for B ∈ ϕ
     )
 end

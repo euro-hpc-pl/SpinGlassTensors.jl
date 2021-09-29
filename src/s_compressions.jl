@@ -226,11 +226,7 @@ function update_env_right(RE::S, A::S, M::T, B::S, ::Val{:c}) where {T, S <: Abs
 end
 
 
-<<<<<<< HEAD
-function update_env_right!(RE::S, A₀::S, M::Dict, B₀::S) where {T, S <: AbstractArray}  # make copy!!!!!
-=======
 function update_env_right(RE::S, A₀::S, M::Dict, B₀::S) where {T, S <: AbstractArray} 
->>>>>>> b0e7402a884fbeddf796f93e38656321fd4b291a
     sites = collect(sort(keys(M)))
     A = _update_tensor_forward(A₀, M, sites)
     B = _update_tensor_backwards(B₀, M, sites)

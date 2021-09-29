@@ -87,7 +87,7 @@ function _right_sweep_var!(env::Environment, args...)
 end
 
 
-function _left_nbrs_site(site::Site, sites::NTuple{N, Site}) where N
+function _left_nbrs_site(site::Site, sites)
     # largest x in sites: x < site
     ls = filter(i -> i < site, sites)
     if isempty(ls) return -Inf end
@@ -95,7 +95,7 @@ function _left_nbrs_site(site::Site, sites::NTuple{N, Site}) where N
 end
 
 
-function _right_nbrs_site(site::Site, sites::NTuple{N, Site}) where N
+function _right_nbrs_site(site::Site, sites)
     # smallest x in sites: x > site
     ms = filter(i -> i > site, sites)
     if isempty(ms) return Inf end

@@ -13,18 +13,19 @@ end
 
 LinearAlgebra.norm(ψ::Mps) = sqrt(abs(dot(ψ, ψ)))
 
-function LinearAlgebra.dot(O::Mpo, ϕ::Mps)
-    D = Dict()
 
+function LinearAlgebra.dot(O::Mpo, ϕ::Mps, j::Int)
+    D = Dict()
     for i ∈ ϕ.sites
-        if isinteger(i) == true
-            if i == 0 return end
-            A = O.tensors[i]
-            B = ϕ.tensors[i]
-            @matmul C[(x, a), σ, (y, b)] := sum(η) A[x, σ, y, η] * B[a, η, b]
-            #@tensor C[l, x, r] := B[l, y, r] * A[y, x]
-            push!(D, i => C)
-        end
+        A = O.tensors[i]
+        B = ϕ.tensors[i]
+        G1 = A[j-4//6]
+        V = A[j-1//2]
+        T = A[j]
+        G2 = A[j+1//6]
+        @tensor C[l, x, r, p] := G1[x, y] * V[y, z] * T[l, z, r, d] * G2[d, p] order = (y, z, d)
+        @matmul E[(l, x), u, (r, y)] := sum(d) C[l, u, r, d] * B[x, d, y]
+        push!(D, i => E)
     end
     Mps(D)
 end

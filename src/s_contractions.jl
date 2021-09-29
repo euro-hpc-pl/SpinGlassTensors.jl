@@ -23,8 +23,8 @@ function LinearAlgebra.dot(O::Mpo, ϕ::Mps, j::Int)
         V = A[j-1//2]
         T = A[j]
         G2 = A[j+1//6]
-        @tensor C[l, x, r, p] := G1[x, y] * V[y, z] * T[l, z, r, d] * G2[d, p]
-        @tensor E[(l, x), u, (r, y)] := C[l, u, r, d] * B[x, d, y]
+        @tensor C[l, x, r, p] := G1[x, y] * V[y, z] * T[l, z, r, d] * G2[d, p] order = (y, z, d)
+        @matmul E[(l, x), u, (r, y)] := sum(d) C[l, u, r, d] * B[x, d, y]
         push!(D, i => E)
     end
     Mps(D)

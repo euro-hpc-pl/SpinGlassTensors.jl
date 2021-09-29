@@ -29,9 +29,5 @@
             @test dot(ϕ, ϕ) ≈ 1
         end
     end 
-    @testset "dot products of MPO and MPS" begin
-        A = dot(O1, ψ)
-        @test size(A.tensors[1]) == (1, 2, 4)
-        @test size(A.tensors[2]) == (4, 2, 1)
-    end
+
 end

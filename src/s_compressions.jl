@@ -222,7 +222,7 @@ function update_env_right(RE::S, A::S, M::T, B::S, ::Val{:c}) where {T, S <: Abs
 end
 
 
-function update_env_right!(RE::S, A₀::S, M::Dict, B₀::S) where {T, S <: AbstractArray} 
+function update_env_right!(RE::S, A₀::S, M::Dict, B₀::S) where {T, S <: AbstractArray}  # make copy!!!!!
     sites = collect(sort(keys(M)))
     _update_tensor_forward!(A₀, M, sites)
     _update_tensor_backwards!(B₀, M, sites)
@@ -334,3 +334,5 @@ function _left_sweep!(ψ::Mps, Dcut::Int=typemax(Int), args...)
         ψ.tensors[i] = B
     end
 end
+
+

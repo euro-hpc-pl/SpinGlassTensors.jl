@@ -16,6 +16,28 @@ end
 LinearAlgebra.norm(ψ::Mps) = sqrt(abs(dot(ψ, ψ)))
 
 function LinearAlgebra.dot(ψ::Mpo, ϕ::Mps)
+    D = Dict()
+    for i in reverse(ϕ.sites)
+        T = sort(collect(ψ.tensors[i], by = x->x[1]))
+        t0 = 0
+        TT = T[t0]
+        for (t, v) in enumerate(T)
+            if t > t0
+                TT = contract_down(v, TT)
+            elseif t < t0
+                TT = contract_up(v, TT)
+            end
+            TT
+        end
+        B = contract_up(ϕ.tensors[i], TT)
+        mps_li = ϕ.sites[i-1]
+        mpo_li = ψ.sites[i-1]
+        while mpo_li > mps_li
+            B = contract_left(ψ.tensors[mpo_li], B)
+        end
+        push!(D, i => B)
+    end
+    Mps(D)
 end
 
 

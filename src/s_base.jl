@@ -33,7 +33,7 @@ mutable struct Mpo <: AbstractMpo
 end
 
 
-@inline Base.copy(ket::AbstractMPO) = Mpo(copy(ket.tensors))
+@inline Base.copy(ket::AbstractMpo) = Mpo(copy(ket.tensors))
 
 
 function MPS(ket::Mps)

@@ -1,6 +1,7 @@
 export dot, contract_left, contract_up, contract_down
 
-
+#some problems with overload
+#=
 function LinearAlgebra.dot(ψ::Mps, ϕ::Mps)
     T = promote_type(eltype(ψ.tensors[1]), eltype(ϕ.tensors[1]))
     C = ones(T, 1, 1)
@@ -10,7 +11,7 @@ function LinearAlgebra.dot(ψ::Mps, ϕ::Mps)
     end
     tr(C)
 end
-
+=#
 
 LinearAlgebra.norm(ψ::Mps) = sqrt(abs(dot(ψ, ψ)))
 
@@ -18,11 +19,12 @@ function LinearAlgebra.dot(ψ::Mpo, ϕ::Mps)
 end
 
 
-function LinearAlgebra.dot(ψ::AbstractMpo, ϕ::Mps)
+function LinearAlgebra.dot(ψ, ϕ::Mps)
     T = promote_type(eltype(ψ[1]), eltype(ϕ.tensors[1]))
     D = Dict()
-    for (i, (A,B)) in enumerate(zip(ψ, ϕ.tensors[i]))
-        C = contract_up(B,A)
+    for (i, A) in enumerate(ψ)
+        B = ϕ.tensors[i]
+        C = contract_up(B, A)
         push!(D, i=>C)
     end
     Mps(D)

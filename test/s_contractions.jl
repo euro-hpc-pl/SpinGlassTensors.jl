@@ -47,7 +47,7 @@
         end
 
         @testset "contract_down gives correct sizes" begin 
-            @test @test size(contract_up(A,C)) == (2,2,2,2)
+            @test size(contract_down(A,C)) == (2,2,2,2)
         end
 
         @testset "dot product of AbstractMpo and Mps" begin

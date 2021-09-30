@@ -1,3 +1,5 @@
+export compress! 
+
 mutable struct Environment <: AbstractEnvironment
     bra::Mps  # to be optimized
     mpo::Mpo

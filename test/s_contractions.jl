@@ -52,7 +52,9 @@
 
         @testset "dot product of AbstractMpo and Mps" begin
             O2 = randn(MPO{T}, sites, D, d)
-            dot(O2, ψ)
+            D = dot(O2, ψ)
+            @test size(D[1]) == (1, 2, 4)
+            @test size(D[2]) == (4, 2, 1)
         end
 
     end

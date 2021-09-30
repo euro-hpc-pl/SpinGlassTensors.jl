@@ -1,3 +1,4 @@
+
 @testset "Contraction" begin
     D = 2
     d = 2
@@ -51,7 +52,7 @@
 
         @testset "dot product of AbstractMpo and Mps" begin
             O2 = randn(MPO{T}, sites, D, d)
-            dot(ψ, O2)
+            dot(O2, ψ)
         end
 
     end

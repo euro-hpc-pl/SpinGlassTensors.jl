@@ -1,4 +1,4 @@
-export dot, truncate!, contract_left
+export dot, contract_left, contract_up, contract_down
 
 
 function LinearAlgebra.dot(ψ::Mps, ϕ::Mps)
@@ -15,11 +15,17 @@ end
 LinearAlgebra.norm(ψ::Mps) = sqrt(abs(dot(ψ, ψ)))
 
 function LinearAlgebra.dot(ψ::Mpo, ϕ::Mps)
-
 end
 
 
 function LinearAlgebra.dot(ψ::AbstractMpo, ϕ::Mps)
+    T = promote_type(eltype(ψ[1]), eltype(ϕ.tensors[1]))
+    D = Dict()
+    for (i, (A,B)) in enumerate(zip(ψ, ϕ.tensors[i]))
+        C = contract_up(B,A)
+        push!(D, i=>C)
+    end
+    Mps(D)
 end
 
 function contract_left(A::AbstractMatrix{T}, B::AbstractArray{T,3}) where {T}

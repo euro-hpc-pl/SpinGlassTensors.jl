@@ -181,6 +181,7 @@ function _update_tensor_forward(A::T, M::Dict, sites) where {T <: AbstractArray}
     for i ∈ sites
         if i == 0 return B end
         C = M[i]
+        println(size(B), " ", size(C))
         @tensor B[l, x, r] := B[l, y, r] * C[y, x]
     end
     B

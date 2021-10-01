@@ -30,16 +30,11 @@ end
 @inline Base.getindex(ket::AbstractTN, i) = getindex(ket.tensors, i)
 @inline Base.setindex!(ket::AbstractTN, A::AbstractArray, i::Int) = ket.tensors[i] = A
 @inline Base.length(ket::AbstractTN) = length(ket.tensors)
-# @inline Base.copy(ket::AbstractTN) = AbstractTN(copy(ket.tensors))
-@inline Base.copy(ket::Mps) = Mps(copy(ket.tensors))
-# @inline Base.copy(ket::Mpo) = Mpo(copy(ket.tensors))
-
-
-
-
-
+@inline Base.copy(ket::AbstractMps) = Mps(copy(ket.tensors))
 @inline Base.copy(ket::AbstractMpo) = Mpo(copy(ket.tensors))
 
+@inline Base.iterate(a::AbstractTN) = iterate(a.tensors)
+@inline Base.iterate(a::AbstractTN, state) = iterate(a.tensors, state)
 
 function MPS(ket::Mps)
     L = length(ket)

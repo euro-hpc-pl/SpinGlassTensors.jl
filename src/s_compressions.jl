@@ -179,9 +179,8 @@ end
 function _update_tensor_forward(A::T, M::Dict, sites) where {T <: AbstractArray} 
     B = copy(A)
     for i ∈ sites
-        if i == 0 return end
+        if i == 0 return B end
         C = M[i]
-        println(size(B), " ", size(C))
         @tensor B[l, x, r] := B[l, y, r] * C[y, x]
     end
     B
@@ -191,7 +190,7 @@ end
 function _update_tensor_backwards(A::T, M::Dict, sites) where {T <: AbstractArray} 
     B = copy(A)
     for i ∈ reverse(sites)
-        if i == 0 return end
+        if i == 0 return B end
         C = M[i]
         @tensor B[l, x, r] := B[l, y, r] * C[x, y]
     end
@@ -288,10 +287,9 @@ end
 
 function project_ket_on_bra(LE::S, B₀::S, M::Dict, RE::S) where S <: AbstractArray
     sites = sort(collect(keys(M)))
-    _update_tensor_forward!(B₀, M, sites)
-    T = project_ket_on_bra(LE, B₀, M[0], RE)
-    _update_tensor_backwards!(T, M, sites)
-    T
+    B = _update_tensor_forward(B₀, M, sites)
+    T = project_ket_on_bra(LE, B, M[0], RE)
+    _update_tensor_backwards(T, M, sites)
 end
 
 

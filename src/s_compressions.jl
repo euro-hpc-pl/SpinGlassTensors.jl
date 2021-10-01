@@ -206,6 +206,13 @@ function update_env_left(LE::T, A₀::S, M::Dict, B₀::S) where {T, S <: Abstra
 end
 
 
+function update_env_left(LE::T, M::Dict) where {T <: AbstractArray}
+    MM = M[0]
+    @tensor L[nt, nc, nb] :=  LE[nt, oc, nb] * MM[oc, nc]
+    L
+end
+
+
 #      -- A --
 #         |    |
 # R =  -- M -- RE 
@@ -246,12 +253,6 @@ function update_env_right(RE::T, M::Dict) where {T <: AbstractArray}
     MM = M[0]
     @tensor R[nt, nc, nb] := MM[nc, oc] * RE[nt, oc, nb]
     R
-end
-
-function update_env_left(LE::T, M::Dict) where {T <: AbstractArray}
-    MM = M[0]
-    @tensor L[nt, nc, nb] :=  LE[nt, oc, nb] * MM[oc, nc]
-    L
 end
 
 

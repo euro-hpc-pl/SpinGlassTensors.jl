@@ -12,6 +12,6 @@ module SpinGlassTensors
     include("compressions.jl")
     include("s_compressions.jl")
     include("identities.jl")
-    #include("contractions.jl")
+    include("contractions.jl")
     include("s_contractions.jl")
 end # module

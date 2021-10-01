@@ -1,5 +1,5 @@
-export 
-    Mps, 
+export
+    Mps,
     Mpo,
     is_left_normalized,
     is_right_normalized
@@ -20,17 +20,22 @@ mutable struct Mps <: AbstractMps
 end
 
 
-@inline Base.getindex(ket::AbstractTN, i) = getindex(ket.tensors, i)
-@inline Base.setindex!(ket::AbstractTN, A::AbstractArray, i::Int) = ket.tensors[i] = A
-@inline Base.length(ket::AbstractTN) = length(ket.tensors)
-@inline Base.copy(ket::AbstractTN) = AbstractTN(copy(ket.tensors))
-
-
 mutable struct Mpo <: AbstractMpo
     tensors
     sites
     Mpo(tensors::Dict) = new(tensors, sort(collect(keys(tensors))))
 end
+
+
+@inline Base.getindex(ket::AbstractTN, i) = getindex(ket.tensors, i)
+@inline Base.setindex!(ket::AbstractTN, A::AbstractArray, i::Int) = ket.tensors[i] = A
+@inline Base.length(ket::AbstractTN) = length(ket.tensors)
+# @inline Base.copy(ket::AbstractTN) = AbstractTN(copy(ket.tensors))
+@inline Base.copy(ket::Mps) = Mps(copy(ket.tensors))
+# @inline Base.copy(ket::Mpo) = Mpo(copy(ket.tensors))
+
+
+
 
 
 @inline Base.copy(ket::AbstractMpo) = Mpo(copy(ket.tensors))

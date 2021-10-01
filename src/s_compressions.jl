@@ -22,8 +22,8 @@ mutable struct Environment <: AbstractEnvironment
                    (last(bra.sites), :right) => ones(1, 1, 1)
             )
         environment = new(bra, mpo, ket, trans, env)
-        for site ∈ environment.bra.sites 
-            update_env_left!(environment, site) 
+        for site ∈ environment.bra.sites
+            update_env_left!(environment, site)
         end
         environment
     end
@@ -176,7 +176,7 @@ function update_env_left(LE::S, A::S, M::T, B::S, ::Val{:c}) where {S, T <: Abst
 end
 
 
-function _update_tensor_forward(A::T, M::Dict, sites::NTuple{N, Site}) where {N, T <: AbstractArray} 
+function _update_tensor_forward(A::T, M::Dict, sites) where {T <: AbstractArray} 
     B = copy(A)
     for i ∈ sites
         if i == 0 return end
@@ -187,7 +187,7 @@ function _update_tensor_forward(A::T, M::Dict, sites::NTuple{N, Site}) where {N,
 end
 
 
-function _update_tensor_backwards(A::T, M::Dict, sites::NTuple{N, Site}) where {N, T <: AbstractArray} 
+function _update_tensor_backwards(A::T, M::Dict, sites) where {T <: AbstractArray} 
     B = copy(A)
     for i ∈ reverse(sites)
         if i == 0 return end
@@ -199,7 +199,7 @@ end
 
 
 function update_env_left(LE::T, A₀::S, M::Dict, B₀::S) where {T, S <: AbstractArray} 
-    sites = collect(sort(keys(M)))
+    sites = sort(collect(keys(M)))
     A =_update_tensor_forward(A₀, M, sites)
     B = _update_tensor_backwards(B₀, M, sites)
     update_env_left(LE, A₀, M[0], B₀)
@@ -229,7 +229,7 @@ end
 
 
 function update_env_right(RE::S, A₀::S, M::Dict, B₀::S) where {T, S <: AbstractArray} 
-    sites = collect(sort(keys(M)))
+    sites = sort(collect(keys(M)))
     A = _update_tensor_forward(A₀, M, sites)
     B = _update_tensor_backwards(B₀, M, sites)
     update_env_right(RE, A₀, M[0], B₀)
@@ -242,11 +242,17 @@ end
 #              |
 #           --
 #
-function update_env_right(RE::T, M::S) where {T, S <: AbstractArray}  
-    @tensor R[nt, nc, nb] := M[nc, oc] * RE[nt, oc, nb]
+function update_env_right(RE::T, M::Dict) where {T <: AbstractArray}
+    MM = M[0]
+    @tensor R[nt, nc, nb] := MM[nc, oc] * RE[nt, oc, nb]
     R
 end
 
+function update_env_left(LE::T, M::Dict) where {T <: AbstractArray}
+    MM = M[0]
+    @tensor L[nt, nc, nb] :=  LE[nt, oc, nb] * MM[oc, nc]
+    L
+end
 
 
 function project_ket_on_bra(env::Environment, site::Site)
@@ -279,7 +285,7 @@ end
 
 
 function project_ket_on_bra(LE::S, B₀::S, M::Dict, RE::S) where S <: AbstractArray
-    sites = collect(sort(keys(M)))
+    sites = sort(collect(keys(M)))
     _update_tensor_forward!(B₀, M, sites)
     T = project_ket_on_bra(LE, B₀, M[0], RE)
     _update_tensor_backwards!(T, M, sites)

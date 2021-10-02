@@ -8,7 +8,7 @@
     ψ = Mps(randn(MPS{T}, sites, D, d))
     ϕ = Mps(randn(MPS{T}, sites, D, d))
     O1 = Mpo(randn(MPO{T}, sites, D, d))
-#=
+
     @testset "dot products of MPS" begin
         @testset "is equal to itself" begin
             @test dot(ψ, ψ) ≈ dot(ψ, ψ)
@@ -30,7 +30,7 @@
             @test dot(ϕ, ϕ) ≈ 1
         end 
     end 
-=#
+    
     @testset "dot product of MPS with MPO" begin
         B = randn(Float64, 4,2,3)
         A = randn(Float64, 2,2)  
@@ -43,12 +43,7 @@
         @testset "contract_up gives correct sizes" begin 
             @test size(contract_up(B,A)) == (4,2,3)
             @test size(contract_up(B,C)) == (8,2,6)
-            #@test size(contract_up(A,C)) == (2,2,2,2)
         end
-
-        #@testset "contract_down gives correct sizes" begin 
-        #    @test size(contract_down(A,C)) == (2,2,2,2)
-        #end
 
         @testset "dot product of AbstractMpo and Mps" begin
             O2 = randn(MPO{T}, sites, D, d)

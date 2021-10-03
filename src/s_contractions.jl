@@ -25,10 +25,12 @@ function LinearAlgebra.dot(ψ::Mpo, ϕ::Mps)
         for (t, v) ∈ T
             TT = contract_up(TT, v)
         end
-        mps_li = ϕ.sites[i-1]
-        mpo_li = ψ.sites[i-1]
-        while mpo_li > mps_li
-            B = contract_left(TT, ψ.tensors[mpo_li][0]) 
+        if i > 1
+            mps_li = ϕ.sites[i-1]
+            mpo_li = ψ.sites[i-1]
+            while mpo_li > mps_li
+                TT = contract_left(TT, ψ.tensors[mpo_li][0]) 
+            end
         end
         push!(D, i => TT)
     end

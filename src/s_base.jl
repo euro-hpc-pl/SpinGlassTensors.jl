@@ -45,7 +45,8 @@ end
 
 
 Mps(ϕ::AbstractMPS) = Mps(Dict(i => A for (i, A) ∈ enumerate(ϕ)))
-Mpo(ϕ::AbstractMPO) = Mpo(Dict(i => A for (i, A) ∈ enumerate(ϕ)))
+#Mpo(ϕ::AbstractMPO) = Mpo(Dict(i => A for (i, A) ∈ enumerate(ϕ)))
+Mpo(ϕ::AbstractMPO) = Mpo(Dict(i => Dict(0 => A) for (i, A) ∈ enumerate(ϕ)))
 
 
 function is_left_normalized(ψ::Mps)

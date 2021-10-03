@@ -45,11 +45,13 @@
             @test size(contract_up(B,C)) == (8,2,6)
         end
 
-        @testset "dot product of AbstractMpo and Mps" begin
+        @testset "dot product of Mpo and Mps" begin
             O2 = randn(MPO{T}, sites, D, d)
             D = dot(O2, ψ)
-            @test size(D[1]) == (1, 2, 4)
-            @test size(D[2]) == (4, 2, 1)
+            E = dot(O1, ψ)
+            @test size(D[1]) == size(E[1]) == (1, 2, 4)
+            @test size(D[2]) == size(E[2]) == (4, 2, 1)
+
         end
 
     end

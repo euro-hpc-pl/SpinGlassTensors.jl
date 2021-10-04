@@ -22,16 +22,15 @@ function LinearAlgebra.dot(ψ::Mpo, ϕ::Mps)
     for i ∈ reverse(ϕ.sites)
         T = sort(collect(ψ.tensors[i]), by = x->x[1])
         TT = ϕ.tensors[i]
-        for (t, v) ∈ T
+        for (t, v) ∈ reverse(T)
             TT = contract_up(TT, v)
         end
-        if i > 1
-            mps_li = ϕ.sites[i-1]
-            mpo_li = ψ.sites[i-1]
+            mps_li = _left_nbrs_site(i, ϕ.sites)
+            mpo_li = _left_nbrs_site(i, ψ.sites)
             while mpo_li > mps_li
-                TT = contract_left(TT, ψ.tensors[mpo_li][0]) 
+                TT = contract_left(TT, ψ.tensors[mpo_li][0])
+                mpo_li = _left_nbrs_site(mpo_li, ψ.sites)
             end
-        end
         push!(D, i => TT)
     end
     Mps(D)
@@ -50,16 +49,16 @@ function LinearAlgebra.dot(ψ, ϕ::Mps)
 end
 
 function contract_left(A::AbstractArray{T,3}, B::AbstractMatrix{T}) where {T}
-    @cast C[(x,y), u, r] := sum(σ) B[x,σ] * A[(σ,y),u,r] (σ ∈ 1:size(B,2))
+    @cast C[(x, y), u, r] := sum(σ) B[y, σ] * A[(x, σ), u, r] (σ ∈ 1:size(B, 2))
     C
 end
 
-function contract_up(A::AbstractArray{T,3}, B::AbstractMatrix{T}) where {T}
-    @tensor C[l,u,r] := B[u,σ] * A[l, σ, r] 
+function contract_up(A::AbstractArray{T,3}, B::AbstractArray{T,2}) where {T}
+    @tensor C[l, u, r] := B[u, σ] * A[l, σ, r]
     C
 end
 
 function contract_up(A::AbstractArray{T,3}, B::AbstractArray{T,4}) where {T}
-    @cast C[(x,y),z,(b, a)] := sum(σ) B[y,z,a,σ] * A[x,σ,b] 
+    @cast C[(x, y), z, (b, a)] := sum(σ) B[y, z, a, σ] * A[x, σ, b]
     C
 end

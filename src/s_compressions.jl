@@ -1,4 +1,6 @@
-export compress! 
+export compress!
+export _left_nbrs_site
+export _right_nbrs_site
 
 mutable struct Environment <: AbstractEnvironment
     bra::Mps  # to be optimized
@@ -43,6 +45,8 @@ function SpinGlassTensors.compress!(
     overlap = Inf
     overlap_before = measure_env(env, last(env.bra.sites))
 
+    println("overlap = ", overlap_before)
+
     for sweep ∈ 1:max_sweeps
         _left_sweep_var!(env, args...)
         _right_sweep_var!(env, args...)
@@ -65,12 +69,16 @@ end
 
 function _left_sweep_var!(env::Environment, args...)
     for site ∈ reverse(env.bra.sites)
+        println("left sweep site = ", site)
         update_env_right!(env, site)
         A = project_ket_on_bra(env, site)
+        print("Type A ", typeof(A), "Size A ", size(A))
         @cast B[x, (y, z)] := A[x, y, z]
         _, Q = rq_fact(B, args...)
+        println("Type Q ", typeof(Q))
         @cast C[x, σ, y] := Q[x, (σ, y)] (σ ∈ 1:size(A, 2))
         env.bra[site] = C
+        println("Type C ", typeof(C))
         clear_env_site!(env, site) 
     end
 end
@@ -78,6 +86,7 @@ end
 
 function _right_sweep_var!(env::Environment, args...)
     for site ∈ env.bra.sites
+        println("right sweep site = ", site)
         update_env_left!(env, site)
         A = project_ket_on_bra(env, site)
         @cast B[(x, y), z] := A[x, y, z]
@@ -131,7 +140,7 @@ function update_env_right!(env::Environment, site::Site)
     if site >= last(env.bra.sites) return end
 
     rs = _right_nbrs_site(site, env.bra.sites)
-    RR = update_env_right(  
+    RR = update_env_right(
             env.env[(rs, :right)],
             env.bra[rs],
             env.mpo[rs],
@@ -160,7 +169,7 @@ end
 #      |    |
 #        -- B --
 #
-function update_env_left(LE::S, A::S, M::T, B::S) where {S, T <: AbstractArray} 
+function update_env_left(LE::S, A::R, M::T, B::S) where {S, R, T <: AbstractArray} 
     # for real there is no conjugate, otherwise conj(A)
     @tensor L[nb, nc, nt] := LE[ob, oc, ot] * A[ot, α, nt] * 
                              M[oc, α, nc, β] * B[ob, β, nb] order = (ot, α, oc, β, ob)  
@@ -181,7 +190,6 @@ function _update_tensor_forward(A::T, M::Dict, sites) where {T <: AbstractArray}
     for i ∈ sites
         if i == 0 return B end
         C = M[i]
-        println(size(B), " ", size(C))
         @tensor B[l, x, r] := B[l, y, r] * C[y, x]
     end
     B
@@ -199,7 +207,7 @@ function _update_tensor_backwards(A::T, M::Dict, sites) where {T <: AbstractArra
 end
 
 
-function update_env_left(LE::T, A₀::S, M::Dict, B₀::S) where {T, S <: AbstractArray} 
+function update_env_left(LE::T, A₀::S, M::Dict, B₀::R) where {T, S, R <: AbstractArray} 
     sites = sort(collect(keys(M)))
     A =_update_tensor_forward(A₀, M, sites)
     B = _update_tensor_backwards(B₀, M, sites)
@@ -220,7 +228,7 @@ end
 #         |    |
 #      -- B --
 #
-function update_env_right(RE::S, A::S, M::T, B::S) where {T, S <: AbstractArray}
+function update_env_right(RE::S, A::S, M::T, B::S) where {T, S}
     # for real there is no conjugate, otherwise conj(A)
     @tensor R[nt, nc, nb] := RE[ot, oc, ob] * A[nt, α, ot] *
                              M[nc, α, oc, β] * B[nb, β, ob] order = (ot, α, oc, β, ob)
@@ -228,7 +236,7 @@ function update_env_right(RE::S, A::S, M::T, B::S) where {T, S <: AbstractArray}
 end
 
 
-function update_env_right(RE::S, A::S, M::T, B::S, ::Val{:c}) where {T, S <: AbstractArray}
+function update_env_right(RE::S, A::S, M::T, B::S, ::Val{:c}) where {T, S}
     # for real there is no conjugate, otherwise conj(A)
     @tensor R[nt, nc, nb] := RE[ot, oc, ob] * A[nt, α, ot] * 
                              M[nc, β, oc, α] * B[nb, β, ob] order = (ot, α, oc, β, ob)
@@ -236,7 +244,7 @@ function update_env_right(RE::S, A::S, M::T, B::S, ::Val{:c}) where {T, S <: Abs
 end
 
 
-function update_env_right(RE::S, A₀::S, M::Dict, B₀::S) where {T, S <: AbstractArray} 
+function update_env_right(RE::S, A₀::T, M::Dict, B₀::R) where {T, S, R}
     sites = sort(collect(keys(M)))
     A = _update_tensor_forward(A₀, M, sites)
     B = _update_tensor_backwards(B₀, M, sites)

@@ -19,7 +19,7 @@ DocStringExtensions = "0.8"
 Memoize = "0.4"
 TensorCast = "0.4"
 TensorOperations = "3.0.1"
-julia = "1.5, 1,6"
+julia = "1.5, 1.6"
 
 [extras]
 Logging = "56ddb016-857b-54e1-b83d-db4d58db5568"

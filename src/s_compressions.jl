@@ -207,7 +207,7 @@ function _update_tensor_backwards(A::T, M::Dict, sites) where {T <: AbstractArra
 end
 
 
-function update_env_left(LE::T, A₀::S, M::Dict, B₀::R) where {T, S, R <: AbstractArray} 
+function update_env_left(LE::T, A₀::S, M::Dict, B₀::S) where {T, S <: AbstractArray} 
     sites = sort(collect(keys(M)))
     A =_update_tensor_forward(A₀, M, sites)
     B = _update_tensor_backwards(B₀, M, sites)
@@ -244,7 +244,7 @@ function update_env_right(RE::S, A::S, M::T, B::S, ::Val{:c}) where {T, S}
 end
 
 
-function update_env_right(RE::S, A₀::T, M::Dict, B₀::R) where {T, S, R}
+function update_env_right(RE::S, A₀::T, M::Dict, B₀::S) where {T, S}
     sites = sort(collect(keys(M)))
     A = _update_tensor_forward(A₀, M, sites)
     B = _update_tensor_backwards(B₀, M, sites)

@@ -46,10 +46,18 @@ end
 @inline physical_dim(ψ::AbstractMPS, i::Int) = size(ψ[i], 2)
 
 @inline MPS(A::AbstractArray) = MPS(A, :right)
-@inline MPS(A::AbstractArray, s::Symbol, args...) = MPS(A, Val(s), typemax(Int), args...)
-@inline MPS(A::AbstractArray, s::Symbol, Dcut::Int, args...) = MPS(A, Val(s), Dcut, args...)
-@inline MPS(A::AbstractArray, ::Val{:right}, Dcut::Int, args...) = _left_sweep_SVD(MPS, A, Dcut, args...)
-@inline MPS(A::AbstractArray, ::Val{:left}, Dcut::Int, args...) = _right_sweep_SVD(MPS, A, Dcut, args...)
+
+@inline function MPS(A::AbstractArray, s::Symbol, Dcut::Int=typemax(Int))
+    @assert s ∈ (:left, :right)
+    if s == :right
+        ψ = _right_sweep(A)
+        _left_sweep!(ψ, Dcut)
+    else
+        ψ = _left_sweep(A)
+        _right_sweep!(ψ, Dcut)
+    end
+    ψ
+end
 
 @inline dropindices(ψ::AbstractMPS, i::Int=2) = (dropdims(A, dims=i) for A ∈ ψ)
 
@@ -88,6 +96,10 @@ Base.randn(::Type{MPS}, args...) = randn(MPS{Float64}, args...)
 
 function Base.randn(::Type{MPO{T}}, L::Int, D::Int, d::Int) where {T}
     MPO(randn(MPS{T}, L, D, d^2))
+end
+
+function Base.randn(::Type{MPO{T}}, D::Int, rank::Union{Vector, NTuple}) where {T}
+    MPO(randn(MPS{T}, D, rank .^ 2))
 end
 
 Base.randn(::Type{MPO}, args...) = randn(MPO{Float64}, args...)

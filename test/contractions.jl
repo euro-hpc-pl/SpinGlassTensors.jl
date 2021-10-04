@@ -34,10 +34,10 @@ Id_m = MPO(fill(ones(1,1,1,d), length(ϕ)))
     end
 
     @testset "renormalizations" begin
-        ψ[end] *= 1/norm(ψ)
+        ψ[end] *= 1 / norm(ψ)
         @test dot(ψ, ψ) ≈ 1
 
-        ϕ[1] *= 1/norm(ϕ)
+        ϕ[1] *= 1 / norm(ϕ)
         @test dot(ϕ, ϕ) ≈ 1
     end
 
@@ -52,17 +52,19 @@ Id_m = MPO(fill(ones(1,1,1,d), length(ϕ)))
 
 end
 
-@testset "left environment" begin
+@testset "left environment returns correct overlap" begin
     L = left_env(ϕ, ψ)
     @test L[end][1] ≈ dot(ϕ, ψ)
 end
 
-@testset "right environment" begin
+
+@testset "right environment returns correct overlap" begin
     R = right_env(ϕ, ψ)
     @test R[1][end] ≈ dot(ϕ, ψ)
 end
 
-@testset "Cauchy-Schwarz inequality of MPS" begin
+
+@testset "Cauchy-Schwarz inequality of MPS is OK" begin
     @test abs(dot(ϕ, ψ)) <= norm(ϕ) * norm(ψ)
 end
 
@@ -74,10 +76,14 @@ end
     T = ComplexF64
 
     ψ = randn(MPS{T}, sites, D, d)
-    σ = 2 * (rand(sites) .< 0.5) .- 1
+    state = 2 * (rand(sites) .< 0.5) .- 1
 
-    @test_broken tensor(ψ, σ) ≈ left_env(ψ, map(idx, σ))[]
+    C = I
+    for (A, σ) ∈ zip(ψ, state) C *= A[:, idx(σ), :] end
+    
+    @test tr(C) ≈ left_env(ψ, map(idx, state))[]
 end
+
 
 @testset "right_env correctly contracts MPO with MPS for a given configuration" begin
     D = 10

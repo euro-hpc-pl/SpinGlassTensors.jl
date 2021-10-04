@@ -1,4 +1,7 @@
-export left_env, right_env, dot!
+export 
+    left_env, 
+    right_env, 
+    dot!
 
 # --------------------------- Conventions -----------------------
 #
@@ -19,7 +22,7 @@ function LinearAlgebra.dot(ϕ::AbstractMPS, ψ::AbstractMPS)
 end
 
 """
-Creates left environment
+Creates left environment (ϕ - bra, ψ - ket)
 """
 function left_env(ϕ::AbstractMPS, ψ::AbstractMPS)
     T = promote_type(eltype(ψ), eltype(ϕ))
@@ -35,6 +38,7 @@ function left_env(ϕ::AbstractMPS, ψ::AbstractMPS)
     L
 end
 
+
 # TODO: remove it (after SpinGlassEngine is updated)
 @memoize Dict function left_env(ϕ::AbstractMPS, σ::Vector{Int})
     l = length(σ)
@@ -46,7 +50,9 @@ end
     L
 end
 
-
+"""
+Creates right environment (ϕ - bra, ψ - ket)
+"""
 function right_env(ϕ::AbstractMPS, ψ::AbstractMPS)
     L = length(ψ)
     T = promote_type(eltype(ψ), eltype(ϕ))
@@ -56,9 +62,9 @@ function right_env(ϕ::AbstractMPS, ψ::AbstractMPS)
     R[end][1, 1] = one(T)
     for i ∈ L:-1:1
         M = ψ[i]
-        M̃ = conj.(ϕ[i])
+        M̃ = ϕ[i]
         D = R[i+1]
-        @tensor D[x, y] := M[x, σ, α] * D[α, β] * M̃[y, σ, β] order = (β, α, σ)
+        @tensor D[x, y] := M[x, σ, α] * D[α, β] * conj(M̃)[y, σ, β] order = (β, α, σ)
         R[i] = D
     end
     R

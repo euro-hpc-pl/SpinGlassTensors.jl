@@ -12,7 +12,7 @@ end
 
 function rq_fact(M::AbstractMatrix, Dcut::Int=typemax(Int), tol::Float64=1E-12, args...)
     q, r = qr_fact(M', Dcut, tol, args...) 
-    r', q'
+    Matrix(r'), Matrix(q') # Matrix is to ensure types compatibility
 end
 
 

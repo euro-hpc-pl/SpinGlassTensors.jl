@@ -48,15 +48,18 @@ function LinearAlgebra.dot(ψ, ϕ::Mps)
     Mps(D)
 end
 
+
 function contract_left(A::AbstractArray{T,3}, B::AbstractMatrix{T}) where {T}
     @cast C[(x, y), u, r] := sum(σ) B[y, σ] * A[(x, σ), u, r] (σ ∈ 1:size(B, 2))
     C
 end
 
+
 function contract_up(A::AbstractArray{T,3}, B::AbstractArray{T,2}) where {T}
     @tensor C[l, u, r] := B[u, σ] * A[l, σ, r]
     C
 end
+
 
 function contract_up(A::AbstractArray{T,3}, B::AbstractArray{T,4}) where {T}
     @cast C[(x, y), z, (b, a)] := sum(σ) B[y, z, a, σ] * A[x, σ, b]

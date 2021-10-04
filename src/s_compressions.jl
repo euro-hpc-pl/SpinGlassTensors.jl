@@ -188,7 +188,7 @@ end
 function _update_tensor_forward(A::T, M::Dict, sites) where {T <: AbstractArray} 
     B = copy(A)
     for i ∈ sites
-        if i == 0 return B end
+        if i == 0 break end
         C = M[i]
         @tensor B[l, x, r] := B[l, y, r] * C[y, x]
     end
@@ -199,7 +199,7 @@ end
 function _update_tensor_backwards(A::T, M::Dict, sites) where {T <: AbstractArray} 
     B = copy(A)
     for i ∈ reverse(sites)
-        if i == 0 return B end
+        if i == 0 break end
         C = M[i]
         @tensor B[l, x, r] := B[l, y, r] * C[x, y]
     end

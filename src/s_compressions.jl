@@ -69,16 +69,12 @@ end
 
 function _left_sweep_var!(env::Environment, args...)
     for site ∈ reverse(env.bra.sites)
-        println("left sweep site = ", site)
         update_env_right!(env, site)
         A = project_ket_on_bra(env, site)
-        print("Type A ", typeof(A), "Size A ", size(A))
         @cast B[x, (y, z)] := A[x, y, z]
         _, Q = rq_fact(B, args...)
-        println("Type Q ", typeof(Q))
         @cast C[x, σ, y] := Q[x, (σ, y)] (σ ∈ 1:size(A, 2))
         env.bra[site] = C
-        println("Type C ", typeof(C))
         clear_env_site!(env, site) 
     end
 end
@@ -86,7 +82,6 @@ end
 
 function _right_sweep_var!(env::Environment, args...)
     for site ∈ env.bra.sites
-        println("right sweep site = ", site)
         update_env_left!(env, site)
         A = project_ket_on_bra(env, site)
         @cast B[(x, y), z] := A[x, y, z]
@@ -211,7 +206,7 @@ function update_env_left(LE::T, A₀::S, M::Dict, B₀::S) where {T, S <: Abstra
     sites = sort(collect(keys(M)))
     A =_update_tensor_forward(A₀, M, sites)
     B = _update_tensor_backwards(B₀, M, sites)
-    update_env_left(LE, A₀, M[0], B₀)
+    update_env_left(LE, A, M[0], B)
 end
 
 
@@ -248,7 +243,7 @@ function update_env_right(RE::S, A₀::T, M::Dict, B₀::S) where {T, S}
     sites = sort(collect(keys(M)))
     A = _update_tensor_forward(A₀, M, sites)
     B = _update_tensor_backwards(B₀, M, sites)
-    update_env_right(RE, A₀, M[0], B₀)
+    update_env_right(RE, A, M[0], B)
 end
 
 
@@ -280,9 +275,14 @@ end
 #   |    |    |
 #     -- B --
 #
-function project_ket_on_bra(LE::S, B::S, M::T, RE::S) where {T, S <: AbstractArray}
+function project_ket_on_bra(LE::AbstractArray{T,3}, B::AbstractArray{T,3}, M::AbstractArray{T,4}, RE::AbstractArray{T,3}) where {T}
     @tensor A[x, y, z] := LE[k, l, x] * B[k, m, o] * 
                           M[l, y, n, m] * RE[z, n, o] order = (k, l, m, n, o)
+    A
+end
+
+function project_ket_on_bra(LE::AbstractArray{T,3}, B::AbstractArray{T,3}, M::AbstractArray{T,2}, RE::AbstractArray{T,3}) where {T}
+    @tensor A[x, y, z] := B[x, a, z] * M[y, a]
     A
 end
 
@@ -296,9 +296,12 @@ end
 
 function project_ket_on_bra(LE::S, B₀::S, M::Dict, RE::S) where S <: AbstractArray
     sites = sort(collect(keys(M)))
-    B = _update_tensor_forward(B₀, M, sites)
-    T = project_ket_on_bra(LE, B, M[0], RE)
-    _update_tensor_backwards(T, M, sites)
+    T = sort(collect(M), by = x->x[1])
+    TT = B₀
+    for (t, v) ∈ reverse(T)
+        TT = project_ket_on_bra(LE, TT, v, RE)
+    end
+    TT
 end
 
 

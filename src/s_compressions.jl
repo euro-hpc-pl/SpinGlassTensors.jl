@@ -44,9 +44,6 @@ function SpinGlassTensors.compress!(
     env = Environment(bra, mpo, ket)
     overlap = Inf
     overlap_before = measure_env(env, last(env.bra.sites))
-
-    println("overlap = ", overlap_before)
-
     for sweep ∈ 1:max_sweeps
         _left_sweep_var!(env, args...)
         _right_sweep_var!(env, args...)
@@ -75,7 +72,7 @@ function _left_sweep_var!(env::Environment, args...)
         _, Q = rq_fact(B, args...)
         @cast C[x, σ, y] := Q[x, (σ, y)] (σ ∈ 1:size(A, 2))
         env.bra[site] = C
-        clear_env_site!(env, site) 
+        clear_env_containing_site!(env, site) 
     end
 end
 
@@ -88,7 +85,7 @@ function _right_sweep_var!(env::Environment, args...)
         Q, _ = qr_fact(B, args...)
         @cast C[x, σ, y] := Q[(x, σ), y] (σ ∈ 1:size(A, 2))
         env.bra[site] = C
-        clear_env_site!(env, site)
+        clear_env_containing_site!(env, site)
     end
 end
 
@@ -152,9 +149,9 @@ function update_env_right!(env::Environment, site::Site)
 end
 
 
-function clear_env_site!(env::Environment, site::Site)
-    # delete!(env.env, (site, :right))
-    # delete!(env.env, (site, :left))
+function clear_env_containing_site!(env::Environment, site::Site)
+    delete!(env.env, (_left_nbrs_site(site, env.ket.sites), :right))
+    delete!(env.env, (_right_nbrs_site(site, env.ket.sites), :left))
 end
 
 

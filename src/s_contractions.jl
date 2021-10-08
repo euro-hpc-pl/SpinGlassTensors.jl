@@ -65,6 +65,6 @@ end
 
 
 function contract_up(A::AbstractArray{T,3}, B::AbstractArray{T,4}) where {T}
-    @cast C[(x, y), z, (b, a)] := sum(σ) B[y, z, a, σ] * A[x, σ, b]
+    @matmul C[(x, y), z, (b, a)] := sum(σ) B[y, z, a, σ] * A[x, σ, b]
     C
 end

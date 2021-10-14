@@ -333,7 +333,7 @@ canonise!(ψ::Mps, ::Val{:left}) = _right_sweep!(ψ, typemax(Int))
 
 function _right_sweep!(ψ::Mps, Dcut::Int=typemax(Int), args...)
     R = ones(eltype(ψ.tensors[1]), 1, 1)
-    for i ∈ ψ.sites      
+    for i ∈ ψ.sites
         A = ψ.tensors[i]
         @matmul M̃[(x, σ), y] := sum(α) R[x, α] * A[α, σ, y]
         Q, R = qr_fact(M̃, Dcut, args...)
@@ -346,8 +346,8 @@ end
 
 function _left_sweep!(ψ::Mps, Dcut::Int=typemax(Int), args...)
     R = ones(eltype(ψ.tensors[1]), 1, 1)
-    for i ∈ length(ψ.sites):-1:1
-        B = ψ.tensors[i]   
+    for i ∈ reverse(ψ.sites)
+        B = ψ.tensors[i]
         @matmul M̃[x, (σ, y)] := sum(α) B[x, σ, α] * R[α, y]
         R, Q = rq_fact(M̃, Dcut, args...)
         R = R ./ maximum(abs.(R))

@@ -28,7 +28,7 @@ end
 
 
 @inline Base.getindex(ket::AbstractTN, i) = getindex(ket.tensors, i)
-@inline Base.setindex!(ket::AbstractTN, A::AbstractArray, i::Int) = ket.tensors[i] = A
+@inline Base.setindex!(ket::AbstractTN, A::AbstractArray, i::Union{Int,Rational}) = ket.tensors[i] = A
 @inline Base.length(ket::AbstractTN) = length(ket.tensors)
 @inline Base.copy(ket::AbstractMps) = Mps(copy(ket.tensors))
 @inline Base.copy(ket::AbstractMpo) = Mpo(copy(ket.tensors))

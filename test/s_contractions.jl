@@ -35,6 +35,7 @@
         B = randn(Float64, 4,2,3)
         A = randn(Float64, 2,2)  
         C = randn(Float64, 2,2,2,2)
+        O2 = randn(MPO{T}, sites, D, d)
 
         @testset "contract_left gives correct sizes" begin 
             @test size(contract_left(B,A)) == (4,2,3)
@@ -45,13 +46,23 @@
             @test size(contract_up(B,C)) == (8,2,6)
         end
 
+        @testset "contract_down gives correct sizes" begin 
+            @test size(contract_down(A,B)) == (4,2,3)
+            @test size(contract_down(C,B)) == (8,2,6)
+        end
+
         @testset "dot product of Mpo and Mps" begin
-            O2 = randn(MPO{T}, sites, D, d)
             D = dot(O2, ψ)
             E = dot(O1, ψ)
             @test size(D[1]) == size(E[1]) == (1, 2, 4)
             @test size(D[2]) == size(E[2]) == (4, 2, 1)
+        end
 
+        @testset "dot product of Mps and Mpo" begin
+            F = dot(ψ, O2)
+            G = dot(ψ, O1)
+            @test size(F[1]) == size(G[1]) == (1, 2, 4)
+            @test size(F[2]) == size(G[2]) == (4, 2, 1)
         end
 
     end

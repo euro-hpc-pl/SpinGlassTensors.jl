@@ -2,7 +2,9 @@ export
     Mps,
     Mpo,
     is_left_normalized,
-    is_right_normalized
+    is_right_normalized,
+    SparseSiteTensor,
+    SparseVirtualTensor
 
 
 abstract type AbstractEnvironment end
@@ -12,6 +14,19 @@ abstract type AbstractMpo end
 
 const AbstractTN = Union{AbstractMps, AbstractMpo}
 const Site = Union{Int, Rational{Int}} 
+
+
+struct SparseSiteTensor
+    loc_exp
+    projs
+end
+
+
+struct SparseVirtualTensor
+    con
+    projs
+end
+
 
 mutable struct Mps <: AbstractMps
     tensors

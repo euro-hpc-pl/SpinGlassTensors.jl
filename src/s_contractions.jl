@@ -110,3 +110,16 @@ function contract_down(A::AbstractArray{T, 4}, B::AbstractArray{T, 3}) where {T}
     @matmul C[(x, y), z, (b, a)] := sum(σ) A[y, σ, a, z] * B[x, σ, b]
     C
 end
+
+
+# function contract_up(A::AbstractArray{T,3}, B::SparseSiteTensor) where {T}
+#     #@matmul C[(x, y), z, (b, a)] := sum(σ) B[y, z, a, σ] * A[x, σ, b]
+#     #C
+# end
+
+# function contract_up(A::AbstractArray{T,3}, B::SparseVirtualTensor) where {T}
+#     #@matmul C[(x, y), z, (b, a)] := sum(σ) B[y, z, a, σ] * A[x, σ, b]
+#     #C
+# end
+
+# same for 

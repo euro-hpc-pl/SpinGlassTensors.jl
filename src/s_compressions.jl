@@ -161,7 +161,23 @@ end
 #      |    |
 #        -- B --
 #
-function update_env_left(LE::S, A::R, M::T, B::S) where {S, R, T <: AbstractArray} 
+
+function update_env_left(LE::S, A₀::S, M::T, B₀::S) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
+    sites = sort(collect(keys(M)))
+    A =_update_tensor_forward(A₀, M, sites)
+    B = _update_tensor_backwards(B₀, M, sites)
+    update_env_left(LE, A, M[0], B)
+end
+
+
+function update_env_left(LE::S, M::T) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
+    MM = M[0]  # can be more general, but it works for now
+    @tensor L[nt, nc, nb] :=  LE[nt, oc, nb] * MM[oc, nc]
+    L
+end
+
+
+function update_env_left(LE::S, A::S, M::T, B::S) where {S <: AbstractArray{Float64, 3}, T <: AbstractArray{Float64, 4}}
     # for real there is no conjugate, otherwise conj(A)
     @tensor L[nb, nc, nt] := LE[ob, oc, ot] * A[ot, α, nt] * 
                              M[oc, α, nc, β] * B[ob, β, nb] order = (ot, α, oc, β, ob)  
@@ -169,7 +185,7 @@ function update_env_left(LE::S, A::R, M::T, B::S) where {S, R, T <: AbstractArra
 end
 
 
-function update_env_left(LE::S, A::S, M::T, B::S, ::Val{:c}) where {S, T <: AbstractArray} 
+function update_env_left(LE::S, A::S, M::T, B::S, ::Val{:c}) where {S <: AbstractArray{Float64, 3}, T <: AbstractArray{Float64, 4}}
     # for real there is no conjugate, otherwise conj(A)
     @tensor L[nb, nc, nt] := LE[ob, oc, ot] * A[ot, α, nt] * 
                              M[oc, β, nc, α] * B[ob, β, nb] order = (ot, α, oc, β, ob)  
@@ -177,7 +193,31 @@ function update_env_left(LE::S, A::S, M::T, B::S, ::Val{:c}) where {S, T <: Abst
 end
 
 
-function _update_tensor_forward(A::T, M::Dict, sites) where {T <: AbstractArray} 
+function update_env_left(LE::S, A::S, M::T, B::S) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
+    # for real there is no conjugate, otherwise conj(A)
+    ## TO BE WRITTEN
+end
+
+
+function update_env_left(LE::S, A::S, M::T, B::S, ::Val{:c}) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
+    # for real there is no conjugate, otherwise conj(A)
+    ## TO BE WRITTEN
+end
+
+
+function update_env_left(LE::S, A::S, M::T, B::S) where {S <: AbstractArray{Float64, 3}, T <: SparseVirtualTensor}
+    # for real there is no conjugate, otherwise conj(A)
+    ## TO BE WRITTEN
+end
+
+
+function update_env_left(LE::S, A::S, M::T, B::S, ::Val{:c}) where {S <: AbstractArray{Float64, 3}, T <: SparseVirtualTensor}
+    # for real there is no conjugate, otherwise conj(A)
+    ## TO BE WRITTEN
+end
+
+
+function _update_tensor_forward(A::S, M::T, sites) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
     B = copy(A)
     for i ∈ sites
         if i == 0 break end
@@ -188,7 +228,7 @@ function _update_tensor_forward(A::T, M::Dict, sites) where {T <: AbstractArray}
 end
 
 
-function _update_tensor_backwards(A::T, M::Dict, sites) where {T <: AbstractArray} 
+function _update_tensor_backwards(A::S, M::T, sites) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
     B = copy(A)
     for i ∈ reverse(sites)
         if i == 0 break end
@@ -199,19 +239,6 @@ function _update_tensor_backwards(A::T, M::Dict, sites) where {T <: AbstractArra
 end
 
 
-function update_env_left(LE::T, A₀::S, M::Dict, B₀::S) where {T, S <: AbstractArray} 
-    sites = sort(collect(keys(M)))
-    A =_update_tensor_forward(A₀, M, sites)
-    B = _update_tensor_backwards(B₀, M, sites)
-    update_env_left(LE, A, M[0], B)
-end
-
-
-function update_env_left(LE::T, M::Dict) where {T <: AbstractArray}
-    MM = M[0]
-    @tensor L[nt, nc, nb] :=  LE[nt, oc, nb] * MM[oc, nc]
-    L
-end
 
 
 #      -- A --
@@ -220,7 +247,7 @@ end
 #         |    |
 #      -- B --
 #
-function update_env_right(RE::S, A::S, M::T, B::S) where {T, S}
+function update_env_right(RE::S, A::S, M::T, B::S) where {T <: AbstractArray{Float64, 4}, S <: AbstractArray{Float64, 3}}
     # for real there is no conjugate, otherwise conj(A)
     @tensor R[nt, nc, nb] := RE[ot, oc, ob] * A[nt, α, ot] *
                              M[nc, α, oc, β] * B[nb, β, ob] order = (ot, α, oc, β, ob)
@@ -228,7 +255,7 @@ function update_env_right(RE::S, A::S, M::T, B::S) where {T, S}
 end
 
 
-function update_env_right(RE::S, A::S, M::T, B::S, ::Val{:c}) where {T, S}
+function update_env_right(RE::S, A::S, M::T, B::S, ::Val{:c}) where {T <: AbstractArray{Float64,4}, S <: AbstractArray{Float64,3}}
     # for real there is no conjugate, otherwise conj(A)
     @tensor R[nt, nc, nb] := RE[ot, oc, ob] * A[nt, α, ot] * 
                              M[nc, β, oc, α] * B[nb, β, ob] order = (ot, α, oc, β, ob)
@@ -236,7 +263,29 @@ function update_env_right(RE::S, A::S, M::T, B::S, ::Val{:c}) where {T, S}
 end
 
 
-function update_env_right(RE::S, A₀::T, M::Dict, B₀::S) where {T, S}
+function update_env_right(RE::S, A::S, M::T, B::S) where {T <: SparseSiteTensor, S <: AbstractArray{Float64,3}}
+    # for real there is no conjugate, otherwise conj(A)
+    # TO BE WRITTEN
+end
+
+
+function update_env_right(RE::S, A::S, M::T, B::S, ::Val{:c}) where {T <: SparseSiteTensor, S <: AbstractArray{Float64,3}}
+    # for real there is no conjugate, otherwise conj(A)
+    # TO BE WRITTEN
+end
+
+function update_env_right(RE::S, A::S, M::T, B::S) where {T <: SparseVirtualTensor, S <: AbstractArray{Float64,3}}
+    # for real there is no conjugate, otherwise conj(A)
+    # TO BE WRITTEN
+end
+
+
+function update_env_right(RE::S, A::S, M::T, B::S, ::Val{:c}) where {T <: SparseVirtualTensor, S <: AbstractArray{Float64,3}}
+    # for real there is no conjugate, otherwise conj(A)
+    # TO BE WRITTEN
+end
+
+function update_env_right(RE::S, A₀::S, M::T, B₀::S) where {T <: AbstractDict, S <: AbstractArray{Float64,3}}
     sites = sort(collect(keys(M)))
     A = _update_tensor_forward(A₀, M, sites)
     B = _update_tensor_backwards(B₀, M, sites)
@@ -250,7 +299,7 @@ end
 #              |
 #           --
 #
-function update_env_right(RE::T, M::Dict) where {T <: AbstractArray}
+function update_env_right(RE::S, M::T) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
     MM = M[0]
     @tensor R[nt, nc, nb] := MM[nc, oc] * RE[nt, oc, nb]
     R
@@ -272,30 +321,51 @@ end
 #   |    |    |
 #     -- B --
 #
-function project_ket_on_bra(LE::AbstractArray{T,3}, B::AbstractArray{T,3}, M::AbstractArray{T,4}, RE::AbstractArray{T,3}) where {T}
+function project_ket_on_bra(LE::S, B::S, M::T, RE::S) where {T <: AbstractArray{Float64, 4}, S <: AbstractArray{Float64, 3}}
     @tensor A[x, y, z] := LE[k, l, x] * B[k, m, o] * 
                           M[l, y, n, m] * RE[z, n, o] order = (k, l, m, n, o)
     A
 end
 
-function project_ket_on_bra(LE::AbstractArray{T,3}, B::AbstractArray{T,3}, M::AbstractArray{T,2}, RE::AbstractArray{T,3}) where {T}
+
+function project_ket_on_bra(LE::S, B::S, M::T, RE::S) where {T <: AbstractArray{Float64, 2}, S <: AbstractArray{Float64, 3}}
     @tensor A[x, y, z] := B[x, a, z] * M[y, a]
     A
 end
 
 
-function project_ket_on_bra(LE::S, B::S, M::T, RE::S, ::Val{:c}) where {T, S <: AbstractArray}
+function project_ket_on_bra(LE::S, B::S, M::T, RE::S) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
+    ## TO BE ADDED
+end
+
+
+function project_ket_on_bra(LE::S, B::S, M::T, RE::S) where {S <: AbstractArray{Float64, 3}, T <: SparseVirtualTensor}
+    ## TO BE ADDED
+end
+
+
+function project_ket_on_bra(LE::S, B::S, M::T, RE::S, ::Val{:c}) where {T <: AbstractArray{Float64, 4}, S <: AbstractArray{Float64, 3}}
     @tensor A[x, y, z] := LE[k, l, x] * B[k, m, o] * 
                           M[l, m, n, y] * RE[z, n, o] order = (k, l, m, n, o)
     A
 end
 
 
-function project_ket_on_bra(LE::S, B₀::S, M::Dict, RE::S) where S <: AbstractArray
+function project_ket_on_bra(LE::S, B::S, M::T, RE::S, ::Val{:c}) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
+    ## TO BE ADDED
+end
+
+
+function project_ket_on_bra(LE::S, B::S, M::T, RE::S, ::Val{:c}) where {S <: AbstractArray{Float64, 3}, T <: SparseVirtualTensor}
+    ## TO BE ADDED
+end
+
+
+function project_ket_on_bra(LE::S, B₀::S, M::T, RE::S) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
     sites = sort(collect(keys(M)))
-    T = sort(collect(M), by = x->x[1])
+    C = sort(collect(M), by = x->x[1])
     TT = B₀
-    for (t, v) ∈ reverse(T)
+    for (t, v) ∈ reverse(C)
         TT = project_ket_on_bra(LE, TT, v, RE)
     end
     TT

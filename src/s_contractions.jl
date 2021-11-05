@@ -84,28 +84,29 @@ end
 Base.:(*)(W::Mpo, ψ::Mps) = dot(W, ψ)
 Base.:(*)(ψ::Mps, W::Mpo) = dot(ψ, W)
 
-function contract_left(A::AbstractArray{T,3}, B::AbstractMatrix{T}) where {T}
+
+function contract_left(A::AbstractArray{T, 3}, B::AbstractMatrix{T}) where {T}
     @cast C[(x, y), u, r] := sum(σ) B[y, σ] * A[(x, σ), u, r] (σ ∈ 1:size(B, 2))
     C
 end
 
 
-function contract_up(A::AbstractArray{T,3}, B::AbstractArray{T,2}) where {T}
+function contract_up(A::AbstractArray{T, 3}, B::AbstractArray{T, 2}) where {T}
     @tensor C[l, u, r] := B[u, σ] * A[l, σ, r]
     C
 end
 
-function contract_down(A::AbstractArray{T,2}, B::AbstractArray{T,3}) where {T}
+function contract_down(A::AbstractArray{T, 2}, B::AbstractArray{T, 3}) where {T}
     @tensor C[l, d, r] := A[σ, d] * B[l, σ, r]
     C
 end
 
-function contract_up(A::AbstractArray{T,3}, B::AbstractArray{T,4}) where {T}
+function contract_up(A::AbstractArray{T, 3}, B::AbstractArray{T, 4}) where {T}
     @matmul C[(x, y), z, (b, a)] := sum(σ) B[y, z, a, σ] * A[x, σ, b]
     C
 end
 
-function contract_down(A::AbstractArray{T,4}, B::AbstractArray{T,3}) where {T}
+function contract_down(A::AbstractArray{T, 4}, B::AbstractArray{T, 3}) where {T}
     @matmul C[(x, y), z, (b, a)] := sum(σ) A[y, σ, a, z] * B[x, σ, b]
     C
 end

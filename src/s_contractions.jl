@@ -118,7 +118,7 @@ function contract_up(A::AbstractArray{T,3}, B::SparseSiteTensor) where {T}
     C = zeros(sal, sbl, sbt, sar, sbr)
     for (σ, lexp) ∈ enumerate(B.loc_exp)
         AA = @view A[:, B.projs[4][σ], :]
-        C[:, M.projs[1][σ], M.projs[2][σ], :, M.projs[3][σ]] += lexp .* AA
+        C[:, B.projs[1][σ], B.projs[2][σ], :, B.projs[3][σ]] += lexp .* AA
     end
     @cast CC[(x, y), z, (b, a)] := C[x, y, z, b, a]
     CC

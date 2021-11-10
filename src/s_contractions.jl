@@ -96,37 +96,35 @@ function contract_up(A::AbstractArray{T, 3}, B::AbstractArray{T, 2}) where {T}
     C
 end
 
+
 function contract_down(A::AbstractArray{T, 2}, B::AbstractArray{T, 3}) where {T}
     @tensor C[l, d, r] := A[σ, d] * B[l, σ, r]
     C
 end
+
 
 function contract_up(A::AbstractArray{T, 3}, B::AbstractArray{T, 4}) where {T}
     @matmul C[(x, y), z, (b, a)] := sum(σ) B[y, z, a, σ] * A[x, σ, b]
     C
 end
 
-function contract_down(A::AbstractArray{T, 4}, B::AbstractArray{T, 3}) where {T}
+
+function contract_down(A::AbstractArray{T, 4}, B::AbstractArray{T, 3}) where T
     @matmul C[(x, y), z, (b, a)] := sum(σ) A[y, σ, a, z] * B[x, σ, b]
     C
 end
 
 
-function contract_up(A::AbstractArray{T,3}, B::SparseSiteTensor) where {T}
+function contract_up(A::AbstractArray{T, 3}, B::SparseSiteTensor) where T
     sal, sac, sar = size(A)
-    (sbl, sbt, sbr) = maximum.(B.projs[1:3])
+    sbl, sbt, sbr = maximum.(B.projs[1:3])
     C = zeros(sal, sbl, sbt, sar, sbr)
+
     for (σ, lexp) ∈ enumerate(B.loc_exp)
         AA = @view A[:, B.projs[4][σ], :]
         C[:, B.projs[1][σ], B.projs[2][σ], :, B.projs[3][σ]] += lexp .* AA
     end
+
     @cast CC[(x, y), z, (b, a)] := C[x, y, z, b, a]
     CC
 end
-
-# function contract_up(A::AbstractArray{T,3}, B::SparseVirtualTensor) where {T}
-#     #@matmul C[(x, y), z, (b, a)] := sum(σ) B[y, z, a, σ] * A[x, σ, b]
-#     #C
-# end
-
-# same for 

@@ -194,8 +194,17 @@ end
 
 
 function update_env_left(LE::S, A::S, M::T, B::S) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
-    # for real there is no conjugate, otherwise conj(A)
-    ## TO BE WRITTEN
+    sb = size(B, 3)
+    sc = maximum(M.projs[3])
+    st = size(A, 3)
+    L = zeros(sb, sc, st)
+    for (σ, lexp) ∈ enumerate(M.loc_exp)
+        AA = @view A[:, M.projs[2][σ], :]
+        LL = @view LE[:, M.projs[1][σ], :]
+        BB = @view B[:, M.projs[4][σ], :]
+        L[:, M.projs[3][σ], :] += lexp .* (BB' * LL * AA)
+    end
+    L
 end
 
 
@@ -264,8 +273,17 @@ end
 
 
 function update_env_right(RE::S, A::S, M::T, B::S) where {T <: SparseSiteTensor, S <: AbstractArray{Float64,3}}
-    # for real there is no conjugate, otherwise conj(A)
-    # TO BE WRITTEN
+    st = size(A, 1)
+    sc = maximum(M.projs[1])
+    sb = size(B, 1)
+    R = zeros(st, sc, sb)
+    for (σ, lexp) ∈ enumerate(M.loc_exp)
+        AA = @view A[:, M.projs[2][σ], :]
+        RR = @view RE[:, M.projs[3][σ], :]
+        BB = @view B[:, M.projs[4][σ], :]
+        R[:, M.projs[1][σ], :] += lexp .* (AA * RR * BB')
+    end
+    R
 end
 
 
@@ -335,7 +353,17 @@ end
 
 
 function project_ket_on_bra(LE::S, B::S, M::T, RE::S) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
-    ## TO BE ADDED
+    s1 = size(LE, 3)
+    s2 = maximum(M.projs[2])
+    s3 = size(RE, 1)
+    A = zeros(s1, s2, s3)
+    for (σ, lexp) ∈ enumerate(M.loc_exp)
+        le = @view le[:, M.projs[1][σ], :]
+        b = @view B[:, M.projs[4][σ], :]
+        re = @view RE[:, M.projs[3][σ], :]
+        A[:, M.projs[2][σ], :] += lexp .* (le' * b * re')
+    end
+    A
 end
 
 

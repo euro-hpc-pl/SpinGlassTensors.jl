@@ -358,7 +358,7 @@ function project_ket_on_bra(LE::S, B::S, M::T, RE::S) where {S <: AbstractArray{
     s3 = size(RE, 1)
     A = zeros(s1, s2, s3)
     for (σ, lexp) ∈ enumerate(M.loc_exp)
-        le = @view le[:, M.projs[1][σ], :]
+        le = @view LE[:, M.projs[1][σ], :]
         b = @view B[:, M.projs[4][σ], :]
         re = @view RE[:, M.projs[3][σ], :]
         A[:, M.projs[2][σ], :] += lexp .* (le' * b * re')

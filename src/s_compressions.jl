@@ -2,6 +2,7 @@ export compress!
 export _left_nbrs_site
 export _right_nbrs_site
 
+
 mutable struct Environment <: AbstractEnvironment
     bra::Mps  # to be optimized
     mpo::Mpo
@@ -24,9 +25,7 @@ mutable struct Environment <: AbstractEnvironment
                    (last(bra.sites), :right) => ones(1, 1, 1)
             )
         environment = new(bra, mpo, ket, trans, env)
-        for site ∈ environment.bra.sites
-            update_env_left!(environment, site)
-        end
+        for site ∈ environment.bra.sites update_env_left!(environment, site) end
         environment
     end
 end
@@ -194,11 +193,11 @@ end
 
 
 function update_env_left(LE::S, A::S, M::T, B::S) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
-    sb = size(B, 3)
-    sc = maximum(M.projs[3])
-    st = size(A, 3)
-    L = zeros(sb, sc, st)
-    for (σ, lexp) ∈ enumerate(M.loc_exp)
+    L = zeros(size(B, 3), maximum(M.projs[3]), size(A, 3))
+
+    Threads.@threads for σ ∈ 1:length(M.loc_exp)
+        lexp = M.loc_exp[σ]
+    #for (σ, lexp) ∈ enumerate(M.loc_exp)
         AA = @view A[:, M.projs[2][σ], :]
         LL = @view LE[:, M.projs[1][σ], :]
         BB = @view B[:, M.projs[4][σ], :]
@@ -264,7 +263,7 @@ function update_env_right(RE::S, A::S, M::T, B::S) where {T <: AbstractArray{Flo
 end
 
 
-function update_env_right(RE::S, A::S, M::T, B::S, ::Val{:c}) where {T <: AbstractArray{Float64,4}, S <: AbstractArray{Float64, 3}}
+function update_env_right(RE::S, A::S, M::T, B::S, ::Val{:c}) where {T <: AbstractArray{Float64, 4}, S <: AbstractArray{Float64, 3}}
     # for real there is no conjugate, otherwise conj(A)
     @tensor R[nt, nc, nb] := RE[ot, oc, ob] * A[nt, α, ot] * 
                              M[nc, β, oc, α] * B[nb, β, ob] order = (ot, α, oc, β, ob)
@@ -273,10 +272,7 @@ end
 
 
 function update_env_right(RE::S, A::S, M::T, B::S) where {T <: SparseSiteTensor, S <: AbstractArray{Float64, 3}}
-    st = size(A, 1)
-    sc = maximum(M.projs[1])
-    sb = size(B, 1)
-    R = zeros(st, sc, sb)
+    R = zeros(size(A, 1), maximum(M.projs[1]), size(B, 1))
 
     Threads.@threads for σ ∈ 1:length(M.loc_exp)
         lexp = M.loc_exp[σ]
@@ -291,20 +287,19 @@ end
 
 
 function update_env_right(RE::S, A::S, M::T, B::S, ::Val{:c}) where {T <: SparseSiteTensor, S <: AbstractArray{Float64, 3}}
-    # for real there is no conjugate, otherwise conj(A)
     # TO BE WRITTEN
 end
 
+
 function update_env_right(RE::S, A::S, M::T, B::S) where {T <: SparseVirtualTensor, S <: AbstractArray{Float64,3}}
-    # for real there is no conjugate, otherwise conj(A)
     # TO BE WRITTEN
 end
 
 
 function update_env_right(RE::S, A::S, M::T, B::S, ::Val{:c}) where {T <: SparseVirtualTensor, S <: AbstractArray{Float64, 3}}
-    # for real there is no conjugate, otherwise conj(A)
     # TO BE WRITTEN
 end
+
 
 function update_env_right(RE::S, A₀::S, M::T, B₀::S) where {T <: AbstractDict, S <: AbstractArray{Float64, 3}}
     sites = sort(collect(keys(M)))
@@ -356,11 +351,11 @@ end
 
 
 function project_ket_on_bra(LE::S, B::S, M::T, RE::S) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
-    s1 = size(LE, 3)
-    s2 = maximum(M.projs[2])
-    s3 = size(RE, 1)
-    A = zeros(s1, s2, s3)
-    for (σ, lexp) ∈ enumerate(M.loc_exp)
+    A = zeros(size(LE, 3), maximum(M.projs[2]), size(RE, 1))
+
+    Threads.@threads for σ ∈ 1:length(M.loc_exp)
+        lexp = M.loc_exp[σ]
+    #for (σ, lexp) ∈ enumerate(M.loc_exp)
         le = @view LE[:, M.projs[1][σ], :]
         b = @view B[:, M.projs[4][σ], :]
         re = @view RE[:, M.projs[3][σ], :]
@@ -371,7 +366,7 @@ end
 
 
 function project_ket_on_bra(LE::S, B::S, M::T, RE::S) where {S <: AbstractArray{Float64, 3}, T <: SparseVirtualTensor}
-    ## TO BE ADDED
+    # TO BE WRITTEN
 end
 
 
@@ -383,7 +378,7 @@ end
 
 
 function project_ket_on_bra(LE::S, B::S, M::T, RE::S, ::Val{:c}) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
-    ## TO BE ADDED
+    ## TO BE WRITTEN
 end
 
 
@@ -396,9 +391,7 @@ function project_ket_on_bra(LE::S, B₀::S, M::T, RE::S) where {S <: AbstractArr
     sites = sort(collect(keys(M)))
     C = sort(collect(M), by = x->x[1])
     TT = B₀
-    for (t, v) ∈ reverse(C)
-        TT = project_ket_on_bra(LE, TT, v, RE)
-    end
+    for (t, v) ∈ reverse(C) TT = project_ket_on_bra(LE, TT, v, RE) end
     TT
 end
 

@@ -264,7 +264,7 @@ function update_env_right(RE::S, A::S, M::T, B::S) where {T <: AbstractArray{Flo
 end
 
 
-function update_env_right(RE::S, A::S, M::T, B::S, ::Val{:c}) where {T <: AbstractArray{Float64,4}, S <: AbstractArray{Float64,3}}
+function update_env_right(RE::S, A::S, M::T, B::S, ::Val{:c}) where {T <: AbstractArray{Float64,4}, S <: AbstractArray{Float64, 3}}
     # for real there is no conjugate, otherwise conj(A)
     @tensor R[nt, nc, nb] := RE[ot, oc, ob] * A[nt, α, ot] * 
                              M[nc, β, oc, α] * B[nb, β, ob] order = (ot, α, oc, β, ob)
@@ -272,12 +272,15 @@ function update_env_right(RE::S, A::S, M::T, B::S, ::Val{:c}) where {T <: Abstra
 end
 
 
-function update_env_right(RE::S, A::S, M::T, B::S) where {T <: SparseSiteTensor, S <: AbstractArray{Float64,3}}
+function update_env_right(RE::S, A::S, M::T, B::S) where {T <: SparseSiteTensor, S <: AbstractArray{Float64, 3}}
     st = size(A, 1)
     sc = maximum(M.projs[1])
     sb = size(B, 1)
     R = zeros(st, sc, sb)
-    for (σ, lexp) ∈ enumerate(M.loc_exp)
+
+    Threads.@threads for σ ∈ 1:length(M.loc_exp)
+        lexp = M.loc_exp[σ]
+    #for (σ, lexp) ∈ enumerate(M.loc_exp)
         AA = @view A[:, M.projs[2][σ], :]
         RR = @view RE[:, M.projs[3][σ], :]
         BB = @view B[:, M.projs[4][σ], :]
@@ -287,7 +290,7 @@ function update_env_right(RE::S, A::S, M::T, B::S) where {T <: SparseSiteTensor,
 end
 
 
-function update_env_right(RE::S, A::S, M::T, B::S, ::Val{:c}) where {T <: SparseSiteTensor, S <: AbstractArray{Float64,3}}
+function update_env_right(RE::S, A::S, M::T, B::S, ::Val{:c}) where {T <: SparseSiteTensor, S <: AbstractArray{Float64, 3}}
     # for real there is no conjugate, otherwise conj(A)
     # TO BE WRITTEN
 end
@@ -298,12 +301,12 @@ function update_env_right(RE::S, A::S, M::T, B::S) where {T <: SparseVirtualTens
 end
 
 
-function update_env_right(RE::S, A::S, M::T, B::S, ::Val{:c}) where {T <: SparseVirtualTensor, S <: AbstractArray{Float64,3}}
+function update_env_right(RE::S, A::S, M::T, B::S, ::Val{:c}) where {T <: SparseVirtualTensor, S <: AbstractArray{Float64, 3}}
     # for real there is no conjugate, otherwise conj(A)
     # TO BE WRITTEN
 end
 
-function update_env_right(RE::S, A₀::S, M::T, B₀::S) where {T <: AbstractDict, S <: AbstractArray{Float64,3}}
+function update_env_right(RE::S, A₀::S, M::T, B₀::S) where {T <: AbstractDict, S <: AbstractArray{Float64, 3}}
     sites = sort(collect(keys(M)))
     A = _update_tensor_forward(A₀, M, sites)
     B = _update_tensor_backwards(B₀, M, sites)

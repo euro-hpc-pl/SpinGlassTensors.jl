@@ -195,9 +195,9 @@ end
 function update_env_left(LE::S, A::S, M::T, B::S) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
     L = zeros(size(B, 3), maximum(M.projs[3]), size(A, 3))
 
-    Threads.@threads for σ ∈ 1:length(M.loc_exp)
-        lexp = M.loc_exp[σ]
-    #for (σ, lexp) ∈ enumerate(M.loc_exp)
+    #Threads.@threads for σ ∈ 1:length(M.loc_exp)
+    #    lexp = M.loc_exp[σ]
+    for (σ, lexp) ∈ enumerate(M.loc_exp)
         AA = @view A[:, M.projs[2][σ], :]
         LL = @view LE[:, M.projs[1][σ], :]
         BB = @view B[:, M.projs[4][σ], :]
@@ -274,9 +274,9 @@ end
 function update_env_right(RE::S, A::S, M::T, B::S) where {T <: SparseSiteTensor, S <: AbstractArray{Float64, 3}}
     R = zeros(size(A, 1), maximum(M.projs[1]), size(B, 1))
 
-    Threads.@threads for σ ∈ 1:length(M.loc_exp)
-        lexp = M.loc_exp[σ]
-    #for (σ, lexp) ∈ enumerate(M.loc_exp)
+    #Threads.@threads for σ ∈ 1:length(M.loc_exp)
+    #    lexp = M.loc_exp[σ]
+    for (σ, lexp) ∈ enumerate(M.loc_exp)
         AA = @view A[:, M.projs[2][σ], :]
         RR = @view RE[:, M.projs[3][σ], :]
         BB = @view B[:, M.projs[4][σ], :]
@@ -353,9 +353,9 @@ end
 function project_ket_on_bra(LE::S, B::S, M::T, RE::S) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
     A = zeros(size(LE, 3), maximum(M.projs[2]), size(RE, 1))
 
-    Threads.@threads for σ ∈ 1:length(M.loc_exp)
-        lexp = M.loc_exp[σ]
-    #for (σ, lexp) ∈ enumerate(M.loc_exp)
+    #Threads.@threads for σ ∈ 1:length(M.loc_exp)
+    #    lexp = M.loc_exp[σ]
+    for (σ, lexp) ∈ enumerate(M.loc_exp)
         le = @view LE[:, M.projs[1][σ], :]
         b = @view B[:, M.projs[4][σ], :]
         re = @view RE[:, M.projs[3][σ], :]

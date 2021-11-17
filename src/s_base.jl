@@ -4,7 +4,8 @@ export
     is_left_normalized,
     is_right_normalized,
     SparseSiteTensor,
-    SparseVirtualTensor
+    SparseVirtualTensor,
+    local_dims
 
 
 abstract type AbstractEnvironment end
@@ -28,6 +29,16 @@ struct SparseVirtualTensor
 end
 
 
+function Base.size(tens::SparseSiteTensor, ind::Int)
+    maximum(tens.projs[ind])
+end
+
+
+function Base.size(tens::SparseVirtualTensor, ind::Int)
+    maximum(tens.projs[ind])
+end
+
+
 mutable struct Mps <: AbstractMps
     tensors
     sites
@@ -39,6 +50,26 @@ mutable struct Mpo <: AbstractMpo
     tensors
     sites
     Mpo(tensors::Dict) = new(tensors, sort(collect(keys(tensors))))
+end
+
+
+function local_dims(mpo::Mpo, dir::Symbol)
+    @assert dir ∈ (:down, :up)
+    dims = Dict()
+    if dir == :up
+        for site ∈ mpo.sites
+            keys = sort(collect(keys(mpo[site])))
+            T = mpo[site][first(keys)]
+            push!(dims, site => size(T, 2))
+        end
+    else
+        for site ∈ mpo.sites
+            keys = sort(collect(keys(mpo[site])))
+            T = mpo[site][last(keys)]
+            push!(dims, site => size(T, 4))
+        end
+    end
+    dims
 end
 
 

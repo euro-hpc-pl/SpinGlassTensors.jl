@@ -15,15 +15,16 @@ abstract type AbstractMpo end
 const AbstractTN = Union{AbstractMps, AbstractMpo}
 const Site = Union{Int, Rational{Int}} 
 
+
 struct SparseSiteTensor <: AbstractSparseTensor
-    loc_exp
-    projs
+    loc_exp::Vector{Real}
+    projs::NTuple{N, Vector{Int}} where N
 end
 
 
 struct SparseVirtualTensor <: AbstractSparseTensor
-    con
-    projs
+    con::Vector{Real}
+    projs::NTuple{N, Vector{Int}} where N
 end
 
 

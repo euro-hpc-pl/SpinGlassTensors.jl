@@ -1,11 +1,21 @@
-export bond_dimension, is_left_normalized, is_right_normalized
-export verify_bonds, verify_physical_dims, tensor, rank, physical_dim
-export State, dropindices
+export 
+       AbstractTensorNetwork,
+       bond_dimension, 
+       is_left_normalized, 
+       is_right_normalized,
+       verify_bonds, 
+       verify_physical_dims, 
+       tensor, 
+       rank, 
+       physical_dim,
+       State, 
+       dropindices
 
 const State = Union{Vector, NTuple}
 
 abstract type AbstractTensorNetwork{T} end
 
+# PEPSRow to be removed
 for (T, N) ∈ ((:PEPSRow, 5), (:MPO, 4), (:MPS, 3))
     AT = Symbol(:Abstract, T)
     @eval begin

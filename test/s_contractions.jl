@@ -1,4 +1,3 @@
-
 @testset "Contraction" begin
     D = 2
     d = 2
@@ -23,10 +22,10 @@
         end
 
         @testset "renormalizations" begin
-            ψ.tensors[ψ.sites[end]] *= 1/norm(ψ)
+            ψ.tensors[ψ.sites[end]] *= 1 / norm(ψ)
             @test dot(ψ, ψ) ≈ 1
 
-            ϕ.tensors[ψ.sites[1]] *= 1/norm(ϕ)
+            ϕ.tensors[ψ.sites[1]] *= 1 / norm(ϕ)
             @test dot(ϕ, ϕ) ≈ 1
         end 
     end 
@@ -38,17 +37,17 @@
         O2 = randn(MPO{T}, sites, D, d)
 
         @testset "contract_left gives correct sizes" begin 
-            @test size(contract_left(B,A)) == (4,2,3)
+            @test size(contract_left(B, A)) == (4,2,3)
         end
 
         @testset "contract_up gives correct sizes" begin 
-            @test size(contract_up(B,A)) == (4,2,3)
-            @test size(contract_up(B,C)) == (8,2,6)
+            @test size(contract_up(B, A)) == (4, 2, 3)
+            @test size(contract_up(B, C)) == (8, 2, 6)
         end
 
         @testset "contract_down gives correct sizes" begin 
-            @test size(contract_down(A,B)) == (4,2,3)
-            @test size(contract_down(C,B)) == (8,2,6)
+            @test size(contract_down(A, B)) == (4, 2, 3)
+            @test size(contract_down(C, B)) == (8 ,2, 6)
         end
 
         @testset "dot product of Mpo and Mps" begin
@@ -64,7 +63,5 @@
             @test size(F[1]) == size(G[1]) == (1, 2, 4)
             @test size(F[2]) == size(G[2]) == (4, 2, 1)
         end
-
     end
-
 end

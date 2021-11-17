@@ -6,14 +6,26 @@ export
 
 
 function LinearAlgebra.dot(ψ::Mps, ϕ::Mps)
-    C = ones(promote_type(eltype(ψ.tensors[1]), eltype(ϕ.tensors[1])), 1, 1)
+    T = promote_type(eltype(ψ.tensors[1]), eltype(ϕ.tensors[1]))
+    C = ones(T, 1, 1)
     for (i, j) ∈ zip(ψ.sites, ϕ.sites)
         A, B = ψ[i], ϕ[j]
         @tensor C[x, y] := conj(B)[β, σ, x] * C[β, α] * A[α, σ, y] order = (α, β, σ)
     end
     tr(C)
 end
- 
+
+
+#=
+function LinearAlgebra.dot(ψ::Mps, ϕ::Mps)
+    T = promote_type(eltype(ψ.tensors[1]), eltype(ϕ.tensors[1]))
+    C = ones(T, 1, 1)
+    for (A, B) ∈ zip(ψ, ϕ)
+        @tensor C[x, y] := conj(B)[β, σ, x] * C[β, α] * A[α, σ, y] order = (α, β, σ)
+    end
+    tr(C)
+end
+=#
 
 LinearAlgebra.norm(ψ::Mps) = sqrt(abs(dot(ψ, ψ)))
 
@@ -56,54 +68,39 @@ function LinearAlgebra.dot(ϕ::Mps, ψ::Mpo)
 end
 
 
-function LinearAlgebra.dot(ψ, ϕ::Mps)
-    D = Dict()
-    for (i, A) ∈ enumerate(ψ) push!(D, i => contract_up(ϕ[i], A)) end
-    Mps(D)
-end
+LinearAlgebra.dot(W, ϕ::Mps) =
+Mps(Dict(i => contract_up(ϕ[i], A) for (i, A) ∈ enumerate(W)))
 
 
-function LinearAlgebra.dot(ϕ::Mps, ψ)
-    D = Dict()
-    for (i, A) ∈ enumerate(ψ) push!(D, i => contract_down(A, ϕ[i])) end
-    Mps(D)
-end
+LinearAlgebra.dot(ϕ::Mps, W) =
+Mps(Dict(i => contract_down(A, ϕ[i]) for (i, A) ∈ enumerate(W)))
 
 
 Base.:(*)(W::Mpo, ψ::Mps) = dot(W, ψ)
 Base.:(*)(ψ::Mps, W::Mpo) = dot(ψ, W)
 
 
-function contract_left(A::AbstractArray{T, 3}, B::AbstractMatrix{T}) where T
-    @cast C[(x, y), u, r] := sum(σ) B[y, σ] * A[(x, σ), u, r] (σ ∈ 1:size(B, 2))
-    C
-end
+contract_left(A::AbstractArray{T, 3}, B::AbstractMatrix{T}) where T =
+@cast C[(x, y), u, r] := sum(σ) B[y, σ] * A[(x, σ), u, r] (σ ∈ 1:size(B, 2))
+ 
+
+contract_up(A::AbstractArray{T, 3}, B::AbstractArray{T, 2}) where T =
+@tensor C[l, u, r] := B[u, σ] * A[l, σ, r]
 
 
-function contract_up(A::AbstractArray{T, 3}, B::AbstractArray{T, 2}) where T
-    @tensor C[l, u, r] := B[u, σ] * A[l, σ, r]
-    C
-end
+contract_down(A::AbstractArray{T, 2}, B::AbstractArray{T, 3}) where T =
+@tensor C[l, d, r] := A[σ, d] * B[l, σ, r]
 
 
-function contract_down(A::AbstractArray{T, 2}, B::AbstractArray{T, 3}) where T
-    @tensor C[l, d, r] := A[σ, d] * B[l, σ, r]
-    C
-end
+contract_up(A::AbstractArray{T, 3}, B::AbstractArray{T, 4}) where T =
+@matmul C[(x, y), z, (b, a)] := sum(σ) B[y, z, a, σ] * A[x, σ, b]
+ 
 
+contract_down(A::AbstractArray{T, 4}, B::AbstractArray{T, 3}) where T =
+@matmul C[(x, y), z, (b, a)] := sum(σ) A[y, σ, a, z] * B[x, σ, b]
+ 
 
-function contract_up(A::AbstractArray{T, 3}, B::AbstractArray{T, 4}) where T
-    @matmul C[(x, y), z, (b, a)] := sum(σ) B[y, z, a, σ] * A[x, σ, b]
-    C
-end
-
-
-function contract_down(A::AbstractArray{T, 4}, B::AbstractArray{T, 3}) where T
-    @matmul C[(x, y), z, (b, a)] := sum(σ) A[y, σ, a, z] * B[x, σ, b]
-    C
-end
-
-
+# this has to be improved
 function contract_up(A::AbstractArray{T, 3}, B::SparseSiteTensor) where T
     sal, sac, sar = size(A)
     sbl, sbt, sbr = maximum.(B.projs[1:3])

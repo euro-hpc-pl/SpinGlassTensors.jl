@@ -1,14 +1,13 @@
 export
-    Mps,
-    Mpo,
-    is_left_normalized,
-    is_right_normalized,
+    Mps, Mpo,
+    local_dims,
     SparseSiteTensor,
-    SparseVirtualTensor,
-    local_dims
+    SparseVirtualTensor
 
 
 abstract type AbstractEnvironment end
+abstract type AbstractSparseTensor end
+
 abstract type AbstractMps end
 abstract type AbstractMpo end
 
@@ -16,56 +15,47 @@ abstract type AbstractMpo end
 const AbstractTN = Union{AbstractMps, AbstractMpo}
 const Site = Union{Int, Rational{Int}} 
 
-
-struct SparseSiteTensor
+struct SparseSiteTensor <: AbstractSparseTensor
     loc_exp
     projs
 end
 
 
-struct SparseVirtualTensor
+struct SparseVirtualTensor <: AbstractSparseTensor
     con
     projs
 end
 
 
-function Base.size(tens::SparseSiteTensor, ind::Int)
-    maximum(tens.projs[ind])
+struct Mps <: AbstractMps
+    tensors::Dict
+    sites::Vector{Site}
+    Mps(tensors::Dict) = 
+    new(tensors, sort(collect(keys(tensors))))
 end
 
 
-function Base.size(tens::SparseVirtualTensor, ind::Int)
-    maximum(tens.projs[ind])
-end
-
-
-mutable struct Mps <: AbstractMps
-    tensors
-    sites
-    Mps(tensors::Dict) = new(tensors, sort(collect(keys(tensors))))
-end
-
-
-mutable struct Mpo <: AbstractMpo
-    tensors
-    sites
-    Mpo(tensors::Dict) = new(tensors, sort(collect(keys(tensors))))
+struct Mpo <: AbstractMpo
+    tensors::Dict # of Dict
+    sites::Vector{Site}
+    Mpo(tensors::Dict)  = 
+    new(tensors, sort(collect(keys(tensors))))
 end
 
 
 function local_dims(mpo::Mpo, dir::Symbol)
     @assert dir ∈ (:down, :up)
-    dims = Dict()
+    dims = Dict{Site, Int}()
     if dir == :up
         for site ∈ mpo.sites
-            keys = sort(collect(keys(mpo[site])))
-            T = mpo[site][first(keys)]
+            mkeys = sort(collect(keys(mpo[site])))
+            T = mpo[site][first(mkeys)]
             push!(dims, site => size(T, 2))
         end
     else
         for site ∈ mpo.sites
-            keys = sort(collect(keys(mpo[site])))
-            T = mpo[site][last(keys)]
+            mkeys = sort(collect(keys(mpo[site])))
+            T = mpo[site][last(mkeys)]
             push!(dims, site => size(T, 4))
         end
     end
@@ -73,14 +63,13 @@ function local_dims(mpo::Mpo, dir::Symbol)
 end
 
 
+@inline Base.size(tens::AbstractSparseTensor, ind::Int) = maximum(tens.projs[ind])
 @inline Base.getindex(ket::AbstractTN, i) = getindex(ket.tensors, i)
-@inline Base.setindex!(ket::AbstractTN, A::AbstractArray, i::Union{Int,Rational}) = ket.tensors[i] = A
+@inline Base.setindex!(ket::AbstractTN, A::AbstractArray, i::Site) = ket.tensors[i] = A
 @inline Base.length(ket::AbstractTN) = length(ket.tensors)
-@inline Base.copy(ket::AbstractMps) = Mps(copy(ket.tensors))
-@inline Base.copy(ket::AbstractMpo) = Mpo(copy(ket.tensors))
-
 @inline Base.iterate(a::AbstractTN) = iterate(a.tensors)
 @inline Base.iterate(a::AbstractTN, state) = iterate(a.tensors, state)
+
 
 function MPS(ket::Mps)
     L = length(ket)
@@ -91,19 +80,7 @@ end
 
 
 Mps(ϕ::AbstractMPS) = Mps(Dict(i => A for (i, A) ∈ enumerate(ϕ)))
-#Mpo(ϕ::AbstractMPO) = Mpo(Dict(i => A for (i, A) ∈ enumerate(ϕ)))
 Mpo(ϕ::AbstractMPO) = Mpo(Dict(i => Dict(0 => A) for (i, A) ∈ enumerate(ϕ)))
 
 
-function is_left_normalized(ψ::Mps)
-    all(
-        I(size(A, 3)) ≈ @tensor Id[x, y] := conj(A[α, σ, x]) * A[α, σ, y] order = (α, σ) for A ∈ ψ
-        )
-end
 
-
-function is_right_normalized(ϕ::Mps)
-    all(
-    I(size(B, 1)) ≈ @tensor Id[x, y] := B[x, σ, α] * conj(B[y, σ, α]) order = (α, σ) for B ∈ ϕ
-    )
-end

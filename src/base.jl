@@ -84,7 +84,7 @@ function (::Type{T})(ψ::AbstractMPS) where {T <:AbstractMPO}
     ])
 end
 
-function (::Type{T})(O::AbstractMPO) where {T <:AbstractMPS}
+function (::Type{T})(O::AbstractMPO) where {T <: AbstractMPS}
     T([@cast A[x, (σ, η), y] := W[x, σ, y, η] for W in O])
 end
 

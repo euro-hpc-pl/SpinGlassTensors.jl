@@ -61,17 +61,7 @@ end
 @inline Base.size(tens::AbstractSparseTensor, ind::Int) = maximum(tens.projs[ind])
 @inline Base.setindex!(ket::AbstractTensorNetwork, A::AbstractArray, i::Site) = ket.tensors[i] = A
 
-
-function MPS(ket::Mps)
-    L = length(ket)
-    ϕ = MPS(eltype(ket[1]), L) 
-    for i ∈ 1:L ϕ[i] = ket[i] end
-    ϕ
-end
-
+MPS(ket::Mps) = MPS([ket[i] for i ∈ 1:length(ket)])
 
 Mps(ϕ::AbstractMPS) = Mps(Dict(i => A for (i, A) ∈ enumerate(ϕ)))
 Mpo(ϕ::AbstractMPO) = Mpo(Dict(i => Dict(0 => A) for (i, A) ∈ enumerate(ϕ)))
-
-
-

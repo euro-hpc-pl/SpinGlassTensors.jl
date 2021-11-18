@@ -5,11 +5,11 @@ export
     dot
 
 
-LinearAlgebra.dot(ψ::Mps, ϕ::Mps) = dot(MPS(ψ), MPS(ϕ))
-LinearAlgebra.norm(ψ::Mps) = sqrt(abs(dot(ψ, ψ)))
+LinearAlgebra.dot(ψ::QMps, ϕ::QMps) = dot(MPS(ψ), MPS(ϕ))
+LinearAlgebra.norm(ψ::QMps) = sqrt(abs(dot(ψ, ψ)))
 
 
-function LinearAlgebra.dot(ψ::Mpo, ϕ::Mps)
+function LinearAlgebra.dot(ψ::QMpo, ϕ::QMps)
     D = Dict()
     for i ∈ reverse(ϕ.sites)
         T = sort(collect(ψ[i]), by = x -> x[1])
@@ -24,11 +24,11 @@ function LinearAlgebra.dot(ψ::Mpo, ϕ::Mps)
         end
         push!(D, i => TT)
     end
-    Mps(D)
+    QMps(D)
 end
 
 
-function LinearAlgebra.dot(ϕ::Mps, ψ::Mpo)
+function LinearAlgebra.dot(ϕ::QMps, ψ::QMpo)
     D = Dict()
     for i ∈ reverse(ϕ.sites)
         T = sort(collect(ψ[i]), by = x -> x[1])
@@ -43,20 +43,20 @@ function LinearAlgebra.dot(ϕ::Mps, ψ::Mpo)
         end
         push!(D, i => TT)
     end
-    Mps(D)
+    QMps(D)
 end
 
 
-LinearAlgebra.dot(W, ϕ::Mps) =
-Mps(Dict(i => contract_up(ϕ[i], A) for (i, A) ∈ enumerate(W)))
+LinearAlgebra.dot(W, ϕ::QMps) =
+QMps(Dict(i => contract_up(ϕ[i], A) for (i, A) ∈ enumerate(W)))
 
 
-LinearAlgebra.dot(ϕ::Mps, W) =
-Mps(Dict(i => contract_down(A, ϕ[i]) for (i, A) ∈ enumerate(W)))
+LinearAlgebra.dot(ϕ::QMps, W) =
+QMps(Dict(i => contract_down(A, ϕ[i]) for (i, A) ∈ enumerate(W)))
 
 
-Base.:(*)(W::Mpo, ψ::Mps) = dot(W, ψ)
-Base.:(*)(ψ::Mps, W::Mpo) = dot(ψ, W)
+Base.:(*)(W::QMpo, ψ::QMps) = dot(W, ψ)
+Base.:(*)(ψ::QMps, W::QMpo) = dot(ψ, W)
 
 
 contract_left(A::AbstractArray{T, 3}, B::AbstractMatrix{T}) where T =

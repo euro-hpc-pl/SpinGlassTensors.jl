@@ -5,16 +5,16 @@ export
 
 
 mutable struct Environment <: AbstractEnvironment
-    bra::Mps  # to be optimized
-    mpo::Mpo
-    ket::Mps
+    bra::QMps  # to be optimized
+    mpo::QMpo
+    ket::QMps
     trans::Symbol
     env::Dict
 
     function Environment(
-        bra::Mps,
-        mpo::Mpo,
-        ket::Mps,
+        bra::QMps,
+        mpo::QMpo,
+        ket::QMps,
         trans::Symbol=:c
     )
         @assert trans ∈ (:n, :c)
@@ -33,9 +33,9 @@ end
 
 
 function SpinGlassTensors.compress!(
-    bra::Mps,
-    mpo::Mpo,
-    ket::Mps,
+    bra::QMps,
+    mpo::QMpo,
+    ket::QMps,
     Dcut::Int,
     tol::Number=1E-8,
     max_sweeps::Int=4,
@@ -426,7 +426,7 @@ function measure_env(env::Environment, site::Site)
 end
 
 
-function truncate!(ψ::Mps, s::Symbol, Dcut::Int=typemax(Int), args...)
+function truncate!(ψ::QMps, s::Symbol, Dcut::Int=typemax(Int), args...)
     @assert s ∈ (:left, :right)
     if s == :right
         _right_sweep!(ψ, args...)
@@ -438,12 +438,12 @@ function truncate!(ψ::Mps, s::Symbol, Dcut::Int=typemax(Int), args...)
 end
 
 
-canonise!(ψ::Mps, s::Symbol) = canonise!(ψ, Val(s))
-canonise!(ψ::Mps, ::Val{:right}) = _left_sweep!(ψ, typemax(Int))
-canonise!(ψ::Mps, ::Val{:left}) = _right_sweep!(ψ, typemax(Int))
+canonise!(ψ::QMps, s::Symbol) = canonise!(ψ, Val(s))
+canonise!(ψ::QMps, ::Val{:right}) = _left_sweep!(ψ, typemax(Int))
+canonise!(ψ::QMps, ::Val{:left}) = _right_sweep!(ψ, typemax(Int))
 
 
-function _right_sweep!(ψ::Mps, Dcut::Int=typemax(Int), args...)
+function _right_sweep!(ψ::QMps, Dcut::Int=typemax(Int), args...)
     R = ones(eltype(ψ.tensors[1]), 1, 1)
     for i ∈ ψ.sites
         A = ψ.tensors[i]
@@ -456,7 +456,7 @@ function _right_sweep!(ψ::Mps, Dcut::Int=typemax(Int), args...)
 end
 
 
-function _left_sweep!(ψ::Mps, Dcut::Int=typemax(Int), args...)
+function _left_sweep!(ψ::QMps, Dcut::Int=typemax(Int), args...)
     R = ones(eltype(ψ.tensors[1]), 1, 1)
     for i ∈ reverse(ψ.sites)
         B = ψ.tensors[i]

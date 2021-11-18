@@ -11,8 +11,8 @@
     ψ = randn(MPS{T}, sites, D, d)
     W = randn(MPO{T}, sites, D, d)
 
-    ket = Mps(ψ)
-    mpo = Mpo(W)
+    ket = QMps(ψ)
+    mpo = QMpo(W)
 
     @testset "Two mps representations are compressed to the same state" begin 
         χ = W * ψ
@@ -22,9 +22,9 @@
 
         ϕ = copy(ψ)
         canonise!(ϕ, :left)
-        bra = Mps(ϕ)
+        bra = QMps(ϕ)
 
-        #bra = copy(Mps(χ))
+        #bra = copy(QMps(χ))
 
         @time overlap = compress!(bra, mpo, ket, Dcut, tol, max_sweeps)
         println(overlap)

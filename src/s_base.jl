@@ -1,5 +1,5 @@
 export
-    Mps, Mpo,
+    QMps, QMpo,
     local_dims,
     SparseSiteTensor,
     SparseVirtualTensor
@@ -22,38 +22,38 @@ struct SparseVirtualTensor <: AbstractSparseTensor
 end
 
 
-struct Mps <: AbstractTensorNetwork{Number} 
+struct QMps <: AbstractTensorNetwork{Number} 
     tensors::Dict 
     sites::Vector{Site}
-    Mps(tensors::Dict) = 
+    QMps(tensors::Dict) = 
     new(tensors, sort(collect(keys(tensors))))
 end
 
 
-struct Mpo <: AbstractTensorNetwork{Number} 
+struct QMpo <: AbstractTensorNetwork{Number} 
     tensors::Dict # of Dict
     sites::Vector{Site}
-    Mpo(tensors::Dict) = 
+    QMpo(tensors::Dict) = 
     new(tensors, sort(collect(keys(tensors))))
 end
 
 
-local_dim(mpo::Mpo, site::Site, dir::Symbol) = local_dim(mpo, site, Val(dir))
+local_dim(mpo::QMpo, site::Site, dir::Symbol) = local_dim(mpo, site, Val(dir))
 
 
-function local_dim(mpo::Mpo, site::Site, ::Val{:up})
+function local_dim(mpo::QMpo, site::Site, ::Val{:up})
     mkeys = sort(collect(keys(mpo[site])))
     size(mpo[site][first(mkeys)], 2)
 end
 
 
-function local_dim(mpo::Mpo, site::Site, ::Val{:down})
+function local_dim(mpo::QMpo, site::Site, ::Val{:down})
     mkeys = sort(collect(keys(mpo[site])))
     size(mpo[site][last(mkeys)], 4)
 end
 
 
-function local_dims(mpo::Mpo, dir::Symbol)
+function local_dims(mpo::QMpo, dir::Symbol)
     @assert dir ∈ (:down, :up)
     Dict(site => local_dim(mpo, site, dir) for site ∈ mpo.sites)
 end
@@ -61,7 +61,7 @@ end
 @inline Base.size(tens::AbstractSparseTensor, ind::Int) = maximum(tens.projs[ind])
 @inline Base.setindex!(ket::AbstractTensorNetwork, A::AbstractArray, i::Site) = ket.tensors[i] = A
 
-MPS(ket::Mps) = MPS([ket[i] for i ∈ 1:length(ket)])
+MPS(ket::QMps) = MPS([ket[i] for i ∈ 1:length(ket)])
 
-Mps(ϕ::AbstractMPS) = Mps(Dict(i => A for (i, A) ∈ enumerate(ϕ)))
-Mpo(ϕ::AbstractMPO) = Mpo(Dict(i => Dict(0 => A) for (i, A) ∈ enumerate(ϕ)))
+QMps(ϕ::AbstractMPS) = QMps(Dict(i => A for (i, A) ∈ enumerate(ϕ)))
+QMpo(ϕ::AbstractMPO) = QMpo(Dict(i => Dict(0 => A) for (i, A) ∈ enumerate(ϕ)))

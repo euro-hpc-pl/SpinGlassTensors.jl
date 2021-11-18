@@ -39,28 +39,29 @@ end
 struct Mpo <: AbstractMpo
     tensors::Dict # of Dict
     sites::Vector{Site}
-    Mpo(tensors::Dict)  = 
+    Mpo(tensors::Dict) = 
     new(tensors, sort(collect(keys(tensors))))
+end
+
+
+local_dim(mpo::Mpo, site::Site, dir::Symbol) = local_dim(mpo, site, Val(dir))
+
+
+function local_dim(mpo::Mpo, site::Site, ::Val{:up})
+    mkeys = sort(collect(keys(mpo[site])))
+    size(mpo[site][first(mkeys)], 2)
+end
+
+
+function local_dim(mpo::Mpo, site::Site, ::Val{:down})
+    mkeys = sort(collect(keys(mpo[site])))
+    size(mpo[site][last(mkeys)], 4)
 end
 
 
 function local_dims(mpo::Mpo, dir::Symbol)
     @assert dir ∈ (:down, :up)
-    dims = Dict{Site, Int}()
-    if dir == :up
-        for site ∈ mpo.sites
-            mkeys = sort(collect(keys(mpo[site])))
-            T = mpo[site][first(mkeys)]
-            push!(dims, site => size(T, 2))
-        end
-    else
-        for site ∈ mpo.sites
-            mkeys = sort(collect(keys(mpo[site])))
-            T = mpo[site][last(mkeys)]
-            push!(dims, site => size(T, 4))
-        end
-    end
-    dims
+    Dict(site => local_dim(mpo, site, dir) for site ∈ mpo.sites)
 end
 
 

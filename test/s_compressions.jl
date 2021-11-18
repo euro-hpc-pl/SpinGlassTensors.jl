@@ -24,8 +24,6 @@
         canonise!(ϕ, :left)
         bra = QMps(ϕ)
 
-        #bra = copy(QMps(χ))
-
         @time overlap = compress!(bra, mpo, ket, Dcut, tol, max_sweeps)
         println(overlap)
         

@@ -291,22 +291,26 @@ function update_env_right(RE::S, A::S, M::T, B::S
 end
 
 
-function update_env_right(RE::S, A::S, M::T, B::S, ::Val{:c}) where {T <: SparseSiteTensor, S <: AbstractArray{Float64, 3}}
+function update_env_right(RE::S, A::S, M::T, B::S, ::Val{:c}
+    ) where {T <: SparseSiteTensor, S <: AbstractArray{Float64, 3}}
     # TO BE WRITTEN
 end
 
 
-function update_env_right(RE::S, A::S, M::T, B::S) where {T <: SparseVirtualTensor, S <: AbstractArray{Float64,3}}
+function update_env_right(RE::S, A::S, M::T, B::S
+    ) where {T <: SparseVirtualTensor, S <: AbstractArray{Float64,3}}
     # TO BE WRITTEN
 end
 
 
-function update_env_right(RE::S, A::S, M::T, B::S, ::Val{:c}) where {T <: SparseVirtualTensor, S <: AbstractArray{Float64, 3}}
+function update_env_right(RE::S, A::S, M::T, B::S, ::Val{:c}
+    ) where {T <: SparseVirtualTensor, S <: AbstractArray{Float64, 3}}
     # TO BE WRITTEN
 end
 
 
-function update_env_right(RE::S, A₀::S, M::T, B₀::S) where {T <: AbstractDict, S <: AbstractArray{Float64, 3}}
+function update_env_right(RE::S, A₀::S, M::T, B₀::S
+    ) where {T <: AbstractDict, S <: AbstractArray{Float64, 3}}
     sites = sort(collect(keys(M)))
     A = _update_tensor_forward(A₀, M, sites)
     B = _update_tensor_backwards(B₀, M, sites)
@@ -320,7 +324,8 @@ end
 #              |
 #           --
 #
-function update_env_right(RE::S, M::T) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
+function update_env_right(RE::S, M::T
+    ) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
     MM = M[0]
     @tensor R[nt, nc, nb] := MM[nc, oc] * RE[nt, oc, nb]
     R
@@ -342,20 +347,23 @@ end
 #   |    |    |
 #     -- B --
 #
-function project_ket_on_bra(LE::S, B::S, M::T, RE::S) where {T <: AbstractArray{Float64, 4}, S <: AbstractArray{Float64, 3}}
+function project_ket_on_bra(LE::S, B::S, M::T, RE::S
+    ) where {T <: AbstractArray{Float64, 4}, S <: AbstractArray{Float64, 3}}
     @tensor A[x, y, z] := LE[k, l, x] * B[k, m, o] * 
                           M[l, y, n, m] * RE[z, n, o] order = (k, l, m, n, o)
     A
 end
 
 
-function project_ket_on_bra(LE::S, B::S, M::T, RE::S) where {T <: AbstractArray{Float64, 2}, S <: AbstractArray{Float64, 3}}
+function project_ket_on_bra(LE::S, B::S, M::T, RE::S
+    ) where {T <: AbstractArray{Float64, 2}, S <: AbstractArray{Float64, 3}}
     @tensor A[x, y, z] := B[x, a, z] * M[y, a]
     A
 end
 
 
-function project_ket_on_bra(LE::S, B::S, M::T, RE::S) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
+function project_ket_on_bra(LE::S, B::S, M::T, RE::S
+    ) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
     A = zeros(size(LE, 3), maximum(M.projs[2]), size(RE, 1))
 
     #Threads.@threads for σ ∈ 1:length(M.loc_exp)
@@ -370,7 +378,8 @@ function project_ket_on_bra(LE::S, B::S, M::T, RE::S) where {S <: AbstractArray{
 end
 
 
-function project_ket_on_bra(LE::S, B::S, M::T, RE::S) where {S <: AbstractArray{Float64, 3}, T <: SparseVirtualTensor}
+function project_ket_on_bra(LE::S, B::S, M::T, RE::S
+    ) where {S <: AbstractArray{Float64, 3}, T <: SparseVirtualTensor}
     # TO BE WRITTEN
 end
 

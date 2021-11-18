@@ -1,7 +1,4 @@
-export 
-    left_env, 
-    right_env, 
-    dot!
+export left_env, right_env, dot!
 
 # --------------------------- Conventions -----------------------
 #
@@ -11,7 +8,6 @@ export
 #                                 4           - 2          1 -
 # ---------------------------------------------------------------
 #
-
 function LinearAlgebra.dot(ϕ::AbstractMPS, ψ::AbstractMPS)
     T = promote_type(eltype(ψ), eltype(ϕ))
     C = ones(T, 1, 1)
@@ -37,7 +33,6 @@ function left_env(ϕ::AbstractMPS, ψ::AbstractMPS)
     end
     L
 end
-
 
 # TODO: remove it (after SpinGlassEngine is updated)
 @memoize Dict function left_env(ϕ::AbstractMPS, σ::Vector{Int})
@@ -71,7 +66,9 @@ function right_env(ϕ::AbstractMPS, ψ::AbstractMPS)
 end
 
 # TODO: remove it (after SpinGlassEngine is updated)
-@memoize Dict function right_env(ϕ::AbstractMPS{T}, W::AbstractMPO{T}, σ::Union{Vector, NTuple}) where {T}
+@memoize Dict function right_env(
+    ϕ::AbstractMPS{T}, W::AbstractMPO{T}, σ::Union{Vector, NTuple}
+) where {T}
     l = length(σ)
     if l == 0
         R = similar(ϕ[1], T, (1, 1))
@@ -109,7 +106,7 @@ Calculates the matrix element of \$O\$
 ```
 in one pass, utlizing `TensorOperations`.
 """
-function LinearAlgebra.dot(ϕ::AbstractMPS, O::Union{Vector, NTuple}, ψ::AbstractMPS) #where T <: AbstractMatrix
+function LinearAlgebra.dot(ϕ::AbstractMPS, O::Union{Vector, NTuple}, ψ::AbstractMPS)
     S = promote_type(eltype(ψ), eltype(ϕ), eltype(O[1]))
     C = similar(ψ[1], S, (1, 1))
     C[1, 1] = one(S)
@@ -118,7 +115,6 @@ function LinearAlgebra.dot(ϕ::AbstractMPS, O::Union{Vector, NTuple}, ψ::Abstra
     end
     tr(C)
 end
-
 
 function LinearAlgebra.dot(O::AbstractMPO, ψ::AbstractMPS)
     S = promote_type(eltype(ψ), eltype(O))
@@ -131,7 +127,6 @@ function LinearAlgebra.dot(O::AbstractMPO, ψ::AbstractMPS)
     ϕ
 end
 
-
 function LinearAlgebra.dot(O1::AbstractMPO, O2::AbstractMPO)
     S = promote_type(eltype(O1), eltype(O2))
     T = typeof(O1)
@@ -141,6 +136,5 @@ function LinearAlgebra.dot(O1::AbstractMPO, O2::AbstractMPO)
         O[i] = V
     end
     O
-end 
-
+end
 Base.:(*)(A::AbstractTensorNetwork, B::AbstractTensorNetwork) = dot(A, B)

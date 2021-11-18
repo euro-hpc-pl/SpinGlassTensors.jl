@@ -1,15 +1,5 @@
-export 
-       AbstractTensorNetwork,
-       bond_dimension, 
-       is_left_normalized, 
-       is_right_normalized,
-       verify_bonds, 
-       verify_physical_dims, 
-       tensor, 
-       rank, 
-       physical_dim,
-       State, 
-       dropindices
+export AbstractTensorNetwork, bond_dimension, is_left_normalized, is_right_normalized
+export verify_bonds, verify_physical_dims, tensor, rank, physical_dim, State, dropindices
 
 const State = Union{Vector, NTuple}
 
@@ -43,7 +33,6 @@ for (T, N) ∈ ((:PEPSRow, 5), (:MPO, 4), (:MPS, 3))
     end
 end
 
-
 @inline Base.getindex(a::AbstractTensorNetwork, i) = getindex(a.tensors, i)
 @inline Base.iterate(a::AbstractTensorNetwork) = iterate(a.tensors)
 @inline Base.iterate(a::AbstractTensorNetwork, state) = iterate(a.tensors, state)
@@ -51,10 +40,8 @@ end
 @inline Base.length(a::AbstractTensorNetwork) = length(a.tensors)
 @inline Base.size(a::AbstractTensorNetwork) = (length(a.tensors), )
 @inline Base.eachindex(a::AbstractTensorNetwork) = eachindex(a.tensors)
-
 @inline LinearAlgebra.rank(ψ::AbstractMPS) = Tuple(size(A, 2) for A ∈ ψ)
 @inline physical_dim(ψ::AbstractMPS, i::Int) = size(ψ[i], 2)
-
 @inline MPS(A::AbstractArray) = MPS(A, :right)
 
 @inline function MPS(A::AbstractArray, s::Symbol, Dcut::Int=typemax(Int))
@@ -68,7 +55,6 @@ end
     end
     ψ
 end
-
 @inline dropindices(ψ::AbstractMPS, i::Int=2) = (dropdims(A, dims=i) for A ∈ ψ)
 
 function MPS(states::Vector{Vector{T}}) where {T <: Number}
@@ -101,7 +87,6 @@ function Base.randn(::Type{MPS{T}}, L::Int, D::Int, d::Int) where {T}
         randn(T, 1, d, D), (randn(T, D, d, D) for _ in 2:L-1)..., randn(T, D, d, 1)
     ])
 end
-
 Base.randn(::Type{MPS}, args...) = randn(MPS{Float64}, args...)
 
 function Base.randn(::Type{MPO{T}}, L::Int, D::Int, d::Int) where {T}
@@ -114,13 +99,19 @@ end
 
 Base.randn(::Type{MPO}, args...) = randn(MPO{Float64}, args...)
 
-is_left_normalized(ψ::MPS) = all(
-    I(size(A, 3)) ≈ @tensor Id[x, y] := conj(A[α, σ, x]) * A[α, σ, y] order = (α, σ) for A ∈ ψ
-)
+function is_left_normalized(ψ::MPS)
+    all(
+       I(size(A, 3)) ≈ @tensor Id[x, y] := conj(A[α, σ, x]) * A[α, σ, y] order = (α, σ)
+       for A ∈ ψ
+    )
+end
 
-is_right_normalized(ϕ::MPS) = all(
-    I(size(B, 1)) ≈ @tensor Id[x, y] := B[x, σ, α] * conj(B[y, σ, α]) order = (α, σ) for B in ϕ
-)
+function is_right_normalized(ϕ::MPS)
+    all(
+        I(size(B, 1)) ≈ @tensor Id[x, y] := B[x, σ, α] * conj(B[y, σ, α]) order = (α, σ)
+        for B in ϕ
+    )
+end
 
 function _verify_square(ψ::AbstractMPS)
     dims = physical_dim.(Ref(ψ), eachindex(ψ))
@@ -152,7 +143,6 @@ function Base.show(io::IO, ψ::AbstractTensorNetwork)
     _show_sizes(io, dims)
     println(io, "   ")
 end
-
 
 function _show_sizes(io::IO, dims::Vector, sep::String=" x ", Lcut::Int=8)
     L = length(dims)

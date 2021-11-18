@@ -1,14 +1,7 @@
-export  
-    contract_left, 
-    contract_down,
-    contract_up, 
-    dot
-
+export contract_left,contract_down, contract_up, dot
 
 LinearAlgebra.dot(ψ::QMps, ϕ::QMps) = dot(MPS(ψ), MPS(ϕ))
 LinearAlgebra.norm(ψ::QMps) = sqrt(abs(dot(ψ, ψ)))
-
-
 function LinearAlgebra.dot(ψ::QMpo, ϕ::QMps)
     D = Dict()
     for i ∈ reverse(ϕ.sites)
@@ -27,14 +20,13 @@ function LinearAlgebra.dot(ψ::QMpo, ϕ::QMps)
     QMps(D)
 end
 
-
 function LinearAlgebra.dot(ϕ::QMps, ψ::QMpo)
     D = Dict()
     for i ∈ reverse(ϕ.sites)
         T = sort(collect(ψ[i]), by = x -> x[1])
         TT = ϕ.tensors[i]
         for (t, v) ∈ reverse(T) TT = contract_down(v, TT) end
-        
+
         mps_li = _left_nbrs_site(i, ϕ.sites)
         mpo_li = _left_nbrs_site(i, ψ.sites)
         while mpo_li > mps_li
@@ -46,38 +38,41 @@ function LinearAlgebra.dot(ϕ::QMps, ψ::QMpo)
     QMps(D)
 end
 
+function LinearAlgebra.dot(W, ϕ::QMps)
+    QMps(Dict(i => contract_up(ϕ[i], A) for (i, A) ∈ enumerate(W)))
+end
 
-LinearAlgebra.dot(W, ϕ::QMps) =
-QMps(Dict(i => contract_up(ϕ[i], A) for (i, A) ∈ enumerate(W)))
-
-
-LinearAlgebra.dot(ϕ::QMps, W) =
-QMps(Dict(i => contract_down(A, ϕ[i]) for (i, A) ∈ enumerate(W)))
-
-
+function LinearAlgebra.dot(ϕ::QMps, W)
+    QMps(Dict(i => contract_down(A, ϕ[i]) for (i, A) ∈ enumerate(W)))
+end
 Base.:(*)(W::QMpo, ψ::QMps) = dot(W, ψ)
 Base.:(*)(ψ::QMps, W::QMpo) = dot(ψ, W)
 
+function contract_left(A::AbstractArray{T, 3}, B::AbstractMatrix{T}) where T
+    @cast C[(x, y), u, r] := sum(σ) B[y, σ] * A[(x, σ), u, r] (σ ∈ 1:size(B, 2))
+    C
+end
 
-contract_left(A::AbstractArray{T, 3}, B::AbstractMatrix{T}) where T =
-@cast C[(x, y), u, r] := sum(σ) B[y, σ] * A[(x, σ), u, r] (σ ∈ 1:size(B, 2))
- 
+function contract_up(A::AbstractArray{T, 3}, B::AbstractArray{T, 2}) where T
+    @tensor C[l, u, r] := B[u, σ] * A[l, σ, r]
+    C
+end
 
-contract_up(A::AbstractArray{T, 3}, B::AbstractArray{T, 2}) where T =
-@tensor C[l, u, r] := B[u, σ] * A[l, σ, r]
+function contract_down(A::AbstractArray{T, 2}, B::AbstractArray{T, 3}) where T
+    @tensor C[l, d, r] := A[σ, d] * B[l, σ, r]
+    C
+end
+
+function contract_up(A::AbstractArray{T, 3}, B::AbstractArray{T, 4}) where T
+    @matmul C[(x, y), z, (b, a)] := sum(σ) B[y, z, a, σ] * A[x, σ, b]
+    C
+end
 
 
-contract_down(A::AbstractArray{T, 2}, B::AbstractArray{T, 3}) where T =
-@tensor C[l, d, r] := A[σ, d] * B[l, σ, r]
-
-
-contract_up(A::AbstractArray{T, 3}, B::AbstractArray{T, 4}) where T =
-@matmul C[(x, y), z, (b, a)] := sum(σ) B[y, z, a, σ] * A[x, σ, b]
- 
-
-contract_down(A::AbstractArray{T, 4}, B::AbstractArray{T, 3}) where T =
-@matmul C[(x, y), z, (b, a)] := sum(σ) A[y, σ, a, z] * B[x, σ, b]
- 
+function contract_down(A::AbstractArray{T, 4}, B::AbstractArray{T, 3}) where T
+    @matmul C[(x, y), z, (b, a)] := sum(σ) A[y, σ, a, z] * B[x, σ, b]
+    C
+end
 
 # this has to be improved
 function contract_up(A::AbstractArray{T, 3}, B::SparseSiteTensor) where T

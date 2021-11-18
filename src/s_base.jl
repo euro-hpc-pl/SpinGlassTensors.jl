@@ -8,13 +8,7 @@ export
 abstract type AbstractEnvironment end
 abstract type AbstractSparseTensor end
 
-abstract type AbstractMps end
-abstract type AbstractMpo end
-
-
-const AbstractTN = Union{AbstractMps, AbstractMpo}
 const Site = Union{Int, Rational{Int}} 
-
 
 struct SparseSiteTensor <: AbstractSparseTensor
     loc_exp::Vector{Real}
@@ -28,7 +22,7 @@ struct SparseVirtualTensor <: AbstractSparseTensor
 end
 
 
-struct Mps <: AbstractMps
+struct Mps <: AbstractTensorNetwork{Number} 
     tensors::Dict
     sites::Vector{Site}
     Mps(tensors::Dict) = 
@@ -36,7 +30,7 @@ struct Mps <: AbstractMps
 end
 
 
-struct Mpo <: AbstractMpo
+struct Mpo <: AbstractTensorNetwork{Number} 
     tensors::Dict # of Dict
     sites::Vector{Site}
     Mpo(tensors::Dict) = 
@@ -64,13 +58,8 @@ function local_dims(mpo::Mpo, dir::Symbol)
     Dict(site => local_dim(mpo, site, dir) for site ∈ mpo.sites)
 end
 
-
 @inline Base.size(tens::AbstractSparseTensor, ind::Int) = maximum(tens.projs[ind])
-@inline Base.getindex(ket::AbstractTN, i) = getindex(ket.tensors, i)
-@inline Base.setindex!(ket::AbstractTN, A::AbstractArray, i::Site) = ket.tensors[i] = A
-@inline Base.length(ket::AbstractTN) = length(ket.tensors)
-@inline Base.iterate(a::AbstractTN) = iterate(a.tensors)
-@inline Base.iterate(a::AbstractTN, state) = iterate(a.tensors, state)
+@inline Base.setindex!(ket::AbstractTensorNetwork, A::AbstractArray, i::Site) = ket.tensors[i] = A
 
 
 function MPS(ket::Mps)

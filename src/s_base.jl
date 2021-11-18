@@ -23,7 +23,7 @@ end
 
 
 struct Mps <: AbstractTensorNetwork{Number} 
-    tensors::Dict
+    tensors::Dict 
     sites::Vector{Site}
     Mps(tensors::Dict) = 
     new(tensors, sort(collect(keys(tensors))))

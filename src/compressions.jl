@@ -8,7 +8,7 @@ function compress(ϕ::AbstractMPS, Dcut::Int, tol::Number=1E-8, max_sweeps::Int=
 end
 
 function compress!(ϕ::AbstractMPS, Dcut::Int, tol::Number=1E-8, max_sweeps::Int=4, args...)
-    # right canonise ϕ
+    # Right canonise ϕ
     _left_sweep!(ϕ, args...)
 
     # Initial guess - truncated ϕ
@@ -78,7 +78,6 @@ function _left_sweep!(ψ::AbstractMPS, Dcut::Int=typemax(Int), args...)
     end
 end
 
-
 function _left_sweep_var!!(
     ϕ::AbstractMPS, env::Vector{<:AbstractMatrix}, ψ::AbstractMPS, args...
 )
@@ -87,7 +86,7 @@ function _left_sweep_var!!(
     for i ∈ length(ψ):-1:1
         L, R = env[i], env[i+1]
 
-        # optimize site
+        # Optimize site
         M = ψ[i]
         @tensor MM[x, σ, α] := L[x, β] * M[β, σ, α]
         @matmul MM[x, (σ, y)] := sum(α) MM[x, σ, α] * R[α, y]
@@ -95,7 +94,7 @@ function _left_sweep_var!!(
         _, Q = rq_fact(MM, args...)
         @cast B[x, σ, y] := Q[x, (σ, y)] (σ ∈ 1:size(M, 2))
 
-        # update ϕ and right environment
+        # Update ϕ and right environment
         ϕ[i] = B
         A = ψ[i]
 
@@ -113,14 +112,14 @@ function _right_sweep_var!!(
     for (i, M) ∈ enumerate(ψ)
         L, R = env[i], env[i+1]
 
-        # optimize site
+        # Optimize site
         @tensor M̃[x, σ, α] := L[x, β] * M[β, σ, α]
         @matmul B[(x, σ), y] := sum(α) M̃[x, σ, α] * R[α, y]
 
         Q, _ = qr_fact(B, args...)
         @cast A[x, σ, y] := Q[(x, σ), y] (σ ∈ 1:size(M, 2))
 
-        # update ϕ and left environment
+        # Update ϕ and left environment
         ϕ[i] = A
         B = ψ[i]
 

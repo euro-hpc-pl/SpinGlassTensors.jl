@@ -2,6 +2,7 @@ export contract_left,contract_down, contract_up, dot
 
 LinearAlgebra.dot(ψ::QMps, ϕ::QMps) = dot(MPS(ψ), MPS(ϕ))
 LinearAlgebra.norm(ψ::QMps) = sqrt(abs(dot(ψ, ψ)))
+
 function LinearAlgebra.dot(ψ::QMpo, ϕ::QMps)
     D = Dict()
     for i ∈ reverse(ϕ.sites)
@@ -24,7 +25,7 @@ function LinearAlgebra.dot(ϕ::QMps, ψ::QMpo)
     D = Dict()
     for i ∈ reverse(ϕ.sites)
         T = sort(collect(ψ[i]), by = x -> x[1])
-        TT = ϕ.tensors[i]
+        TT = ϕ[i]
         for (t, v) ∈ reverse(T) TT = contract_down(v, TT) end
 
         mps_li = _left_nbrs_site(i, ϕ.sites)
@@ -74,7 +75,7 @@ function contract_down(A::AbstractArray{T, 4}, B::AbstractArray{T, 3}) where T
     C
 end
 
-# this has to be improved
+# This has to be improved
 function contract_up(A::AbstractArray{T, 3}, B::SparseSiteTensor) where T
     sal, sac, sar = size(A)
     sbl, sbt, sbr = maximum.(B.projs[1:3])

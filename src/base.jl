@@ -2,7 +2,6 @@ export AbstractTensorNetwork, bond_dimension, is_left_normalized, is_right_norma
 export verify_bonds, verify_physical_dims, tensor, rank, physical_dim, State, dropindices
 
 const State = Union{Vector, NTuple}
-
 abstract type AbstractTensorNetwork{T} end
 
 # PEPSRow to be removed
@@ -22,7 +21,9 @@ for (T, N) ∈ ((:PEPSRow, 5), (:MPO, 4), (:MPS, 3))
         $T(::Type{T}, L::Int) where {T} = $T(Vector{Array{T, $N}}(undef, L))
         $T(L::Int) = $T(Float64, L)
 
-        @inline Base.setindex!(a::$AT, A::AbstractArray{<:Number, $N}, i::Int) = a.tensors[i] = A
+        @inline function Base.setindex!(
+            a::$AT, A::AbstractArray{<:Number, $N}, i::Int
+        ) = a.tensors[i] = A
         @inline bond_dimension(a::$AT) = maximum(size.(a.tensors, $N))
         Base.hash(a::$T, h::UInt) = hash(a.tensors, h)
         @inline Base.:(==)(a::$T, b::$T) = a.tensors == b.tensors
@@ -62,12 +63,9 @@ function MPS(states::Vector{Vector{T}}) where {T <: Number}
     MPS(state_arrays)
 end
 
-function (::Type{T})(ψ::AbstractMPS) where {T <:AbstractMPO}
+function (::Type{T})(ψ::AbstractMPS) where {T <: AbstractMPO}
     _verify_square(ψ)
-    T([
-        @cast W[x, σ, y, η] |= A[x, (σ, η), y] (σ ∈ 1:isqrt(size(A, 2)))
-        for A in ψ
-    ])
+    T([@cast W[x, σ, y, η] |= A[x, (σ, η), y] (σ ∈ 1:isqrt(size(A, 2))) for A in ψ])
 end
 
 function (::Type{T})(O::AbstractMPO) where {T <: AbstractMPS}
@@ -96,7 +94,6 @@ end
 function Base.randn(::Type{MPO{T}}, D::Int, rank::Union{Vector, NTuple}) where {T}
     MPO(randn(MPS{T}, D, rank .^ 2))
 end
-
 Base.randn(::Type{MPO}, args...) = randn(MPO{Float64}, args...)
 
 function is_left_normalized(ψ::MPS)

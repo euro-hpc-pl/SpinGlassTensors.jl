@@ -26,8 +26,8 @@ struct QMpo <: AbstractTensorNetwork{Number}
     sites::Vector{Site}
     QMpo(tensors::Dict) = new(tensors, sort(collect(keys(tensors))))
 end
-local_dim(mpo::QMpo, site::Site, dir::Symbol) = local_dim(mpo, site, Val(dir))
 
+local_dim(mpo::QMpo, site::Site, dir::Symbol) = local_dim(mpo, site, Val(dir))
 function local_dim(mpo::QMpo, site::Site, ::Val{:up})
     mkeys = sort(collect(keys(mpo[site])))
     size(mpo[site][first(mkeys)], 2)
@@ -44,9 +44,11 @@ function local_dims(mpo::QMpo, dir::Symbol)
 end
 
 @inline Base.size(tens::AbstractSparseTensor, ind::Int) = maximum(tens.projs[ind])
-@inline Base.setindex!(
+@inline function Base.setindex!(
     ket::AbstractTensorNetwork, A::AbstractArray, i::Site
-) = ket.tensors[i] = A
+)
+    ket.tensors[i] = A
+end
 
 MPS(ket::QMps) = MPS([ket[i] for i ∈ 1:length(ket)])
 QMps(ϕ::AbstractMPS) = QMps(Dict(i => A for (i, A) ∈ enumerate(ϕ)))

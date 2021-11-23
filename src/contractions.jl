@@ -7,7 +7,7 @@ export left_env, right_env, dot!
 #   1 - A - 3    1 - B - 3    1 - W - 3      L               R
 #                                 4           - 2          1 -
 # ---------------------------------------------------------------
-#
+
 function LinearAlgebra.dot(ϕ::AbstractMPS, ψ::AbstractMPS)
     T = promote_type(eltype(ψ), eltype(ϕ))
     C = ones(T, 1, 1)

@@ -76,15 +76,15 @@ function _right_sweep_var!(env::Environment, args...)
     end
 end
 
+# Largest x in sites: x < site
 function _left_nbrs_site(site::Site, sites)
-    # largest x in sites: x < site
     ls = filter(i -> i < site, sites)
     if isempty(ls) return -Inf end
     maximum(ls)
 end
 
+# Smallest x in sites: x > site
 function _right_nbrs_site(site::Site, sites)
-    # smallest x in sites: x > site
     ms = filter(i -> i > site, sites)
     if isempty(ms) return Inf end
     minimum(ms)
@@ -94,7 +94,7 @@ function update_env_left!(env::Environment, site::Site)
     if site <= first(env.bra.sites) return end
 
     ls = _left_nbrs_site(site, env.bra.sites)
-    LL = update_env_left(env.env[(ls, :left)],env.bra[ls], env.mpo[ls], env.ket[ls])
+    LL = update_env_left(env.env[(ls, :left)], env.bra[ls], env.mpo[ls], env.ket[ls])
 
     rs = _right_nbrs_site(ls, env.mpo.sites)
     while rs < site
@@ -104,7 +104,6 @@ function update_env_left!(env::Environment, site::Site)
     end
     push!(env.env, (site, :left) => LL)
 end
-
 
 function update_env_right!(env::Environment, site::Site)
     if site >= last(env.bra.sites) return end
@@ -131,7 +130,6 @@ end
 # L = LE -- M --
 #      |    |
 #        -- B --
-#
 function update_env_left(
     LE::S, A₀::S, M::T, B₀::S
 ) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
@@ -144,7 +142,7 @@ end
 function update_env_left(
     LE::S, M::T
 ) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
-    MM = M[0]  # can be more general, but it works for now
+    MM = M[0]  # Can be more general
     @tensor L[nt, nc, nb] :=  LE[nt, oc, nb] * MM[oc, nc]
     L
 end
@@ -165,7 +163,7 @@ function update_env_left(
     L
 end
 
-# improve this functiion with brodcasting
+# Improve this functiion with brodcasting
 function update_env_left(
     LE::S, A::S, M::T, B::S
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
@@ -227,11 +225,9 @@ end
 # R =  -- M -- RE
 #         |    |
 #      -- B --
-#
 function update_env_right(
     RE::S, A::S, M::T, B::S
 ) where {T <: AbstractArray{Float64, 4}, S <: AbstractArray{Float64, 3}}
-    # for real there is no conjugate, otherwise conj(A)
     @tensor R[nt, nc, nb] := RE[ot, oc, ob] * A[nt, α, ot] *
                              M[nc, α, oc, β] * B[nb, β, ob] order = (ot, α, oc, β, ob)
     R
@@ -240,7 +236,6 @@ end
 function update_env_right(
     RE::S, A::S, M::T, B::S, ::Val{:c}
 ) where {T <: AbstractArray{Float64, 4}, S <: AbstractArray{Float64, 3}}
-    # for real there is no conjugate, otherwise conj(A)
     @tensor R[nt, nc, nb] := RE[ot, oc, ob] * A[nt, α, ot] *
                              M[nc, β, oc, α] * B[nb, β, ob] order = (ot, α, oc, β, ob)
     R
@@ -294,7 +289,6 @@ end
 # R =  -- M -- RE
 #              |
 #           --
-#
 function update_env_right(
     RE::S, M::T
 ) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
@@ -314,7 +308,6 @@ end
 #  LE -- M -- RE
 #   |    |    |
 #     -- B --
-#
 function project_ket_on_bra(
     LE::S, B::S, M::T, RE::S
 ) where {T <: AbstractArray{Float64, 4}, S <: AbstractArray{Float64, 3}}
@@ -377,7 +370,7 @@ function project_ket_on_bra(
     LE::S, B₀::S, M::T, RE::S
 ) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
     sites = sort(collect(keys(M)))
-    C = sort(collect(M), by = x->x[1])
+    C = sort(collect(M), by = x -> x[1])
     TT = B₀
     for (t, v) ∈ reverse(C) TT = project_ket_on_bra(LE, TT, v, RE) end
     TT
@@ -406,25 +399,25 @@ canonise!(ψ::QMps, ::Val{:right}) = _left_sweep!(ψ, typemax(Int))
 canonise!(ψ::QMps, ::Val{:left}) = _right_sweep!(ψ, typemax(Int))
 
 function _right_sweep!(ψ::QMps, Dcut::Int=typemax(Int), args...)
-    R = ones(eltype(ψ.tensors[1]), 1, 1)
+    R = ones(eltype(ψ[1]), 1, 1)
     for i ∈ ψ.sites
-        A = ψ.tensors[i]
+        A = ψ[i]
         @matmul M̃[(x, σ), y] := sum(α) R[x, α] * A[α, σ, y]
         Q, R = qr_fact(M̃, Dcut, args...)
         R = R ./ maximum(abs.(R))
         @cast A[x, σ, y] := Q[(x, σ), y] (σ ∈ 1:size(A, 2))
-        ψ.tensors[i] = A
+        ψ[i] = A
     end
 end
 
 function _left_sweep!(ψ::QMps, Dcut::Int=typemax(Int), args...)
-    R = ones(eltype(ψ.tensors[1]), 1, 1)
+    R = ones(eltype(ψ[1]), 1, 1)
     for i ∈ reverse(ψ.sites)
-        B = ψ.tensors[i]
+        B = ψ[i]
         @matmul M̃[x, (σ, y)] := sum(α) B[x, σ, α] * R[α, y]
         R, Q = rq_fact(M̃, Dcut, args...)
         R = R ./ maximum(abs.(R))
         @cast B[x, σ, y] := Q[x, (σ, y)] (σ ∈ 1:size(B, 2))
-        ψ.tensors[i] = B
+        ψ[i] = B
     end
 end

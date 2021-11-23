@@ -23,7 +23,9 @@ for (T, N) ∈ ((:PEPSRow, 5), (:MPO, 4), (:MPS, 3))
 
         @inline function Base.setindex!(
             a::$AT, A::AbstractArray{<:Number, $N}, i::Int
-        ) = a.tensors[i] = A
+        )
+            a.tensors[i] = A
+        end
         @inline bond_dimension(a::$AT) = maximum(size.(a.tensors, $N))
         Base.hash(a::$T, h::UInt) = hash(a.tensors, h)
         @inline Base.:(==)(a::$T, b::$T) = a.tensors == b.tensors

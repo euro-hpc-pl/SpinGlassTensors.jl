@@ -12,13 +12,14 @@ idx(σ::Int) = (σ == -1) ? 1 : σ + 1
 
 
 my_tests = [
-    "base.jl",
-    "memoization.jl",
-    "contractions.jl",
-    "compressions.jl",
-    "s_compressions.jl",
-    "s_contractions.jl",
-    "identities.jl"
+    #"base.jl",
+    #"memoization.jl",
+    #"contractions.jl",
+    #"compressions.jl",
+    #"s_compressions.jl",
+    "ss_compressions.jl",
+    #"s_contractions.jl",
+    #"identities.jl"
 ]
 
 for my_test in my_tests

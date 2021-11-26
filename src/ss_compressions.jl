@@ -1,4 +1,4 @@
-export compress!, _left_nbrs_site, _right_nbrs_site, compress2!
+export compress!, _left_nbrs_site, _right_nbrs_site, compress_twosite!
 
 mutable struct Environment <: AbstractEnvironment
     bra::QMps  # to be optimized
@@ -52,15 +52,15 @@ function SpinGlassTensors.compress!(
     overlap
 end
 
-function compress2!(
+function compress_twosite!(
     bra::QMps, mpo::QMpo, ket::QMps, Dcut::Int, tol::Number=1E-8, max_sweeps::Int=4, args...
 )
     env = Environment(bra, mpo, ket)
     overlap = Inf
     overlap_before = measure_env(env, last(env.bra.sites))
     for sweep ∈ 1:max_sweeps
-        _left_sweep_var2!(env, args...)
-        _right_sweep_var2!(env, args...)
+        _left_sweep_var_twosite!(env, args...)
+        _right_sweep_var_twosite!(env, args...)
 
         overlap = measure_env(env, last(env.bra.sites))
 
@@ -101,35 +101,50 @@ function _right_sweep_var!(env::Environment, args...)
     end
 end
 
-function _left_sweep_var2!(env::Environment, args...)
+function _left_sweep_var_twosite!(env::Environment, args...)
     for site ∈ reverse(env.bra.sites)
         println("site ", site)
-
-        if site >= last(env.bra.sites) continue end
-
-        update_env_right!(env, site+1)
-        A = project_ket_on_bra2(env, site)
+        if _left_nbrs_site(site, env.bra.sites) == -Inf 
+            site_r = _right_nbrs_site(site, env.bra.sites)
+            update_env_right!(env, site_r) 
+            A = project_ket_on_bra_twosite(env, site_r)
+            @cast B[(x, y), (z, w)] := A[x, y, z, w] 
+            U, S, V = svd(B, args...)
+            D = U * V
+            @cast E[x, σ, y] := D[x, (σ, y)] (σ ∈ 1:size(A, 2))
+            env.bra[site] = E
+            clear_env_containing_site!(env, site)
+            continue
+        end
+        update_env_right!(env, site) 
+        A = project_ket_on_bra_twosite(env, site)
         println("A ", size(A))
         @cast B[(x, y), (z, w)] := A[x, y, z, w] 
-        #_, Q = rq_fact(B, args...)
-        _, _, V = svd(B, args...)
+        U, S, V = svd(B, args...)
         @cast C[x, σ, y] := V[x, (σ, y)] (σ ∈ 1:size(A, 2))
         env.bra[site] = C
-
         clear_env_containing_site!(env, site)
     end
 end
 
-function _right_sweep_var2!(env::Environment, args...)
+function _right_sweep_var_twosite!(env::Environment, args...)
     for site ∈ env.bra.sites
-
-        if site <= first(env.bra.sites) continue end
-
-        update_env_left!(env, site)
-        A = project_ket_on_bra2(env, site)
+        if _right_nbrs_site(site, env.bra.sites) == Inf 
+            update_env_right!(env, site) 
+            A = project_ket_on_bra_twosite(env, site)
+            @cast B[(x, y), (z, w)] := A[x, y, z, w] 
+            U, S, V = svd(B, args...)
+            D = S * V
+            @cast E[x, σ, y] := D[x, (σ, y)] (σ ∈ 1:size(A, 2))
+            env.bra[site] = E
+            clear_env_containing_site!(env, site)
+            continue
+        end
+        site_r = _right_nbrs_site(site, env.bra.sites)
+        update_env_left!(env, site_r)
+        A = project_ket_on_bra_twosite(env, site_r)
         @cast B[(x, y), (z, w)] := A[x, y, z, w] 
-        #Q, _ = qr_fact(B, args...)
-        U, _, _ = svd(B, args...)
+        U, S, V = svd(B, args...)
         @cast C[x, σ, y] := U[(x, σ), y] (σ ∈ 1:size(A, 2))
         env.bra[site] = C
         clear_env_containing_site!(env, site)
@@ -369,15 +384,10 @@ function project_ket_on_bra(env::Environment, site::Site)
     )
 end
 
-function project_ket_on_bra2(env::Environment, site::Site)
-    println(typeof(env.env[(site, :left)]))
-    println(typeof(env.ket[site]))
-    println(typeof(env.ket[site+1]))
-    println(typeof(env.mpo[site][0]))
-    println(typeof(env.mpo[site+1][0]))
-    println(typeof(env.env[(site+1, :right)]))
+function project_ket_on_bra_twosite(env::Environment, site::Site)
+    site_l = _left_nbrs_site(site, env.bra.sites)
     project_ket_on_bra(
-        env.env[(site, :left)], env.ket[site], env.ket[site+1], env.mpo[site][0], env.mpo[site+1][0], env.env[(site+1, :right)]
+        env.env[(site_l, :left)], env.ket[site_l], env.ket[site], env.mpo[site_l][0], env.mpo[site][0], env.env[(site, :right)]
     )
 end
 
@@ -518,32 +528,3 @@ function _left_sweep!(ψ::QMps, Dcut::Int=typemax(Int), args...)
         ψ.tensors[i] = B
     end
 end
-
-#=
-function _right_sweep2!(ψ::QMps, Dcut::Int=typemax(Int), args...)
-    R = ones(eltype(ψ.tensors[1]), 1, 1)
-    for i ∈ 1:ψ.sites-1
-        A = ψ.tensors[i]
-        B = ψ.tensors[i+1]
-        @tensor A[a, b, c, d] := A[a, b, σ] * B[σ, c, d] 
-        @matmul M̃[(x, σ), y, z] := sum(α) R[x, α] * A[α, σ, y, z]
-        @matmul M̃[x, (y, z)] := sum(α) R[z, α] * A[x, y, α]
-        Q, R = qr_fact(M̃, Dcut, args...)
-        R = R ./ maximum(abs.(R))
-        @cast A[x, α, σ, y] := Q[(x, α), (σ, y)] (α ∈ 1:size(A, 1), σ ∈ 1:size(A, 2))
-        ψ.tensors[i] = A #tutaj rozłozyć A na dwa tensory
-    end
-end
-
-function _left_sweep2!(ψ::QMps, Dcut::Int=typemax(Int), args...)
-    R = ones(eltype(ψ.tensors[1]), 1, 1)
-    for i ∈ reverse(ψ.sites):2
-        B = ψ.tensors[i]
-        @matmul M̃[x, (σ, y)] := sum(α) B[x, σ, α] * R[α, y]
-        R, Q = rq_fact(M̃, Dcut, args...)
-        R = R ./ maximum(abs.(R))
-        @cast B[x, σ, y] := Q[x, (σ, y)] (σ ∈ 1:size(B, 2))
-        ψ.tensors[i] = B #tutaj rozłozyć B na dwa tensory
-    end
-end
-=#

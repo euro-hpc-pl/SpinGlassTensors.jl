@@ -4,9 +4,9 @@
     sites = 100
     T = Float64
     
-    Dcut = 8
-    max_sweeps = 100
-    tol = 1E-10
+    Dcut = 32
+    max_sweeps = 10
+    tol = 1E-4
 
     ψ = randn(MPS{T}, sites, D, d)
     W = randn(MPO{T}, sites, D, d)
@@ -24,7 +24,7 @@
         canonise!(ϕ, :left)
         bra = QMps(ϕ)
 
-        @time overlap = compress2!(bra, mpo, ket, Dcut, tol, max_sweeps)
+        @time overlap = compress_twosite!(bra, mpo, ket, Dcut, tol, max_sweeps)
         println(overlap)
         
         ϕ = MPS(bra)

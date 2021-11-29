@@ -17,13 +17,13 @@ mutable struct Environment <: AbstractEnvironment
         @assert bra.sites == ket.sites
         @assert issubset(bra.sites, mpo.sites)
 
-        env = Dict(
-                (first(bra.sites), :left) => ones(1, 1, 1),
-                (last(bra.sites), :right) => ones(1, 1, 1)
-            )
-        environment = new(bra, mpo, ket, trans, env)
-        for site ∈ environment.bra.sites update_env_left!(environment, site) end
-        environment
+        env0 = Dict(
+            (first(bra.sites), :left) => ones(1, 1, 1),
+            (last(bra.sites), :right) => ones(1, 1, 1)
+        )
+        env = new(bra, mpo, ket, trans, env0)
+        for site ∈ env.bra.sites update_env_left!(env, site) end
+        env
     end
 end
 
@@ -376,7 +376,7 @@ end
 
 function measure_env(env::Environment, site::Site)
     L = update_env_left(
-            env.env[(site, :left)], env.bra[site], env.mpo[site], env.ket[site],
+        env.env[(site, :left)], env.bra[site], env.mpo[site], env.ket[site],
     )
     R = env.env[(site, :right)]
     @tensor L[t, c, b] * R[b, c, t]

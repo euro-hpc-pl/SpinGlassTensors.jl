@@ -6,7 +6,7 @@ LinearAlgebra.norm(ψ::QMps) = sqrt(abs(dot(ψ, ψ)))
 function LinearAlgebra.dot(ψ::QMpo, ϕ::QMps)
     D = Dict()
     for i ∈ reverse(ϕ.sites)
-        T = sort(collect(ψ[i]), by = x -> x[1])
+        T = sort(collect(ψ[i]), by = x -> x[begin])
         TT = ϕ[i]
         for (t, v) ∈ reverse(T) TT = contract_up(TT, v) end
 
@@ -24,7 +24,7 @@ end
 function LinearAlgebra.dot(ϕ::QMps, ψ::QMpo)
     D = Dict()
     for i ∈ reverse(ϕ.sites)
-        T = sort(collect(ψ[i]), by = x -> x[1])
+        T = sort(collect(ψ[i]), by = x -> x[begin])
         TT = ϕ[i]
         for (t, v) ∈ reverse(T) TT = contract_down(v, TT) end
 
@@ -68,7 +68,6 @@ function contract_up(A::AbstractArray{T, 3}, B::AbstractArray{T, 4}) where T
     @matmul C[(x, y), z, (b, a)] := sum(σ) B[y, z, a, σ] * A[x, σ, b]
     C
 end
-
 
 function contract_down(A::AbstractArray{T, 4}, B::AbstractArray{T, 3}) where T
     @matmul C[(x, y), z, (b, a)] := sum(σ) A[y, σ, a, z] * B[x, σ, b]

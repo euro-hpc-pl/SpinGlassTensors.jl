@@ -33,6 +33,7 @@ function SpinGlassTensors.compress!(
     env = Environment(bra, mpo, ket)
     overlap = Inf
     overlap_before = measure_env(env, last(env.bra.sites))
+    
     for sweep ∈ 1:max_sweeps
         _left_sweep_var!(env, args...)
         _right_sweep_var!(env, args...)
@@ -97,8 +98,7 @@ function update_env_left!(env::Environment, site::Site)
 
     rs = _right_nbrs_site(ls, env.mpo.sites)
     while rs < site
-        M = env.mpo[rs]
-        LL = update_env_left(LL, M)
+        LL = update_env_left(LL, env.mpo[rs])
         rs = _right_nbrs_site(rs, env.mpo.sites)
     end
     push!(env.env, (site, :left) => LL)
@@ -112,8 +112,7 @@ function update_env_right!(env::Environment, site::Site)
 
     ls = _left_nbrs_site(rs, env.mpo.sites)
     while ls > site
-        M = env.mpo[ls]
-        RR = update_env_right(RR, M)
+        RR = update_env_right(RR, env.mpo[ls])
         ls = _left_nbrs_site(ls, env.mpo.sites)
     end
     push!(env.env, (site, :right) => RR)

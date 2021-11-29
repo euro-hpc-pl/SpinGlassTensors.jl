@@ -18,8 +18,8 @@ mutable struct Environment <: AbstractEnvironment
         @assert issubset(bra.sites, mpo.sites)
 
         env = Dict(
-                   (first(bra.sites), :left) => ones(1, 1, 1),
-                   (last(bra.sites), :right) => ones(1, 1, 1)
+                (first(bra.sites), :left) => ones(1, 1, 1),
+                (last(bra.sites), :right) => ones(1, 1, 1)
             )
         environment = new(bra, mpo, ket, trans, env)
         for site ∈ environment.bra.sites update_env_left!(environment, site) end
@@ -33,7 +33,7 @@ function SpinGlassTensors.compress!(
     env = Environment(bra, mpo, ket)
     overlap = Inf
     overlap_before = measure_env(env, last(env.bra.sites))
-    
+
     for sweep ∈ 1:max_sweeps
         _left_sweep_var!(env, args...)
         _right_sweep_var!(env, args...)

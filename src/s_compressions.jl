@@ -38,7 +38,6 @@ function SpinGlassTensors.compress!(
         _right_sweep_var!(env, args...)
 
         overlap = measure_env(env, last(env.bra.sites))
-
         Δ = abs(overlap_before - abs(overlap))
         @info "Convergence" Δ
 

@@ -85,7 +85,6 @@ function contract_up(A::AbstractArray{T, 3}, B::SparseSiteTensor) where T
         AA = @view A[:, B.projs[4][σ], :]
         C[:, B.projs[1][σ], B.projs[2][σ], :, B.projs[3][σ]] += lexp .* AA
     end
-
     @cast CC[(x, y), z, (b, a)] := C[x, y, z, b, a]
     CC
 end

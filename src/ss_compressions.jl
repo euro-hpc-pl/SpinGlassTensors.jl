@@ -59,8 +59,8 @@ function compress_twosite!(
     overlap = Inf
     overlap_before = measure_env(env, last(env.bra.sites))
     for sweep ∈ 1:max_sweeps
-        _left_sweep_var_twosite!(env, args...)
-        _right_sweep_var_twosite!(env, args...)
+        _left_sweep_var_twosite!(env, Dcut, tol, args...)
+        _right_sweep_var_twosite!(env, Dcut, tol, args...)
 
         overlap = measure_env(env, last(env.bra.sites))
 
@@ -101,52 +101,50 @@ function _right_sweep_var!(env::Environment, args...)
     end
 end
 
-function _left_sweep_var_twosite!(env::Environment, args...)
+function _left_sweep_var_twosite!(env::Environment, Dcut::Int, tol::Number, args...)
     for site ∈ reverse(env.bra.sites)
-        println("site ", site)
         if _left_nbrs_site(site, env.bra.sites) == -Inf 
             site_r = _right_nbrs_site(site, env.bra.sites)
             update_env_right!(env, site_r) 
             A = project_ket_on_bra_twosite(env, site_r)
             @cast B[(x, y), (z, w)] := A[x, y, z, w] 
-            U, S, V = svd(B, args...)
-            D = U * V
-            @cast E[x, σ, y] := D[x, (σ, y)] (σ ∈ 1:size(A, 2))
-            env.bra[site] = E
-            clear_env_containing_site!(env, site)
-            continue
+            U, S, V = svd(B, Dcut, tol, args...)
+            D = U * S
+            DD = reshape(D, length(D), 1, 1)
+            env.bra[site] = DD
+        else
+            update_env_right!(env, site) 
+            A = project_ket_on_bra_twosite(env, site)
+            @cast B[(x, y), (z, w)] := A[x, y, z, w] 
+            U, S, VV = svd(B, Dcut, tol, args...)
+            V = VV'
+            @cast C[x, σ, y] := V[x, (σ, y)] (σ ∈ 1:size(A, 2))
+            env.bra[site] = C       
         end
-        update_env_right!(env, site) 
-        A = project_ket_on_bra_twosite(env, site)
-        println("A ", size(A))
-        @cast B[(x, y), (z, w)] := A[x, y, z, w] 
-        U, S, V = svd(B, args...)
-        @cast C[x, σ, y] := V[x, (σ, y)] (σ ∈ 1:size(A, 2))
-        env.bra[site] = C
         clear_env_containing_site!(env, site)
     end
 end
 
-function _right_sweep_var_twosite!(env::Environment, args...)
+function _right_sweep_var_twosite!(env::Environment, Dcut::Int, tol::Number, args...)
     for site ∈ env.bra.sites
         if _right_nbrs_site(site, env.bra.sites) == Inf 
-            update_env_right!(env, site) 
+            update_env_left!(env, site) 
             A = project_ket_on_bra_twosite(env, site)
             @cast B[(x, y), (z, w)] := A[x, y, z, w] 
-            U, S, V = svd(B, args...)
-            D = S * V
-            @cast E[x, σ, y] := D[x, (σ, y)] (σ ∈ 1:size(A, 2))
-            env.bra[site] = E
-            clear_env_containing_site!(env, site)
-            continue
+            U, S, V = svd(B, Dcut, tol, args...)
+            D = S' * V
+            DD = reshape(D, length(D), 1, 1)
+            env.bra[site] = DD
+            println("DD ", size(DD))
+        else
+            site_r = _right_nbrs_site(site, env.bra.sites)
+            update_env_left!(env, site)
+            A = project_ket_on_bra_twosite(env, site_r)
+            @cast B[(x, y), (z, w)] := A[x, y, z, w] 
+            U, S, V = svd(B, Dcut, tol, args...)
+            @cast C[x, σ, y] := U[(x, σ), y] (σ ∈ 1:size(A, 2))
+            env.bra[site] = C
         end
-        site_r = _right_nbrs_site(site, env.bra.sites)
-        update_env_left!(env, site_r)
-        A = project_ket_on_bra_twosite(env, site_r)
-        @cast B[(x, y), (z, w)] := A[x, y, z, w] 
-        U, S, V = svd(B, args...)
-        @cast C[x, σ, y] := U[(x, σ), y] (σ ∈ 1:size(A, 2))
-        env.bra[site] = C
         clear_env_containing_site!(env, site)
     end
 end
@@ -227,6 +225,10 @@ end
 function update_env_left(
     LE::S, A::S, M::T, B::S
 ) where {S <: AbstractArray{Float64, 3}, T <: AbstractArray{Float64, 4}}
+    println("LE ", size(LE))
+    println("A ", size(A))
+    println("M ", size(M))
+    println("B ", size(B))
     @tensor L[nb, nc, nt] := LE[ob, oc, ot] * A[ot, α, nt] *
                              M[oc, α, nc, β] * B[ob, β, nb] order = (ot, α, oc, β, ob)
     L

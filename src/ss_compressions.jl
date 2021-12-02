@@ -59,6 +59,7 @@ function compress_twosite!(
     overlap = Inf
     overlap_before = measure_env(env, last(env.bra.sites))
     for sweep ∈ 1:max_sweeps
+        println("sweep ", sweep)
         _left_sweep_var_twosite!(env, Dcut, tol, args...)
         _right_sweep_var_twosite!(env, Dcut, tol, args...)
 
@@ -134,8 +135,8 @@ function _right_sweep_var_twosite!(env::Environment, Dcut::Int, tol::Number, arg
             U, S, V = svd(B, Dcut, tol, args...)
             D = S' * V
             DD = reshape(D, length(D), 1, 1)
+            println("sizeDD ", size(DD))
             env.bra[site] = DD
-            println("DD ", size(DD))
         else
             site_r = _right_nbrs_site(site, env.bra.sites)
             update_env_left!(env, site)
@@ -165,11 +166,12 @@ end
 
 function update_env_left!(env::Environment, site::Site)
     if site <= first(env.bra.sites) return end
-
+    println("site ", site)
     ls = _left_nbrs_site(site, env.bra.sites)
-    LL = update_env_left(env.env[(ls, :left)],env.bra[ls], env.mpo[ls], env.ket[ls])
+    LL = update_env_left(env.env[(ls, :left)], env.bra[ls], env.mpo[ls], env.ket[ls])
 
     rs = _right_nbrs_site(ls, env.mpo.sites)
+    println("rs ", rs)
     while rs < site
         M = env.mpo[rs]
         LL = update_env_left(LL, M)
@@ -225,10 +227,10 @@ end
 function update_env_left(
     LE::S, A::S, M::T, B::S
 ) where {S <: AbstractArray{Float64, 3}, T <: AbstractArray{Float64, 4}}
-    println("LE ", size(LE))
+    #println("LE ", size(LE))
     println("A ", size(A))
     println("M ", size(M))
-    println("B ", size(B))
+    #println("B ", size(B))
     @tensor L[nb, nc, nt] := LE[ob, oc, ot] * A[ot, α, nt] *
                              M[oc, α, nc, β] * B[ob, β, nb] order = (ot, α, oc, β, ob)
     L
@@ -242,7 +244,7 @@ function update_env_left(
     L
 end
 
-# improve this functiion with brodcasting
+# improve this function with brodcasting
 function update_env_left(
     LE::S, A::S, M::T, B::S
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
@@ -261,18 +263,47 @@ function update_env_left(
     LE::S, A::S, M::T, B::S, ::Val{:c}
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
     ## TO BE WRITTEN
+    L = zeros(size(B, 3), maximum(M.projs[3]), size(A, 3))
+
+    for (σ, lexp) ∈ enumerate(M.loc_exp)
+        AA = @view A[:, M.projs[4][σ], :]
+        LL = @view LE[:, M.projs[1][σ], :]
+        BB = @view B[:, M.projs[2][σ], :]
+        L[:, M.projs[3][σ], :] += lexp .* (BB' * LL * AA)
+    end
+    L
 end
 
 function update_env_left(
-    LE::S, A::S, M::T, B::S
-) where {S <: AbstractArray{Float64, 3}, T <: SparseVirtualTensor}
+    LE::R, A::S, M::T, B::S
+) where {R <: AbstractArray{Float64, 2}, S <: AbstractArray{Float64, 3}, T <: SparseVirtualTensor}
     ## TO BE WRITTEN
+    L = zeros(size(B, 3), size(A, 3))
+
+    for (σ, con) ∈ enumerate(M.con)
+        AA = @view A[:, M.projs[2][σ], :]
+        #LL = @view LE[:, M.projs[1][σ], :]
+        BB = @view B[:, M.projs[1][σ], :]
+        L[:, M.projs[3][σ], :] += con .* (BB' * LE * AA)
+        L += AA  
+    end
+    L
 end
 
 function update_env_left(
-    LE::S, A::S, M::T, B::S, ::Val{:c}
-) where {S <: AbstractArray{Float64, 3}, T <: SparseVirtualTensor}
+    LE::R, A::S, M::T, B::S, ::Val{:c}
+) where {R <: AbstractArray{Float64, 2}, S <: AbstractArray{Float64, 3}, T <: SparseVirtualTensor}
     ## TO BE WRITTEN
+    L = zeros(size(B, 3), size(A, 3))
+
+    for (σ, con) ∈ enumerate(M.con)
+        AA = @view A[:, M.projs[1][σ], :]
+        #LL = @view LE[:, M.projs[1][σ], :]
+        BB = @view B[:, M.projs[2][σ], :]
+        L[:, M.projs[3][σ], :] += con .* (BB' * LE * AA)
+        L += AA  
+    end
+    L
 end
 
 function _update_tensor_forward(
@@ -343,6 +374,17 @@ function update_env_right(
     RE::S, A::S, M::T, B::S, ::Val{:c}
 ) where {T <: SparseSiteTensor, S <: AbstractArray{Float64, 3}}
     # TO BE WRITTEN
+    R = zeros(size(A, 1), maximum(M.projs[1]), size(B, 1))
+
+    #Threads.@threads for σ ∈ 1:length(M.loc_exp)
+    #    lexp = M.loc_exp[σ]
+    for (σ, lexp) ∈ enumerate(M.loc_exp)
+        AA = @view A[:, M.projs[4][σ], :]
+        RR = @view RE[:, M.projs[3][σ], :]
+        BB = @view B[:, M.projs[2][σ], :]
+        R[:, M.projs[1][σ], :] += lexp .* (AA * RR * BB')
+    end
+    R
 end
 
 function update_env_right(
@@ -466,6 +508,17 @@ function project_ket_on_bra(
     LE::S, B::S, M::T, RE::S, ::Val{:c}
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
     ## TO BE WRITTEN
+    A = zeros(size(LE, 3), maximum(M.projs[4]), size(RE, 1))
+
+    #Threads.@threads for σ ∈ 1:length(M.loc_exp)
+    #    lexp = M.loc_exp[σ]
+    for (σ, lexp) ∈ enumerate(M.loc_exp)
+        le = @view LE[:, M.projs[1][σ], :]
+        b = @view B[:, M.projs[2][σ], :]
+        re = @view RE[:, M.projs[3][σ], :]
+        A[:, M.projs[2][σ], :] += lexp .* (le' * b * re')
+    end
+    A
 end
 
 function project_ket_on_bra(

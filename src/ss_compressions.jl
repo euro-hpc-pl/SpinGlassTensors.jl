@@ -59,7 +59,6 @@ function compress_twosite!(
     overlap = Inf
     overlap_before = measure_env(env, last(env.bra.sites))
     for sweep ∈ 1:max_sweeps
-        println("sweep ", sweep)
         _left_sweep_var_twosite!(env, Dcut, tol, args...)
         _right_sweep_var_twosite!(env, Dcut, tol, args...)
 
@@ -103,50 +102,42 @@ function _right_sweep_var!(env::Environment, args...)
 end
 
 function _left_sweep_var_twosite!(env::Environment, Dcut::Int, tol::Number, args...)
-    for site ∈ reverse(env.bra.sites)
-        if _left_nbrs_site(site, env.bra.sites) == -Inf 
-            site_r = _right_nbrs_site(site, env.bra.sites)
-            update_env_right!(env, site_r) 
-            A = project_ket_on_bra_twosite(env, site_r)
-            @cast B[(x, y), (z, w)] := A[x, y, z, w] 
-            U, S, V = svd(B, Dcut, tol, args...)
-            D = U * S
-            DD = reshape(D, length(D), 1, 1)
-            env.bra[site] = DD
-        else
-            update_env_right!(env, site) 
-            A = project_ket_on_bra_twosite(env, site)
-            @cast B[(x, y), (z, w)] := A[x, y, z, w] 
-            U, S, VV = svd(B, Dcut, tol, args...)
-            V = VV'
-            @cast C[x, σ, y] := V[x, (σ, y)] (σ ∈ 1:size(A, 2))
-            env.bra[site] = C       
-        end
+    for site ∈ reverse(env.bra.sites[2:end])
+        update_env_right!(env, site) 
+        A = project_ket_on_bra_twosite(env, site)
+        @cast B[(x, y), (z, w)] := A[x, y, z, w] 
+        U, S, VV = svd(B, Dcut, tol, args...)
+        V = VV'
+        @cast C[x, σ, y] := V[x, (σ, y)] (σ ∈ 1:size(A, 3))
+        env.bra[site] = C       
         clear_env_containing_site!(env, site)
+        if site == env.bra.sites[2]
+            UU = U .* reshape(S, 1, :)
+            @cast US[x, σ, y] := UU[(x, σ), y] (σ ∈ 1:size(A, 2))
+            env.bra[env.bra.sites[1]] = US/norm(US)
+            update_env_right!(env, env.bra.sites[2])
+            update_env_right!(env, env.bra.sites[1])
+        end
     end
 end
 
 function _right_sweep_var_twosite!(env::Environment, Dcut::Int, tol::Number, args...)
-    for site ∈ env.bra.sites
-        if _right_nbrs_site(site, env.bra.sites) == Inf 
-            update_env_left!(env, site) 
-            A = project_ket_on_bra_twosite(env, site)
-            @cast B[(x, y), (z, w)] := A[x, y, z, w] 
-            U, S, V = svd(B, Dcut, tol, args...)
-            D = S' * V
-            DD = reshape(D, length(D), 1, 1)
-            println("sizeDD ", size(DD))
-            env.bra[site] = DD
-        else
-            site_r = _right_nbrs_site(site, env.bra.sites)
-            update_env_left!(env, site)
-            A = project_ket_on_bra_twosite(env, site_r)
-            @cast B[(x, y), (z, w)] := A[x, y, z, w] 
-            U, S, V = svd(B, Dcut, tol, args...)
-            @cast C[x, σ, y] := U[(x, σ), y] (σ ∈ 1:size(A, 2))
-            env.bra[site] = C
-        end
+    for site ∈ env.bra.sites[1:end-1]
+        site_r = _right_nbrs_site(site, env.bra.sites)
+        update_env_left!(env, site)
+        A = project_ket_on_bra_twosite(env, site_r)
+        @cast B[(x, y), (z, w)] := A[x, y, z, w] 
+        U, S, V = svd(B, Dcut, tol, args...)
+        @cast C[x, σ, y] := U[(x, σ), y] (σ ∈ 1:size(A, 2))
+        env.bra[site] = C
         clear_env_containing_site!(env, site)
+        if site_r == env.bra.sites[end]
+            SV = S .* V'
+            @cast SS[x, σ, y] := SV[x, (σ, y)] (σ ∈ 1:size(A, 3))
+            env.bra[site_r] = SS/norm(SS)
+            update_env_left!(env, site)
+            update_env_left!(env, site_r)
+        end
     end
 end
 
@@ -166,12 +157,10 @@ end
 
 function update_env_left!(env::Environment, site::Site)
     if site <= first(env.bra.sites) return end
-    println("site ", site)
     ls = _left_nbrs_site(site, env.bra.sites)
     LL = update_env_left(env.env[(ls, :left)], env.bra[ls], env.mpo[ls], env.ket[ls])
 
     rs = _right_nbrs_site(ls, env.mpo.sites)
-    println("rs ", rs)
     while rs < site
         M = env.mpo[rs]
         LL = update_env_left(LL, M)
@@ -227,10 +216,6 @@ end
 function update_env_left(
     LE::S, A::S, M::T, B::S
 ) where {S <: AbstractArray{Float64, 3}, T <: AbstractArray{Float64, 4}}
-    #println("LE ", size(LE))
-    println("A ", size(A))
-    println("M ", size(M))
-    #println("B ", size(B))
     @tensor L[nb, nc, nt] := LE[ob, oc, ot] * A[ot, α, nt] *
                              M[oc, α, nc, β] * B[ob, β, nb] order = (ot, α, oc, β, ob)
     L
@@ -275,19 +260,9 @@ function update_env_left(
 end
 
 function update_env_left(
-    LE::R, A::S, M::T, B::S
-) where {R <: AbstractArray{Float64, 2}, S <: AbstractArray{Float64, 3}, T <: SparseVirtualTensor}
-    ## TO BE WRITTEN
-    L = zeros(size(B, 3), size(A, 3))
+    LE::S, A::S, M::T, B::S
+) where {S <: AbstractArray{Float64, 3}, T <: SparseVirtualTensor}
 
-    for (σ, con) ∈ enumerate(M.con)
-        AA = @view A[:, M.projs[2][σ], :]
-        #LL = @view LE[:, M.projs[1][σ], :]
-        BB = @view B[:, M.projs[1][σ], :]
-        L[:, M.projs[3][σ], :] += con .* (BB' * LE * AA)
-        L += AA  
-    end
-    L
 end
 
 function update_env_left(

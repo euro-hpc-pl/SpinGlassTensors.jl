@@ -74,7 +74,7 @@ function contract_down(A::AbstractArray{T, 4}, B::AbstractArray{T, 3}) where T
     C
 end
 
-# This has to be improved
+# TODO: improve performance
 function contract_up(A::AbstractArray{T, 3}, B::SparseSiteTensor) where T
     sal, sac, sar = size(A)
     sbl, sbt, sbr = maximum.(B.projs[1:3])
@@ -88,14 +88,14 @@ function contract_up(A::AbstractArray{T, 3}, B::SparseSiteTensor) where T
     CC
 end
 
-
-# This has to be improved
+# TODO: improve performance
 function contract_up(A::AbstractArray{T, 3}, B::SparseVirtualTensor) where T
+    h = B.con
     sal, sac, sar = size(A)
 
-    h = B.con
     p_lb, p_l, p_lt, p_rb, p_r, p_rt = B.projs
     @cast A4[x, k, l, y] := A[x, (k, l), y] (k ∈ 1:maximum(p_lb))
+
     C = zeros(sal, length(p_l), maximum(p_rt), maximum(p_lt), sar, length(p_r))
     for l ∈ 1:length(p_l), r ∈ 1:length(p_r)
         AA = @view A4[:, p_lb[l], p_rb[r], :]

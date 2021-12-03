@@ -166,7 +166,6 @@ function update_env_left(
     LE::S, A::S, M::T, B::S
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
     L = zeros(size(B, 3), maximum(M.projs[3]), size(A, 3))
-
     for (σ, lexp) ∈ enumerate(M.loc_exp)
         AA = @view A[:, M.projs[2][σ], :]
         LL = @view LE[:, M.projs[1][σ], :]
@@ -183,16 +182,16 @@ function update_env_left(
 
 end
 
+# This is not optimal
 function update_env_left(
     LE::S, A::S, M::T, B::S
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseVirtualTensor}
-
     h = M.con
     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
-    # @assert size(hlarge) == (length(p_l), length(p_r))
-    # @tensor LEh[x, y, z] := LE[x, a, z] * hlarge[a, y]
+
     @cast A4[x, k, l, y] := A[x, (k, l), y] (k ∈ 1:maximum(p_rt))
     @cast B4[x, k, l, y] := B[x, (k, l), y] (k ∈ 1:maximum(p_lb))
+
     L = zeros(size(B, 3), length(p_r), size(A, 3))
     for l ∈ 1:length(p_l), r ∈ 1:length(p_r)
         AA = @view A4[:, p_rt[r], p_lt[l], :]

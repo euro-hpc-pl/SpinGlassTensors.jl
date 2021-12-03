@@ -180,12 +180,27 @@ function update_env_left(
     LE::S, A::S, M::T, B::S, ::Val{:c}
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
     ## TO BE WRITTEN
+
 end
 
 function update_env_left(
     LE::S, A::S, M::T, B::S
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseVirtualTensor}
-    ## TO BE WRITTEN
+
+    h = M.con
+    p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
+    # @assert size(hlarge) == (length(p_l), length(p_r))
+    # @tensor LEh[x, y, z] := LE[x, a, z] * hlarge[a, y]
+    @cast A4[x, k, l, y] := A[x, (k, l), y] (k ∈ 1:maximum(p_rt))
+    @cast B4[x, k, l, y] := B[x, (k, l), y] (k ∈ 1:maximum(p_lb))
+    L = zeros(size(B, 3), length(p_r), size(A, 3))
+    for l ∈ 1:length(p_l), r ∈ 1:length(p_r)
+        AA = @view A4[:, p_rt[r], p_lt[l], :]
+        LL = @view LE[:, l, :]
+        BB = @view B4[:, p_lb[l], p_rb[r], :]
+        L[:, r, :] += h[p_l[l], p_r[r]] .* (BB' * LL * AA)
+    end
+    L
 end
 
 function update_env_left(
@@ -264,7 +279,18 @@ end
 function update_env_right(
     RE::S, A::S, M::T, B::S
 ) where {T <: SparseVirtualTensor, S <: AbstractArray{Float64,3}}
-    # TO BE WRITTEN
+    h = M.con
+    p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
+    @cast A4[x, k, l, y] := A[x, (k, l), y] (k ∈ 1:maximum(p_rt))
+    @cast B4[x, k, l, y] := B[x, (k, l), y] (k ∈ 1:maximum(p_lb))
+    R = zeros(size(A, 1), length(p_l), size(B, 1))
+    for l ∈ 1:length(p_l), r ∈ 1:length(p_r)
+        AA = @view A4[:, p_rt[r], p_lt[l], :]
+        RR = @view RE[:, r, :]
+        BB = @view B4[:, p_lb[l], p_rb[r], :]
+        R[:, l, :] += h[p_l[l], p_r[r]] * (AA * RR * BB')
+    end
+    R
 end
 
 function update_env_right(
@@ -340,7 +366,19 @@ end
 function project_ket_on_bra(
     LE::S, B::S, M::T, RE::S
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseVirtualTensor}
-    # TO BE WRITTEN
+
+    h = M.con
+    p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
+    @cast B4[x, k, l, y] := B[x, (k, l), y] (k ∈ 1:maximum(p_lb))
+    A = zeros(size(LE, 3), maximum(p_rt), maximum(p_lt), size(RE, 1))
+    for l ∈ 1:length(p_l), r ∈ 1:length(p_r)
+        le = @view LE[:, l, :]
+        b = @view B4[:, p_lb[l], p_rb[r], :]
+        re = @view RE[:, r, :]
+        A[:,  p_rt[r], p_lt[l], :] += h[p_l[l], p_r[r]] .* (le' * b * re')
+    end
+    @cast AA[l, (ũ, u), r] := A[l, ũ, u, r]
+    AA
 end
 
 function project_ket_on_bra(

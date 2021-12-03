@@ -6,12 +6,12 @@ abstract type AbstractSparseTensor end
 const Site = Union{Int, Rational{Int}}
 
 struct SparseSiteTensor <: AbstractSparseTensor
-    loc_exp::Vector{Real}
+    loc_exp::Vector{<:Real}
     projs::NTuple{N, Vector{Int}} where N
 end
 
 struct SparseVirtualTensor <: AbstractSparseTensor
-    con::Vector{Real}
+    con::Matrix{<:Real}
     projs::NTuple{N, Vector{Int}} where N
 end
 

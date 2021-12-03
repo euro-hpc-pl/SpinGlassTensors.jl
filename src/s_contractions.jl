@@ -87,3 +87,20 @@ function contract_up(A::AbstractArray{T, 3}, B::SparseSiteTensor) where T
     @cast CC[(x, y), z, (b, a)] := C[x, y, z, b, a]
     CC
 end
+
+
+# This has to be improved
+function contract_up(A::AbstractArray{T, 3}, B::SparseVirtualTensor) where T
+    sal, sac, sar = size(A)
+
+    h = B.con
+    p_lb, p_l, p_lt, p_rb, p_r, p_rt = B.projs
+    @cast A4[x, k, l, y] := A[x, (k, l), y] (k ∈ 1:maximum(p_lb))
+    C = zeros(sal, length(p_l), maximum(p_rt), maximum(p_lt), sar, length(p_r))
+    for l ∈ 1:length(p_l), r ∈ 1:length(p_r)
+        AA = @view A4[:, p_lb[l], p_rb[r], :]
+        C[:, l, p_rt[r], p_lt[l], :, r] += h[p_l[l], p_r[r]] .* AA
+    end
+    @cast CC[(x, y), (t1, t2), (b, a)] := C[x, y, t1, t2, b, a]
+    CC
+end

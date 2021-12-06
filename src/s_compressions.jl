@@ -17,13 +17,13 @@ mutable struct Environment <: AbstractEnvironment
         @assert bra.sites == ket.sites
         @assert issubset(bra.sites, mpo.sites)
 
-        env = Dict(
-                   (first(bra.sites), :left) => ones(1, 1, 1),
-                   (last(bra.sites), :right) => ones(1, 1, 1)
-            )
-        environment = new(bra, mpo, ket, trans, env)
-        for site ∈ environment.bra.sites update_env_left!(environment, site) end
-        environment
+        env0 = Dict(
+            (first(bra.sites), :left) => ones(1, 1, 1),
+            (last(bra.sites), :right) => ones(1, 1, 1)
+        )
+        env = new(bra, mpo, ket, trans, env0)
+        for site ∈ env.bra.sites update_env_left!(env, site) end
+        env
     end
 end
 
@@ -33,12 +33,12 @@ function SpinGlassTensors.compress!(
     env = Environment(bra, mpo, ket)
     overlap = Inf
     overlap_before = measure_env(env, last(env.bra.sites))
+
     for sweep ∈ 1:max_sweeps
         _left_sweep_var!(env, args...)
         _right_sweep_var!(env, args...)
 
         overlap = measure_env(env, last(env.bra.sites))
-
         Δ = abs(overlap_before - abs(overlap))
         @info "Convergence" Δ
 
@@ -76,15 +76,15 @@ function _right_sweep_var!(env::Environment, args...)
     end
 end
 
+# Largest x in sites: x < site
 function _left_nbrs_site(site::Site, sites)
-    # largest x in sites: x < site
     ls = filter(i -> i < site, sites)
     if isempty(ls) return -Inf end
     maximum(ls)
 end
 
+# Smallest x in sites: x > site
 function _right_nbrs_site(site::Site, sites)
-    # smallest x in sites: x > site
     ms = filter(i -> i > site, sites)
     if isempty(ms) return Inf end
     minimum(ms)
@@ -94,17 +94,15 @@ function update_env_left!(env::Environment, site::Site)
     if site <= first(env.bra.sites) return end
 
     ls = _left_nbrs_site(site, env.bra.sites)
-    LL = update_env_left(env.env[(ls, :left)],env.bra[ls], env.mpo[ls], env.ket[ls])
+    LL = update_env_left(env.env[(ls, :left)], env.bra[ls], env.mpo[ls], env.ket[ls])
 
     rs = _right_nbrs_site(ls, env.mpo.sites)
     while rs < site
-        M = env.mpo[rs]
-        LL = update_env_left(LL, M)
+        LL = update_env_left(LL, env.mpo[rs])
         rs = _right_nbrs_site(rs, env.mpo.sites)
     end
     push!(env.env, (site, :left) => LL)
 end
-
 
 function update_env_right!(env::Environment, site::Site)
     if site >= last(env.bra.sites) return end
@@ -114,8 +112,7 @@ function update_env_right!(env::Environment, site::Site)
 
     ls = _left_nbrs_site(rs, env.mpo.sites)
     while ls > site
-        M = env.mpo[ls]
-        RR = update_env_right(RR, M)
+        RR = update_env_right(RR, env.mpo[ls])
         ls = _left_nbrs_site(ls, env.mpo.sites)
     end
     push!(env.env, (site, :right) => RR)
@@ -131,7 +128,6 @@ end
 # L = LE -- M --
 #      |    |
 #        -- B --
-#
 function update_env_left(
     LE::S, A₀::S, M::T, B₀::S
 ) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
@@ -144,7 +140,7 @@ end
 function update_env_left(
     LE::S, M::T
 ) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
-    MM = M[0]  # can be more general, but it works for now
+    MM = M[0]  # Can be more general
     @tensor L[nt, nc, nb] :=  LE[nt, oc, nb] * MM[oc, nc]
     L
 end
@@ -165,12 +161,11 @@ function update_env_left(
     L
 end
 
-# improve this functiion with brodcasting
+# Improve this functiion with brodcasting
 function update_env_left(
     LE::S, A::S, M::T, B::S
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
     L = zeros(size(B, 3), maximum(M.projs[3]), size(A, 3))
-
     for (σ, lexp) ∈ enumerate(M.loc_exp)
         AA = @view A[:, M.projs[2][σ], :]
         LL = @view LE[:, M.projs[1][σ], :]
@@ -184,12 +179,27 @@ function update_env_left(
     LE::S, A::S, M::T, B::S, ::Val{:c}
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
     ## TO BE WRITTEN
+
 end
 
+# This is not optimal
 function update_env_left(
     LE::S, A::S, M::T, B::S
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseVirtualTensor}
-    ## TO BE WRITTEN
+    h = M.con
+    p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
+
+    @cast A4[x, k, l, y] := A[x, (k, l), y] (k ∈ 1:maximum(p_rt))
+    @cast B4[x, k, l, y] := B[x, (k, l), y] (k ∈ 1:maximum(p_lb))
+
+    L = zeros(size(B, 3), length(p_r), size(A, 3))
+    for l ∈ 1:length(p_l), r ∈ 1:length(p_r)
+        AA = @view A4[:, p_rt[r], p_lt[l], :]
+        LL = @view LE[:, l, :]
+        BB = @view B4[:, p_lb[l], p_rb[r], :]
+        L[:, r, :] += h[p_l[l], p_r[r]] .* (BB' * LL * AA)
+    end
+    L
 end
 
 function update_env_left(
@@ -227,11 +237,9 @@ end
 # R =  -- M -- RE
 #         |    |
 #      -- B --
-#
 function update_env_right(
     RE::S, A::S, M::T, B::S
 ) where {T <: AbstractArray{Float64, 4}, S <: AbstractArray{Float64, 3}}
-    # for real there is no conjugate, otherwise conj(A)
     @tensor R[nt, nc, nb] := RE[ot, oc, ob] * A[nt, α, ot] *
                              M[nc, α, oc, β] * B[nb, β, ob] order = (ot, α, oc, β, ob)
     R
@@ -240,7 +248,6 @@ end
 function update_env_right(
     RE::S, A::S, M::T, B::S, ::Val{:c}
 ) where {T <: AbstractArray{Float64, 4}, S <: AbstractArray{Float64, 3}}
-    # for real there is no conjugate, otherwise conj(A)
     @tensor R[nt, nc, nb] := RE[ot, oc, ob] * A[nt, α, ot] *
                              M[nc, β, oc, α] * B[nb, β, ob] order = (ot, α, oc, β, ob)
     R
@@ -271,7 +278,18 @@ end
 function update_env_right(
     RE::S, A::S, M::T, B::S
 ) where {T <: SparseVirtualTensor, S <: AbstractArray{Float64,3}}
-    # TO BE WRITTEN
+    h = M.con
+    p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
+    @cast A4[x, k, l, y] := A[x, (k, l), y] (k ∈ 1:maximum(p_rt))
+    @cast B4[x, k, l, y] := B[x, (k, l), y] (k ∈ 1:maximum(p_lb))
+    R = zeros(size(A, 1), length(p_l), size(B, 1))
+    for l ∈ 1:length(p_l), r ∈ 1:length(p_r)
+        AA = @view A4[:, p_rt[r], p_lt[l], :]
+        RR = @view RE[:, r, :]
+        BB = @view B4[:, p_lb[l], p_rb[r], :]
+        R[:, l, :] += h[p_l[l], p_r[r]] * (AA * RR * BB')
+    end
+    R
 end
 
 function update_env_right(
@@ -294,7 +312,6 @@ end
 # R =  -- M -- RE
 #              |
 #           --
-#
 function update_env_right(
     RE::S, M::T
 ) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
@@ -314,7 +331,6 @@ end
 #  LE -- M -- RE
 #   |    |    |
 #     -- B --
-#
 function project_ket_on_bra(
     LE::S, B::S, M::T, RE::S
 ) where {T <: AbstractArray{Float64, 4}, S <: AbstractArray{Float64, 3}}
@@ -349,7 +365,19 @@ end
 function project_ket_on_bra(
     LE::S, B::S, M::T, RE::S
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseVirtualTensor}
-    # TO BE WRITTEN
+
+    h = M.con
+    p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
+    @cast B4[x, k, l, y] := B[x, (k, l), y] (k ∈ 1:maximum(p_lb))
+    A = zeros(size(LE, 3), maximum(p_rt), maximum(p_lt), size(RE, 1))
+    for l ∈ 1:length(p_l), r ∈ 1:length(p_r)
+        le = @view LE[:, l, :]
+        b = @view B4[:, p_lb[l], p_rb[r], :]
+        re = @view RE[:, r, :]
+        A[:,  p_rt[r], p_lt[l], :] += h[p_l[l], p_r[r]] .* (le' * b * re')
+    end
+    @cast AA[l, (ũ, u), r] := A[l, ũ, u, r]
+    AA
 end
 
 function project_ket_on_bra(
@@ -377,7 +405,7 @@ function project_ket_on_bra(
     LE::S, B₀::S, M::T, RE::S
 ) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
     sites = sort(collect(keys(M)))
-    C = sort(collect(M), by = x->x[1])
+    C = sort(collect(M), by = x -> x[1])
     TT = B₀
     for (t, v) ∈ reverse(C) TT = project_ket_on_bra(LE, TT, v, RE) end
     TT
@@ -385,7 +413,7 @@ end
 
 function measure_env(env::Environment, site::Site)
     L = update_env_left(
-            env.env[(site, :left)], env.bra[site], env.mpo[site], env.ket[site],
+        env.env[(site, :left)], env.bra[site], env.mpo[site], env.ket[site],
     )
     R = env.env[(site, :right)]
     @tensor L[t, c, b] * R[b, c, t]
@@ -406,25 +434,25 @@ canonise!(ψ::QMps, ::Val{:right}) = _left_sweep!(ψ, typemax(Int))
 canonise!(ψ::QMps, ::Val{:left}) = _right_sweep!(ψ, typemax(Int))
 
 function _right_sweep!(ψ::QMps, Dcut::Int=typemax(Int), args...)
-    R = ones(eltype(ψ.tensors[1]), 1, 1)
+    R = ones(eltype(ψ[1]), 1, 1)
     for i ∈ ψ.sites
-        A = ψ.tensors[i]
+        A = ψ[i]
         @matmul M̃[(x, σ), y] := sum(α) R[x, α] * A[α, σ, y]
         Q, R = qr_fact(M̃, Dcut, args...)
         R = R ./ maximum(abs.(R))
         @cast A[x, σ, y] := Q[(x, σ), y] (σ ∈ 1:size(A, 2))
-        ψ.tensors[i] = A
+        ψ[i] = A
     end
 end
 
 function _left_sweep!(ψ::QMps, Dcut::Int=typemax(Int), args...)
-    R = ones(eltype(ψ.tensors[1]), 1, 1)
+    R = ones(eltype(ψ[1]), 1, 1)
     for i ∈ reverse(ψ.sites)
-        B = ψ.tensors[i]
+        B = ψ[i]
         @matmul M̃[x, (σ, y)] := sum(α) B[x, σ, α] * R[α, y]
         R, Q = rq_fact(M̃, Dcut, args...)
         R = R ./ maximum(abs.(R))
         @cast B[x, σ, y] := Q[x, (σ, y)] (σ ∈ 1:size(B, 2))
-        ψ.tensors[i] = B
+        ψ[i] = B
     end
 end

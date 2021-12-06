@@ -2,10 +2,11 @@ export contract_left,contract_down, contract_up, dot
 
 LinearAlgebra.dot(ψ::QMps, ϕ::QMps) = dot(MPS(ψ), MPS(ϕ))
 LinearAlgebra.norm(ψ::QMps) = sqrt(abs(dot(ψ, ψ)))
+
 function LinearAlgebra.dot(ψ::QMpo, ϕ::QMps)
     D = Dict()
     for i ∈ reverse(ϕ.sites)
-        T = sort(collect(ψ[i]), by = x -> x[1])
+        T = sort(collect(ψ[i]), by = x -> x[begin])
         TT = ϕ[i]
         for (t, v) ∈ reverse(T) TT = contract_up(TT, v) end
 
@@ -23,8 +24,8 @@ end
 function LinearAlgebra.dot(ϕ::QMps, ψ::QMpo)
     D = Dict()
     for i ∈ reverse(ϕ.sites)
-        T = sort(collect(ψ[i]), by = x -> x[1])
-        TT = ϕ.tensors[i]
+        T = sort(collect(ψ[i]), by = x -> x[begin])
+        TT = ϕ[i]
         for (t, v) ∈ reverse(T) TT = contract_down(v, TT) end
 
         mps_li = _left_nbrs_site(i, ϕ.sites)
@@ -68,13 +69,12 @@ function contract_up(A::AbstractArray{T, 3}, B::AbstractArray{T, 4}) where T
     C
 end
 
-
 function contract_down(A::AbstractArray{T, 4}, B::AbstractArray{T, 3}) where T
     @matmul C[(x, y), z, (b, a)] := sum(σ) A[y, σ, a, z] * B[x, σ, b]
     C
 end
 
-# this has to be improved
+# TODO: improve performance
 function contract_up(A::AbstractArray{T, 3}, B::SparseSiteTensor) where T
     sal, sac, sar = size(A)
     sbl, sbt, sbr = maximum.(B.projs[1:3])
@@ -84,7 +84,23 @@ function contract_up(A::AbstractArray{T, 3}, B::SparseSiteTensor) where T
         AA = @view A[:, B.projs[4][σ], :]
         C[:, B.projs[1][σ], B.projs[2][σ], :, B.projs[3][σ]] += lexp .* AA
     end
-
     @cast CC[(x, y), z, (b, a)] := C[x, y, z, b, a]
+    CC
+end
+
+# TODO: improve performance
+function contract_up(A::AbstractArray{T, 3}, B::SparseVirtualTensor) where T
+    h = B.con
+    sal, sac, sar = size(A)
+
+    p_lb, p_l, p_lt, p_rb, p_r, p_rt = B.projs
+    @cast A4[x, k, l, y] := A[x, (k, l), y] (k ∈ 1:maximum(p_lb))
+
+    C = zeros(sal, length(p_l), maximum(p_rt), maximum(p_lt), sar, length(p_r))
+    for l ∈ 1:length(p_l), r ∈ 1:length(p_r)
+        AA = @view A4[:, p_lb[l], p_rb[r], :]
+        C[:, l, p_rt[r], p_lt[l], :, r] += h[p_l[l], p_r[r]] .* AA
+    end
+    @cast CC[(x, y), (t1, t2), (b, a)] := C[x, y, t1, t2, b, a]
     CC
 end

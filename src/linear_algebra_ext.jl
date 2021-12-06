@@ -27,13 +27,13 @@ function LinearAlgebra.svd(
 )
     U, Σ, V = svd(A, args...)
 
-    tol = Σ[1] * max(eps(), tol)
+    tol = Σ[begin] * max(eps(), tol)
     δ = min(Dcut, sum(Σ .> tol))
 
-    U = U[:, 1:δ]
-    Σ = Σ[1:δ]
+    U = U[:, begin:δ]
+    Σ = Σ[begin:δ]
     Σ ./ sum(Σ .^ 2)
-    V = V[:, 1:δ]
+    V = V[:, begin:δ]
 
     d = diag(U)
     for i ∈ eachindex(d) @inbounds d[i] = ifelse(isapprox(d[i], 0, atol=1e-14), 1, d[i]) end

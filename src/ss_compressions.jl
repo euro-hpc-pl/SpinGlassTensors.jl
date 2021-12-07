@@ -157,6 +157,7 @@ end
 
 function update_env_left!(env::Environment, site::Site)
     if site <= first(env.bra.sites) return end
+
     ls = _left_nbrs_site(site, env.bra.sites)
     LL = update_env_left(env.env[(ls, :left)], env.bra[ls], env.mpo[ls], env.ket[ls])
 
@@ -247,7 +248,6 @@ end
 function update_env_left(
     LE::S, A::S, M::T, B::S, ::Val{:c}
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
-    ## TO BE WRITTEN
     L = zeros(size(B, 3), maximum(M.projs[3]), size(A, 3))
 
     for (σ, lexp) ∈ enumerate(M.loc_exp)
@@ -269,16 +269,7 @@ function update_env_left(
     LE::R, A::S, M::T, B::S, ::Val{:c}
 ) where {R <: AbstractArray{Float64, 2}, S <: AbstractArray{Float64, 3}, T <: SparseVirtualTensor}
     ## TO BE WRITTEN
-    L = zeros(size(B, 3), size(A, 3))
 
-    for (σ, con) ∈ enumerate(M.con)
-        AA = @view A[:, M.projs[1][σ], :]
-        #LL = @view LE[:, M.projs[1][σ], :]
-        BB = @view B[:, M.projs[2][σ], :]
-        L[:, M.projs[3][σ], :] += con .* (BB' * LE * AA)
-        L += AA  
-    end
-    L
 end
 
 function _update_tensor_forward(

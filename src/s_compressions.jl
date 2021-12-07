@@ -1,4 +1,4 @@
-export compress!, _left_nbrs_site, _right_nbrs_site
+export compress!, _left_nbrs_site, _right_nbrs_site, compress_twosite!
 
 mutable struct Environment <: AbstractEnvironment
     bra::QMps  # to be optimized
@@ -52,6 +52,31 @@ function SpinGlassTensors.compress!(
     overlap
 end
 
+function compress_twosite!(
+    bra::QMps, mpo::QMpo, ket::QMps, Dcut::Int, tol::Number=1E-8, max_sweeps::Int=4, args...
+)
+    env = Environment(bra, mpo, ket)
+    overlap = Inf
+    overlap_before = measure_env(env, last(env.bra.sites))
+    for sweep ∈ 1:max_sweeps
+        _left_sweep_var_twosite!(env, Dcut, tol, args...)
+        _right_sweep_var_twosite!(env, Dcut, tol, args...)
+
+        overlap = measure_env(env, last(env.bra.sites))
+
+        Δ = abs(overlap_before - abs(overlap))
+        @info "Convergence" Δ
+
+        if Δ < tol
+            @info "Finished in $sweep sweeps of $(max_sweeps)."
+            return overlap
+        else
+            overlap_before = overlap
+        end
+    end
+    overlap
+end
+
 function _left_sweep_var!(env::Environment, args...)
     for site ∈ reverse(env.bra.sites)
         update_env_right!(env, site)
@@ -73,6 +98,49 @@ function _right_sweep_var!(env::Environment, args...)
         @cast C[x, σ, y] := Q[(x, σ), y] (σ ∈ 1:size(A, 2))
         env.bra[site] = C
         clear_env_containing_site!(env, site)
+    end
+end
+
+function _left_sweep_var_twosite!(env::Environment, Dcut::Int, tol::Number, args...)
+    for site ∈ reverse(env.bra.sites[2:end])
+        update_env_right!(env, site) 
+        A = project_ket_on_bra_twosite(env, site)
+        @cast B[(x, y), (z, w)] := A[x, y, z, w] 
+        U, S, VV = svd(B, Dcut, tol, args...)
+        println("VV ", typeof(VV))
+        V = VV'
+        println("V ", typeof(V))
+        @cast C[x, σ, y] := V[x, (σ, y)] (σ ∈ 1:size(A, 3))
+        println("C ", typeof(C))
+        env.bra[site] = C       
+        clear_env_containing_site!(env, site)
+        if site == env.bra.sites[2]
+            UU = U .* reshape(S, 1, :)
+            @cast US[x, σ, y] := UU[(x, σ), y] (σ ∈ 1:size(A, 2))
+            env.bra[env.bra.sites[1]] = US/norm(US)
+            update_env_right!(env, env.bra.sites[2])
+            update_env_right!(env, env.bra.sites[1])
+        end
+    end
+end
+
+function _right_sweep_var_twosite!(env::Environment, Dcut::Int, tol::Number, args...)
+    for site ∈ env.bra.sites[1:end-1]
+        site_r = _right_nbrs_site(site, env.bra.sites)
+        update_env_left!(env, site)
+        A = project_ket_on_bra_twosite(env, site_r)
+        @cast B[(x, y), (z, w)] := A[x, y, z, w] 
+        U, S, V = svd(B, Dcut, tol, args...)
+        @cast C[x, σ, y] := U[(x, σ), y] (σ ∈ 1:size(A, 2))
+        env.bra[site] = C
+        clear_env_containing_site!(env, site)
+        if site_r == env.bra.sites[end]
+            SV = S .* V'
+            @cast SS[x, σ, y] := SV[x, (σ, y)] (σ ∈ 1:size(A, 3))
+            env.bra[site_r] = SS/norm(SS)
+            update_env_left!(env, site)
+            update_env_left!(env, site_r)
+        end
     end
 end
 
@@ -178,8 +246,15 @@ end
 function update_env_left(
     LE::S, A::S, M::T, B::S, ::Val{:c}
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
-    ## TO BE WRITTEN
+    L = zeros(size(B, 3), maximum(M.projs[3]), size(A, 3))
 
+    for (σ, lexp) ∈ enumerate(M.loc_exp)
+        AA = @view A[:, M.projs[4][σ], :]
+        LL = @view LE[:, M.projs[1][σ], :]
+        BB = @view B[:, M.projs[2][σ], :]
+        L[:, M.projs[3][σ], :] += lexp .* (BB' * LL * AA)
+    end
+    L
 end
 
 # This is not optimal
@@ -206,6 +281,20 @@ function update_env_left(
     LE::S, A::S, M::T, B::S, ::Val{:c}
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseVirtualTensor}
     ## TO BE WRITTEN
+    h = M.con
+    p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
+
+    @cast A4[x, k, l, y] := A[x, (k, l), y] (k ∈ 1:maximum(p_rt))
+    @cast B4[x, k, l, y] := B[x, (k, l), y] (k ∈ 1:maximum(p_lb))
+
+    L = zeros(size(B, 3), length(p_r), size(A, 3))
+    for l ∈ 1:length(p_l), r ∈ 1:length(p_r)
+        AA = @view A4[:, p_lb[l], p_rb[r], :]
+        LL = @view LE[:, l, :]
+        BB = @view B4[:, p_rt[r], p_lt[l], :]
+        L[:, r, :] += h[p_l[l], p_r[r]] .* (BB' * LL * AA)
+    end
+    L
 end
 
 function _update_tensor_forward(
@@ -272,7 +361,17 @@ end
 function update_env_right(
     RE::S, A::S, M::T, B::S, ::Val{:c}
 ) where {T <: SparseSiteTensor, S <: AbstractArray{Float64, 3}}
-    # TO BE WRITTEN
+    R = zeros(size(A, 1), maximum(M.projs[1]), size(B, 1))
+
+    #Threads.@threads for σ ∈ 1:length(M.loc_exp)
+    #    lexp = M.loc_exp[σ]
+    for (σ, lexp) ∈ enumerate(M.loc_exp)
+        AA = @view A[:, M.projs[4][σ], :]
+        RR = @view RE[:, M.projs[3][σ], :]
+        BB = @view B[:, M.projs[2][σ], :]
+        R[:, M.projs[1][σ], :] += lexp .* (AA * RR * BB')
+    end
+    R
 end
 
 function update_env_right(
@@ -296,6 +395,18 @@ function update_env_right(
     RE::S, A::S, M::T, B::S, ::Val{:c}
 ) where {T <: SparseVirtualTensor, S <: AbstractArray{Float64, 3}}
     # TO BE WRITTEN
+    h = M.con
+    p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
+    @cast A4[x, k, l, y] := A[x, (k, l), y] (k ∈ 1:maximum(p_rt))
+    @cast B4[x, k, l, y] := B[x, (k, l), y] (k ∈ 1:maximum(p_lb))
+    R = zeros(size(A, 1), length(p_l), size(B, 1))
+    for l ∈ 1:length(p_l), r ∈ 1:length(p_r)
+        AA = @view A4[:, p_lb[l], p_rb[r], :]
+        RR = @view RE[:, r, :]
+        BB = @view B4[:, p_rt[r], p_lt[l], :]
+        R[:, l, :] += h[p_l[l], p_r[r]] * (AA * RR * BB')
+    end
+    R
 end
 
 function update_env_right(
@@ -326,6 +437,13 @@ function project_ket_on_bra(env::Environment, site::Site)
     )
 end
 
+function project_ket_on_bra_twosite(env::Environment, site::Site)
+    site_l = _left_nbrs_site(site, env.bra.sites)
+    project_ket_on_bra(
+        env.env[(site_l, :left)], env.ket[site_l], env.ket[site], env.mpo[site_l][0], env.mpo[site][0], env.env[(site, :right)]
+    )
+end
+
 
 #   |    |    |
 #  LE -- M -- RE
@@ -336,6 +454,15 @@ function project_ket_on_bra(
 ) where {T <: AbstractArray{Float64, 4}, S <: AbstractArray{Float64, 3}}
     @tensor A[x, y, z] := LE[k, l, x] * B[k, m, o] *
                           M[l, y, n, m] * RE[z, n, o] order = (k, l, m, n, o)
+    A
+end
+
+function project_ket_on_bra(
+    LE::S, B::S, C::S, M::T, N::T, RE::S
+) where {T <: AbstractArray{Float64, 4}, S <: AbstractArray{Float64, 3}}
+    @tensor A[x, y, z, r] := LE[k, l, x] * B[k, m, o] *
+                          M[l, y, n, m] * C[o, s, q] * 
+                          N[n, z, p, s] * RE[r, p, q] order = (k, l, m, n, o, s, p, q)
     A
 end
 
@@ -389,15 +516,47 @@ function project_ket_on_bra(
 end
 
 function project_ket_on_bra(
+    LE::S, B::S, C::S, M::T, N::T, RE::S, ::Val{:c}
+) where {T <: AbstractArray{Float64, 4}, S <: AbstractArray{Float64, 3}}
+    @tensor A[x, y, z, r] := LE[k, l, x] * B[k, m, o] *
+                          M[l, y, n, m] * C[o, s, q] * 
+                          N[n, z, p, s] * RE[r, p, q] order = (k, l, m, n, o, s, p, q)
+    A
+end
+
+function project_ket_on_bra(
     LE::S, B::S, M::T, RE::S, ::Val{:c}
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
     ## TO BE WRITTEN
+    A = zeros(size(LE, 3), maximum(M.projs[4]), size(RE, 1))
+
+    #Threads.@threads for σ ∈ 1:length(M.loc_exp)
+    #    lexp = M.loc_exp[σ]
+    for (σ, lexp) ∈ enumerate(M.loc_exp)
+        le = @view LE[:, M.projs[1][σ], :]
+        b = @view B[:, M.projs[2][σ], :]
+        re = @view RE[:, M.projs[3][σ], :]
+        A[:, M.projs[2][σ], :] += lexp .* (le' * b * re')
+    end
+    A
 end
 
 function project_ket_on_bra(
     LE::S, B::S, M::T, RE::S, ::Val{:c}
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseVirtualTensor}
     ## TO BE ADDED
+    h = M.con
+    p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
+    @cast B4[x, k, l, y] := B[x, (k, l), y] (k ∈ 1:maximum(p_lb))
+    A = zeros(size(LE, 3), maximum(p_lb), maximum(p_rb), size(RE, 1))
+    for l ∈ 1:length(p_l), r ∈ 1:length(p_r)
+        le = @view LE[:, l, :]
+        b = @view B4[:, p_rt[r], p_lt[l], :]
+        re = @view RE[:, r, :]
+        A[:,  p_lb[l], p_rb[r], :] += h[p_l[l], p_r[r]] .* (le' * b * re')
+    end
+    @cast AA[l, (ũ, u), r] := A[l, ũ, u, r]
+    AA
 end
 
 

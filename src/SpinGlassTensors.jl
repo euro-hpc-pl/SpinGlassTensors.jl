@@ -11,7 +11,6 @@ module SpinGlassTensors
     include("linear_algebra_ext.jl")
     include("compressions.jl")
     include("s_compressions.jl")
-    #include("ss_compressions.jl")
     include("identities.jl")
     include("contractions.jl")
     include("s_contractions.jl")

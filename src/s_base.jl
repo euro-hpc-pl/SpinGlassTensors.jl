@@ -35,12 +35,11 @@ function local_dims(mpo::QMpo, dir::Symbol)
         if any(length(size(mpo[site][k])) > 2 for k ∈ mkeys)
             if dir == :down
                 ss = size(mpo[site][last(mkeys)])
-                ld = length(ss) == 4 ? ss[4] : ss[2]
+                push!(lds, site => length(ss) == 4 ? ss[4] : ss[2])
             else
                 ss = size(mpo[site][first(mkeys)])
-                ld = length(ss) == 4 ? ss[2] : ss[1]
+                push!(lds, site => length(ss) == 4 ? ss[2] : ss[1])
             end
-            push!(lds, site => ld)
         end
     end
     lds
@@ -57,7 +56,7 @@ function IdentityQMps(loc_dims::Dict, Dmax::Int=1)
     QMps(id)
 end
 
-@inline Base.size(tens::AbstractSparseTensor) = collect(maximum(pr) for pr ∈ tens.projs)
+@inline Base.size(tens::AbstractSparseTensor) = maximum.(tens.projs)
 @inline function Base.setindex!(
     ket::AbstractTensorNetwork, A::AbstractArray, i::Site
 )

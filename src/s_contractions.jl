@@ -1,4 +1,4 @@
-export contract_left,contract_down, contract_up, dot
+export contract_left, contract_down, contract_up, dot
 
 LinearAlgebra.dot(ψ::QMps, ϕ::QMps) = dot(MPS(ψ), MPS(ϕ))
 LinearAlgebra.norm(ψ::QMps) = sqrt(abs(dot(ψ, ψ)))

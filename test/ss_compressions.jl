@@ -4,7 +4,7 @@
     sites = 100
     T = Float64
     
-    Dcut = 32
+    Dcut = 64
     max_sweeps = 10
     tol = 1E-4
 

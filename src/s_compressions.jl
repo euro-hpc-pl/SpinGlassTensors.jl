@@ -344,7 +344,7 @@ end
 
 function update_env_right(
     RE::S, A::S, M::T, B::S
-) where {T <: SparseSiteTensor, S <: AbstractArray{Float64, 3}}
+) where {T <: SparseSiteTensor, S} # {T <: SparseSiteTensor, S <: AbstractArray{Float64, 3}}
     R = zeros(size(A, 1), maximum(M.projs[1]), size(B, 1))
 
     #Threads.@threads for σ ∈ 1:length(M.loc_exp)
@@ -411,7 +411,7 @@ end
 
 function update_env_right(
     RE::S, A₀::S, M::T, B₀::S
-) where {T <: AbstractDict, S <: AbstractArray{Float64, 3}}
+) where {T <: AbstractDict, S} # {T <: AbstractDict, S <: AbstractArray{Float64, 3}}
     sites = sort(collect(keys(M)))
     A = _update_tensor_forward(A₀, M, sites)
     B = _update_tensor_backwards(B₀, M, sites)
@@ -425,7 +425,7 @@ end
 #           --
 function update_env_right(
     RE::S, M::T
-) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
+) where {S, T <: AbstractDict} # {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
     MM = M[0]
     @tensor R[nt, nc, nb] := MM[nc, oc] * RE[nt, oc, nb]
     R

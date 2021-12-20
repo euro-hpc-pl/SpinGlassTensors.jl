@@ -26,7 +26,9 @@ function LinearAlgebra.dot(ϕ::QMps, ψ::QMpo)
     for i ∈ reverse(ϕ.sites)
         T = sort(collect(ψ[i]), by = x -> x[begin])
         TT = ϕ[i]
-        for (t, v) ∈ reverse(T) TT = contract_down(v, TT) end
+        for (t, v) ∈ T 
+            TT = contract_down(v, TT) 
+        end
 
         mps_li = _left_nbrs_site(i, ϕ.sites)
         mpo_li = _left_nbrs_site(i, ψ.sites)
@@ -104,3 +106,37 @@ function contract_up(A::AbstractArray{T, 3}, B::SparseVirtualTensor) where T
     @cast CC[(x, y), (t1, t2), (b, a)] := C[x, y, t1, t2, b, a]
     CC
 end
+
+
+# TODO: improve performance
+function contract_down(A::SparseSiteTensor, B::AbstractArray{T, 3}) where T
+    sal, sac, sar = size(B)
+    sbl, sbt, sbr = maximum.(A.projs[[1,4,3]])
+    C = zeros(sal, sbl, sbt, sar, sbr)
+
+    for (σ, lexp) ∈ enumerate(A.loc_exp)
+        AA = @view B[:, A.projs[2][σ], :]
+        C[:, A.projs[1][σ], A.projs[4][σ], :, A.projs[3][σ]] += lexp .* AA
+    end
+    @cast CC[(x, y), z, (b, a)] := C[x, y, z, b, a]
+    CC
+end
+
+# TODO: improve performance
+#=
+function contract_down(A::SparseVirtualTensor, B::AbstractArray{T, 3}) where T
+    h = A.con
+    sal, sac, sar = size(B)
+
+    p_lb, p_l, p_lt, p_rb, p_r, p_rt = A.projs
+    @cast B4[x, k, l, y] := B[x, (k, l), y] (k ∈ 1:maximum(p_lb))
+
+    C = zeros(sal, length(p_l), maximum(p_rt), maximum(p_lt), sar, length(p_r))
+    for l ∈ 1:length(p_l), r ∈ 1:length(p_r)
+        BB = @view B4[:, p_lb[l], p_rb[r], :]
+        C[:, l, p_rt[r], p_lt[l], :, r] += h[p_l[l], p_r[r]] .* BB
+    end
+    @cast CC[(x, y), (t1, t2), (b, a)] := C[x, y, t1, t2, b, a]
+    CC
+end
+=#

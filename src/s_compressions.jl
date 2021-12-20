@@ -11,7 +11,7 @@ mutable struct Environment <: AbstractEnvironment
         bra::QMps,
         mpo::QMpo,
         ket::QMps,
-        trans::Symbol=:c
+        trans::Symbol=:n
     )
         @assert trans ∈ (:n, :c)
         @assert bra.sites == ket.sites
@@ -22,23 +22,23 @@ mutable struct Environment <: AbstractEnvironment
             (last(bra.sites), :right) => ones(1, 1, 1)
         )
         env = new(bra, mpo, ket, trans, env0)
-        for site ∈ env.bra.sites update_env_left!(env, site) end
+        for site ∈ env.bra.sites update_env_left!(env, site, trans) end
         env
     end
 end
 
 function SpinGlassTensors.compress!(
-    bra::QMps, mpo::QMpo, ket::QMps, Dcut::Int, tol::Number=1E-8, max_sweeps::Int=4, args...
+    bra::QMps, mpo::QMpo, ket::QMps, Dcut::Int, tol::Number=1E-8, max_sweeps::Int=4, trans::Symbol=:n, args...
 )
-    env = Environment(bra, mpo, ket)
+    env = Environment(bra, mpo, ket, trans)
     overlap = Inf
-    overlap_before = measure_env(env, last(env.bra.sites))
+    overlap_before = measure_env(env, last(env.bra.sites), trans)
 
     for sweep ∈ 1:max_sweeps
-        _left_sweep_var!(env, args...)
-        _right_sweep_var!(env, args...)
+        _left_sweep_var!(env, trans, args...)
+        _right_sweep_var!(env, trans, args...)
 
-        overlap = measure_env(env, last(env.bra.sites))
+        overlap = measure_env(env, last(env.bra.sites), trans)
         Δ = abs(overlap_before - abs(overlap))
         @info "Convergence" Δ
 
@@ -77,10 +77,10 @@ function compress_twosite!(
     overlap
 end
 
-function _left_sweep_var!(env::Environment, args...)
+function _left_sweep_var!(env::Environment, trans::Symbol=:n, args...)
     for site ∈ reverse(env.bra.sites)
-        update_env_right!(env, site)
-        A = project_ket_on_bra(env, site)
+        update_env_right!(env, site, trans)
+        A = project_ket_on_bra(env, site, trans)
         @cast B[x, (y, z)] := A[x, y, z]
         _, Q = rq_fact(B, args...)
         @cast C[x, σ, y] := Q[x, (σ, y)] (σ ∈ 1:size(A, 2))
@@ -89,10 +89,10 @@ function _left_sweep_var!(env::Environment, args...)
     end
 end
 
-function _right_sweep_var!(env::Environment, args...)
+function _right_sweep_var!(env::Environment, trans::Symbol=:n, args...)
     for site ∈ env.bra.sites
-        update_env_left!(env, site)
-        A = project_ket_on_bra(env, site)
+        update_env_left!(env, site, trans)
+        A = project_ket_on_bra(env, site, trans)
         @cast B[(x, y), z] := A[x, y, z]
         Q, _ = qr_fact(B, args...)
         @cast C[x, σ, y] := Q[(x, σ), y] (σ ∈ 1:size(A, 2))
@@ -107,11 +107,8 @@ function _left_sweep_var_twosite!(env::Environment, Dcut::Int, tol::Number, args
         A = project_ket_on_bra_twosite(env, site)
         @cast B[(x, y), (z, w)] := A[x, y, z, w]
         U, S, VV = svd(B, Dcut, tol, args...)
-        println("VV ", typeof(VV))
         V = VV'
-        println("V ", typeof(V))
         @cast C[x, σ, y] := V[x, (σ, y)] (σ ∈ 1:size(A, 3))
-        println("C ", typeof(C))
         env.bra[site] = C
         clear_env_containing_site!(env, site)
         if site == env.bra.sites[2]
@@ -158,29 +155,29 @@ function _right_nbrs_site(site::Site, sites)
     minimum(ms)
 end
 
-function update_env_left!(env::Environment, site::Site)
+function update_env_left!(env::Environment, site::Site, trans::Symbol=:n)
     if site <= first(env.bra.sites) return end
 
     ls = _left_nbrs_site(site, env.bra.sites)
-    LL = update_env_left(env.env[(ls, :left)], env.bra[ls], env.mpo[ls], env.ket[ls])
+    LL = update_env_left(env.env[(ls, :left)], env.bra[ls], env.mpo[ls], env.ket[ls], trans)
 
     rs = _right_nbrs_site(ls, env.mpo.sites)
     while rs < site
-        LL = update_env_left(LL, env.mpo[rs])
+        LL = update_env_left(LL, env.mpo[rs], Val(trans))
         rs = _right_nbrs_site(rs, env.mpo.sites)
     end
     push!(env.env, (site, :left) => LL)
 end
 
-function update_env_right!(env::Environment, site::Site)
+function update_env_right!(env::Environment, site::Site, trans::Symbol=:n)
     if site >= last(env.bra.sites) return end
 
     rs = _right_nbrs_site(site, env.bra.sites)
-    RR = update_env_right(env.env[(rs, :right)], env.bra[rs], env.mpo[rs], env.ket[rs])
+    RR = update_env_right(env.env[(rs, :right)], env.bra[rs], env.mpo[rs], env.ket[rs], trans)
 
     ls = _left_nbrs_site(rs, env.mpo.sites)
     while ls > site
-        RR = update_env_right(RR, env.mpo[ls])
+        RR = update_env_right(RR, env.mpo[ls], Val(trans))
         ls = _left_nbrs_site(ls, env.mpo.sites)
     end
     push!(env.env, (site, :right) => RR)
@@ -197,16 +194,16 @@ end
 #      |    |
 #        -- B --
 function update_env_left(
-    LE::S, A₀::S, M::T, B₀::S
+    LE::S, A₀::S, M::T, B₀::S, trans::Symbol=:n
 ) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
     sites = sort(collect(keys(M)))
-    A =_update_tensor_forward(A₀, M, sites)
-    B = _update_tensor_backwards(B₀, M, sites)
-    update_env_left(LE, A, M[0], B)
+    A =_update_tensor_forward(A₀, M, sites, Val(trans))
+    B = _update_tensor_backwards(B₀, M, sites, Val(trans))
+    update_env_left(LE, A, M[0], B, Val(trans))
 end
 
 function update_env_left(
-    LE::S, M::T
+    LE::S, M::T, ::Val{:n}
 ) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
     MM = M[0]  # Can be more general
     @tensor L[nt, nc, nb] :=  LE[nt, oc, nb] * MM[oc, nc]
@@ -214,7 +211,15 @@ function update_env_left(
 end
 
 function update_env_left(
-    LE::S, A::S, M::T, B::S
+    LE::S, M::T, ::Val{:c}
+) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
+    MM = M[0]  # Can be more general
+    @tensor L[nt, nc, nb] :=  LE[nt, oc, nb] * MM[oc, nc]
+    L
+end
+
+function update_env_left(
+    LE::S, A::S, M::T, B::S, ::Val{:n}
 ) where {S <: AbstractArray{Float64, 3}, T <: AbstractArray{Float64, 4}}
     @tensor L[nb, nc, nt] := LE[ob, oc, ot] * A[ot, α, nt] *
                              M[oc, α, nc, β] * B[ob, β, nb] order = (ot, α, oc, β, ob)
@@ -298,7 +303,7 @@ function update_env_left(
 end
 
 function _update_tensor_forward(
-    A::S, M::T, sites
+    A::S, M::T, sites, ::Val{:n}
 ) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
     B = copy(A)
     for i ∈ sites
@@ -309,8 +314,8 @@ function _update_tensor_forward(
     B
 end
 
-function _update_tensor_backwards(
-    A::S, M::T, sites
+function _update_tensor_forward(
+    A::S, M::T, sites, ::Val{:c}
 ) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
     B = copy(A)
     for i ∈ reverse(sites)
@@ -321,13 +326,37 @@ function _update_tensor_backwards(
     B
 end
 
+function _update_tensor_backwards(
+    A::S, M::T, sites, ::Val{:n}
+) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
+    B = copy(A)
+    for i ∈ reverse(sites)
+        if i == 0 break end
+        C = M[i]
+        @tensor B[l, x, r] := B[l, y, r] * C[x, y]
+    end
+    B
+end
+
+function _update_tensor_backwards(
+    A::S, M::T, sites, ::Val{:c}
+) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
+    B = copy(A)
+    for i ∈ sites
+        if i == 0 break end
+        C = M[i]
+        @tensor B[l, x, r] := B[l, y, r] * C[y, x]
+    end
+    B
+end
+
 #      -- A --
 #         |    |
 # R =  -- M -- RE
 #         |    |
 #      -- B --
 function update_env_right(
-    RE::S, A::S, M::T, B::S
+    RE::S, A::S, M::T, B::S, ::Val{:n}
 ) where {T <: AbstractArray{Float64, 4}, S <: AbstractArray{Float64, 3}}
     @tensor R[nt, nc, nb] := RE[ot, oc, ob] * A[nt, α, ot] *
                              M[nc, α, oc, β] * B[nb, β, ob] order = (ot, α, oc, β, ob)
@@ -410,12 +439,12 @@ function update_env_right(
 end
 
 function update_env_right(
-    RE::S, A₀::S, M::T, B₀::S
+    RE::S, A₀::S, M::T, B₀::S, trans::Symbol=:n
 ) where {T <: AbstractDict, S} # {T <: AbstractDict, S <: AbstractArray{Float64, 3}}
     sites = sort(collect(keys(M)))
-    A = _update_tensor_forward(A₀, M, sites)
-    B = _update_tensor_backwards(B₀, M, sites)
-    update_env_right(RE, A, M[0], B)
+    A = _update_tensor_forward(A₀, M, sites, Val(trans))
+    B = _update_tensor_backwards(B₀, M, sites, Val(trans))
+    update_env_right(RE, A, M[0], B, Val(trans))
 end
 
 #           --
@@ -424,16 +453,24 @@ end
 #              |
 #           --
 function update_env_right(
-    RE::S, M::T
+    RE::S, M::T, ::Val{:c}
 ) where {S, T <: AbstractDict} # {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
     MM = M[0]
     @tensor R[nt, nc, nb] := MM[nc, oc] * RE[nt, oc, nb]
     R
 end
 
-function project_ket_on_bra(env::Environment, site::Site)
+function update_env_right(
+    RE::S, M::T, ::Val{:n}
+) where {S, T <: AbstractDict} # {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
+    MM = M[0]
+    @tensor R[nt, nc, nb] := MM[nc, oc] * RE[nt, oc, nb]
+    R
+end
+
+function project_ket_on_bra(env::Environment, site::Site, trans)
     project_ket_on_bra(
-        env.env[(site, :left)], env.ket[site], env.mpo[site], env.env[(site, :right)]
+        env.env[(site, :left)], env.ket[site], env.mpo[site], env.env[(site, :right)], Val(trans)
     )
 end
 
@@ -450,7 +487,7 @@ end
 #   |    |    |
 #     -- B --
 function project_ket_on_bra(
-    LE::S, B::S, M::T, RE::S
+    LE::S, B::S, M::T, RE::S, ::Val{:n}
 ) where {T <: AbstractArray{Float64, 4}, S <: AbstractArray{Float64, 3}}
     @tensor A[x, y, z] := LE[k, l, x] * B[k, m, o] *
                           M[l, y, n, m] * RE[z, n, o] order = (k, l, m, n, o)
@@ -458,7 +495,7 @@ function project_ket_on_bra(
 end
 
 function project_ket_on_bra(
-    LE::S, B::S, C::S, M::T, N::T, RE::S
+    LE::S, B::S, C::S, M::T, N::T, RE::S, ::Val{:n}
 ) where {T <: AbstractArray{Float64, 4}, S <: AbstractArray{Float64, 3}}
     @tensor A[x, y, z, r] := LE[k, l, x] * B[k, m, o] *
                           M[l, y, n, m] * C[o, s, q] *
@@ -467,9 +504,16 @@ function project_ket_on_bra(
 end
 
 function project_ket_on_bra(
-    LE::S, B::S, M::T, RE::S
+    LE::S, B::S, M::T, RE::S, ::Val{:n}
 ) where {T <: AbstractArray{Float64, 2}, S <: AbstractArray{Float64, 3}}
     @tensor A[x, y, z] := B[x, a, z] * M[y, a]
+    A
+end
+
+function project_ket_on_bra(
+    LE::S, B::S, M::T, RE::S, ::Val{:c}
+) where {T <: AbstractArray{Float64, 2}, S <: AbstractArray{Float64, 3}}
+    @tensor A[x, y, z] := B[x, a, z] * M[a, y]
     A
 end
 
@@ -561,18 +605,28 @@ end
 
 
 function project_ket_on_bra(
-    LE::S, B₀::S, M::T, RE::S
+    LE::S, B₀::S, M::T, RE::S, ::Val{:n}
 ) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
     sites = sort(collect(keys(M)))
     C = sort(collect(M), by = x -> x[1])
     TT = B₀
-    for (t, v) ∈ reverse(C) TT = project_ket_on_bra(LE, TT, v, RE) end
+    for (t, v) ∈ reverse(C) TT = project_ket_on_bra(LE, TT, v, RE, Val(:n)) end
     TT
 end
 
-function measure_env(env::Environment, site::Site)
+function project_ket_on_bra(
+    LE::S, B₀::S, M::T, RE::S, ::Val{:c}
+) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
+    sites = sort(collect(keys(M)))
+    C = sort(collect(M), by = x -> x[1])
+    TT = B₀
+    for (t, v) ∈ C TT = project_ket_on_bra(LE, TT, v, RE, Val(:c)) end
+    TT
+end
+
+function measure_env(env::Environment, site::Site, trans::Symbol=:n)
     L = update_env_left(
-        env.env[(site, :left)], env.bra[site], env.mpo[site], env.ket[site],
+        env.env[(site, :left)], env.bra[site], env.mpo[site], env.ket[site], trans
     )
     R = env.env[(site, :right)]
     @tensor L[t, c, b] * R[b, c, t]

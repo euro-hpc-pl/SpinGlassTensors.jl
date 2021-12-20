@@ -236,7 +236,7 @@ end
 
 # Improve this functiion with brodcasting
 function update_env_left(
-    LE::S, A::S, M::T, B::S
+    LE::S, A::S, M::T, B::S, ::Val{:n}
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
     L = zeros(size(B, 3), maximum(M.projs[3]), size(A, 3))
     for (σ, lexp) ∈ enumerate(M.loc_exp)
@@ -264,7 +264,7 @@ end
 
 # This is not optimal
 function update_env_left(
-    LE::S, A::S, M::T, B::S
+    LE::S, A::S, M::T, B::S, ::Val{:n}
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseVirtualTensor}
     h = M.con
     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
@@ -372,7 +372,7 @@ function update_env_right(
 end
 
 function update_env_right(
-    RE::S, A::S, M::T, B::S
+    RE::S, A::S, M::T, B::S, ::Val{:n}
 ) where {T <: SparseSiteTensor, S} # {T <: SparseSiteTensor, S <: AbstractArray{Float64, 3}}
     R = zeros(size(A, 1), maximum(M.projs[1]), size(B, 1))
 
@@ -404,7 +404,7 @@ function update_env_right(
 end
 
 function update_env_right(
-    RE::S, A::S, M::T, B::S
+    RE::S, A::S, M::T, B::S, ::Val{:n}
 ) where {T <: SparseVirtualTensor, S <: AbstractArray{Float64,3}}
     h = M.con
     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
@@ -468,7 +468,7 @@ function update_env_right(
     R
 end
 
-function project_ket_on_bra(env::Environment, site::Site, trans)
+function project_ket_on_bra(env::Environment, site::Site, trans::Symbol=:n)
     project_ket_on_bra(
         env.env[(site, :left)], env.ket[site], env.mpo[site], env.env[(site, :right)], Val(trans)
     )
@@ -518,7 +518,7 @@ function project_ket_on_bra(
 end
 
 function project_ket_on_bra(
-    LE::S, B::S, M::T, RE::S
+    LE::S, B::S, M::T, RE::S, ::Val{:n}
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
     A = zeros(size(LE, 3), maximum(M.projs[2]), size(RE, 1))
 
@@ -534,7 +534,7 @@ function project_ket_on_bra(
 end
 
 function project_ket_on_bra(
-    LE::S, B::S, M::T, RE::S
+    LE::S, B::S, M::T, RE::S, ::Val{:n}
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseVirtualTensor}
 
     h = M.con

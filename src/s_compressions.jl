@@ -580,7 +580,7 @@ function project_ket_on_bra(
         le = @view LE[:, M.projs[1][σ], :]
         b = @view B[:, M.projs[2][σ], :]
         re = @view RE[:, M.projs[3][σ], :]
-        A[:, M.projs[2][σ], :] += lexp .* (le' * b * re')
+        A[:, M.projs[4][σ], :] += lexp .* (le' * b * re')
     end
     A
 end

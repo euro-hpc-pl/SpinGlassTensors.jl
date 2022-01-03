@@ -28,7 +28,14 @@ mutable struct Environment <: AbstractEnvironment
 end
 
 function SpinGlassTensors.compress!(
-    bra::QMps, mpo::QMpo, ket::QMps, Dcut::Int, tol::Number=1E-8, max_sweeps::Int=4, trans::Symbol=:n, args...
+    bra::QMps,
+    mpo::QMpo,
+    ket::QMps,
+    Dcut::Int,
+    tol::Real=1E-8,
+    max_sweeps::Int=4,
+    trans::Symbol=:n,
+    args...
 )
     env = Environment(bra, mpo, ket, trans)
     overlap = Inf
@@ -53,7 +60,7 @@ function SpinGlassTensors.compress!(
 end
 
 function compress_twosite!(
-    bra::QMps, mpo::QMpo, ket::QMps, Dcut::Int, tol::Number=1E-8, max_sweeps::Int=4, args...
+    bra::QMps, mpo::QMpo, ket::QMps, Dcut::Int, tol::Real=1E-8, max_sweeps::Int=4, args...
 )
     env = Environment(bra, mpo, ket)
     overlap = Inf

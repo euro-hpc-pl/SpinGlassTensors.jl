@@ -26,7 +26,9 @@ function LinearAlgebra.dot(ϕ::QMps, ψ::QMpo)
     for i ∈ reverse(ϕ.sites)
         T = sort(collect(ψ[i]), by = x -> x[begin])
         TT = ϕ[i]
-        for (t, v) ∈ reverse(T) TT = contract_down(v, TT) end
+        for (t, v) ∈ T 
+            TT = contract_down(v, TT) 
+        end
 
         mps_li = _left_nbrs_site(i, ϕ.sites)
         mpo_li = _left_nbrs_site(i, ψ.sites)

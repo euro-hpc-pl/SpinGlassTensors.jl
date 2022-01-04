@@ -107,17 +107,21 @@ function contract_up(A::AbstractArray{T, 3}, B::SparseVirtualTensor) where T
     CC
 end
 
-function overlap_density_matrix(ϕ::AbstractMPS, ψ::AbstractMPS, k::Union{Int, Rational})
-    T = promote_type(eltype(ψ), eltype(ϕ))
-    C = ones(T, 1, 1)
-    D = ones(T, 1, 1)
-    for (i, (A, B)) ∈ enumerate(zip(ψ, ϕ))
+function overlap_density_matrix(ϕ::QMps, ψ::QMps, k::Union{Int, Rational})
+    C = ones(1, 1)
+    D = ones(1, 1)
+    @assert ψ.sites == ϕ.sites
+    for i ∈ ψ.sites
         if i < k 
+            A = ψ[i]
+            B = ϕ[i]
             @tensor C[x, y] := conj(B)[β, σ, x] * C[β, α] * A[α, σ, y] order = (α, β, σ)
         end
     end
-    for (i, (A, B)) ∈ enumerate(zip(reverse(ψ), reverse(ϕ)))
+    for i ∈ reverse(ψ.sites)
         if i > k
+            A = ψ[i]
+            B = ϕ[i]
             @tensor D[x, y] := conj(B)[x, σ, β] * D[β, α] * A[y, σ, α] order = (α, β, σ)
         end
     end

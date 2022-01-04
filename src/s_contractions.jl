@@ -26,8 +26,8 @@ function LinearAlgebra.dot(ϕ::QMps, ψ::QMpo)
     for i ∈ reverse(ϕ.sites)
         T = sort(collect(ψ[i]), by = x -> x[begin])
         TT = ϕ[i]
-        for (t, v) ∈ T 
-            TT = contract_down(v, TT) 
+        for (t, v) ∈ T
+            TT = contract_down(v, TT)
         end
 
         mps_li = _left_nbrs_site(i, ϕ.sites)
@@ -108,25 +108,21 @@ function contract_up(A::AbstractArray{T, 3}, B::SparseVirtualTensor) where T
 end
 
 function overlap_density_matrix(ϕ::QMps, ψ::QMps, k::Union{Int, Rational})
-    C = ones(1, 1)
-    D = ones(1, 1)
     @assert ψ.sites == ϕ.sites
+    C, D = ones(1, 1), ones(1, 1)
     for i ∈ ψ.sites
-        if i < k 
-            A = ψ[i]
-            B = ϕ[i]
+        if i < k
+            A, B = ψ[i], ϕ[i]
             @tensor C[x, y] := conj(B)[β, σ, x] * C[β, α] * A[α, σ, y] order = (α, β, σ)
         end
     end
     for i ∈ reverse(ψ.sites)
         if i > k
-            A = ψ[i]
-            B = ϕ[i]
+            A, B = ψ[i], ϕ[i]
             @tensor D[x, y] := conj(B)[x, σ, β] * D[β, α] * A[y, σ, α] order = (α, β, σ)
         end
     end
-    A = ψ[k]
-    B = ϕ[k]
+    A, B = ψ[k], ϕ[k]
     @tensor E[x, y] := C[b, a] * conj(B)[b, x, β] * A[a, y, α] * D[β, α]
     E
 end

@@ -1,4 +1,4 @@
-export contract_left, contract_down, contract_up, dot
+export contract_left, contract_down, contract_up, dot, overlap_density_matrix
 
 LinearAlgebra.dot(ψ::QMps, ϕ::QMps) = dot(MPS(ψ), MPS(ϕ))
 LinearAlgebra.norm(ψ::QMps) = sqrt(abs(dot(ψ, ψ)))
@@ -103,4 +103,24 @@ function contract_up(A::AbstractArray{T, 3}, B::SparseVirtualTensor) where T
     end
     @cast CC[(x, y), (t1, t2), (b, a)] := C[x, y, t1, t2, b, a]
     CC
+end
+
+function overlap_density_matrix(ϕ::AbstractMPS, ψ::AbstractMPS, k::Union{Int, Rational})
+    T = promote_type(eltype(ψ), eltype(ϕ))
+    C = ones(T, 1, 1)
+    D = ones(T, 1, 1)
+    for (i, (A, B)) ∈ enumerate(zip(ψ, ϕ))
+        if i < k 
+            @tensor C[x, y] := conj(B)[β, σ, x] * C[β, α] * A[α, σ, y] order = (α, β, σ)
+        end
+    end
+    for (i, (A, B)) ∈ enumerate(zip(reverse(ψ), reverse(ϕ)))
+        if i > k
+            @tensor D[x, y] := conj(B)[x, σ, β] * D[β, α] * A[y, σ, α] order = (α, β, σ)
+        end
+    end
+    A = ψ[k]
+    B = ϕ[k]
+    @tensor E[x, y] := C[b, a] * conj(B)[b, x, β] * A[a, y, α] * D[β, α]
+    E
 end

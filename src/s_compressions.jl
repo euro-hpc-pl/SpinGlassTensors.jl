@@ -141,7 +141,7 @@ function _right_sweep_var_twosite!(env::Environment, Dcut::Int, tol::Number, arg
         if site_r == env.bra.sites[end]
             SV = S .* V'
             @cast SS[x, σ, y] := SV[x, (σ, y)] (σ ∈ 1:size(A, 3))
-            env.bra[site_r] = SS/norm(SS)
+            env.bra[site_r] = SS ./ norm(SS)
             update_env_left!(env, site)
             update_env_left!(env, site_r)
         end
@@ -417,6 +417,7 @@ function update_env_right(
     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
     @cast A4[x, k, l, y] := A[x, (k, l), y] (k ∈ 1:maximum(p_rt))
     @cast B4[x, k, l, y] := B[x, (k, l), y] (k ∈ 1:maximum(p_lb))
+
     R = zeros(size(A, 1), length(p_l), size(B, 1))
     for l ∈ 1:length(p_l), r ∈ 1:length(p_r)
         AA = @view A4[:, p_rt[r], p_lt[l], :]
@@ -430,11 +431,11 @@ end
 function update_env_right(
     RE::S, A::S, M::T, B::S, ::Val{:c}
 ) where {T <: SparseVirtualTensor, S <: AbstractArray{Float64, 3}}
-    # TO BE WRITTEN
     h = M.con
     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
     @cast A4[x, k, l, y] := A[x, (k, l), y] (k ∈ 1:maximum(p_rt))
     @cast B4[x, k, l, y] := B[x, (k, l), y] (k ∈ 1:maximum(p_lb))
+
     R = zeros(size(A, 1), length(p_l), size(B, 1))
     for l ∈ 1:length(p_l), r ∈ 1:length(p_r)
         AA = @view A4[:, p_lb[l], p_rb[r], :]
@@ -477,14 +478,23 @@ end
 
 function project_ket_on_bra(env::Environment, site::Site, trans::Symbol=:n)
     project_ket_on_bra(
-        env.env[(site, :left)], env.ket[site], env.mpo[site], env.env[(site, :right)], Val(trans)
+        env.env[(site, :left)],
+        env.ket[site],
+        env.mpo[site],
+        env.env[(site, :right)],
+        Val(trans)
     )
 end
 
 function project_ket_on_bra_twosite(env::Environment, site::Site)
     site_l = _left_nbrs_site(site, env.bra.sites)
     project_ket_on_bra(
-        env.env[(site_l, :left)], env.ket[site_l], env.ket[site], env.mpo[site_l][0], env.mpo[site][0], env.env[(site, :right)]
+        env.env[(site_l, :left)],
+        env.ket[site_l],
+        env.ket[site],
+        env.mpo[site_l][0],
+        env.mpo[site][0],
+        env.env[(site, :right)]
     )
 end
 
@@ -595,7 +605,6 @@ end
 function project_ket_on_bra(
     LE::S, B::S, M::T, RE::S, ::Val{:c}
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseVirtualTensor}
-    ## TO BE ADDED
     h = M.con
     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
     @cast B4[x, k, l, y] := B[x, (k, l), y] (k ∈ 1:maximum(p_lb))
@@ -604,12 +613,11 @@ function project_ket_on_bra(
         le = @view LE[:, l, :]
         b = @view B4[:, p_rt[r], p_lt[l], :]
         re = @view RE[:, r, :]
-        A[:,  p_lb[l], p_rb[r], :] += h[p_l[l], p_r[r]] .* (le' * b * re')
+        A[:, p_lb[l], p_rb[r], :] += h[p_l[l], p_r[r]] .* (le' * b * re')
     end
     @cast AA[l, (ũ, u), r] := A[l, ũ, u, r]
     AA
 end
-
 
 function project_ket_on_bra(
     LE::S, B₀::S, M::T, RE::S, ::Val{:n}

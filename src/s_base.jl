@@ -46,7 +46,6 @@ function local_dims(mpo::QMpo, dir::Symbol)
 end
 
 function IdentityQMps(loc_dims::Dict, Dmax::Int=1)
-    sites = sort(collect(keys(loc_dims)))
     id = Dict(site => zeros(Dmax, ld, Dmax) for (site, ld) ∈ loc_dims)
     site, ld = minimum(loc_dims)
     id[site] = zeros(1, ld, Dmax)

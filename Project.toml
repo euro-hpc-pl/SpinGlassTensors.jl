@@ -6,6 +6,7 @@ version = "0.1.5"
 [deps]
 DocStringExtensions = "ffbed154-4ef7-542d-bbb7-c09d3a79fcae"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+MKL = "33e6dc65-8f57-5167-99aa-e5a354878fb2"
 LowRankApprox = "898213cb-b102-5a47-900c-97e73b919f73"
 Memoize = "c03570c3-d221-55d1-a50c-7939bbd78826"
 TensorCast = "02d47bb6-7ce6-556a-be16-bb1710789e2b"
@@ -17,7 +18,8 @@ LowRankApprox = "0.4, 0.5"
 Memoize = "0.4"
 TensorCast = "0.4"
 TensorOperations = "3.0.1"
-julia = "1.5"
+julia = "1.5, 1.6, 1.7"
+MKL = "0.4.2"
 
 [extras]
 Logging = "56ddb016-857b-54e1-b83d-db4d58db5568"

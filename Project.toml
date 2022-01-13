@@ -1,6 +1,6 @@
 name = "SpinGlassTensors"
 uuid = "7584fc6a-5a23-4eeb-8277-827aab0146ea"
-authors = ["Łukasz Pawela <lukasz.pawela@gmail.com>", "Konrad Jałowiecki <dexter2206@gmail.com>", "Bartłomiej Gardas <bartek.gardas@gmail.com>"]
+authors = ["Anna Maria Dziubyna <annamariadziubyna@gmail.com>", "Bartłomiej Gardas <bartek.gardas@gmail.com>", "Konrad Jałowiecki <dexter2206@gmail.com>", "Łukasz Pawela <lukasz.pawela@gmail.com>", "Marek M. Rams <marekrams@gmail.com>"]
 version = "0.1.5"
 
 [deps]

@@ -1,5 +1,18 @@
-export AbstractTensorNetwork, bond_dimension, is_left_normalized, is_right_normalized
-export verify_bonds, verify_physical_dims, tensor, rank, physical_dim, State, dropindices
+export 
+    AbstractTensorNetwork,
+    State,
+    PEPSRow,
+    MPO,
+    MPS,
+    bond_dimension,
+    is_left_normalized,
+    is_right_normalized,
+    verify_bonds,
+    verify_physical_dims,
+    tensor,
+    rank,
+    physical_dim,
+    dropindices
 
 const State = Union{Vector, NTuple}
 abstract type AbstractTensorNetwork{T} end
@@ -21,11 +34,7 @@ for (T, N) ∈ ((:PEPSRow, 5), (:MPO, 4), (:MPS, 3))
         $T(::Type{T}, L::Int) where {T} = $T(Vector{Array{T, $N}}(undef, L))
         $T(L::Int) = $T(Float64, L)
 
-        @inline function Base.setindex!(
-            a::$AT, A::AbstractArray{<:Number, $N}, i::Int
-        )
-            a.tensors[i] = A
-        end
+        @inline Base.setindex!(a::$AT, A::AbstractArray{<:Number, $N}, i::Int) = a.tensors[i] = A
         @inline bond_dimension(a::$AT) = maximum(size.(a.tensors, $N))
         Base.hash(a::$T, h::UInt) = hash(a.tensors, h)
         @inline Base.:(==)(a::$T, b::$T) = a.tensors == b.tensors

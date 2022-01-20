@@ -1,5 +1,6 @@
 module SpinGlassTensors
-    using LinearAlgebra, MKL
+    using MKL
+    using LinearAlgebra
     using TensorOperations, TensorCast
     #using LowRankApprox
     using Memoize

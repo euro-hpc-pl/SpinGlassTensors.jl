@@ -4,7 +4,7 @@ using TensorCast
 using Logging
 using LinearAlgebra
 
-#disable_logging(LogLevel(1))
+disable_logging(LogLevel(1))
 
 using Test
 
@@ -17,7 +17,7 @@ my_tests = [
     "contractions.jl",
     "compressions.jl",
     "s_compressions.jl",
-    #"ss_compressions.jl", # two site compression problem
+    # "ss_compressions.jl", # two site compression problem
     "s_contractions.jl",
     "identities.jl"
 ]

@@ -16,19 +16,17 @@
 
     @testset "Two mps representations are compressed to the same state" begin 
         χ = W * ψ
-        @time overlap = compress!(χ, Dcut, tol, max_sweeps)
+        overlap = compress!(χ, Dcut, tol, max_sweeps)
         @test is_left_normalized(χ)
-        println(overlap)
 
         ϕ = copy(ψ)
         canonise!(ϕ, :left)
         bra = QMps(ϕ)
 
-        @time overlap = compress!(bra, mpo, ket, Dcut, tol, max_sweeps)
-        println(overlap)
+        overlap = compress!(bra, mpo, ket, Dcut, tol, max_sweeps)
         
         ϕ = MPS(bra)
-        @time is_right_normalized(ϕ)
+        is_right_normalized(ϕ)
         @test norm(χ) ≈ norm(ϕ) ≈ 1
     end
 end

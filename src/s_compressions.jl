@@ -1,16 +1,16 @@
 export compress!, _left_nbrs_site, _right_nbrs_site, compress_twosite!
 
 mutable struct Environment <: AbstractEnvironment
-    bra::QMps  # to be optimized
-    mpo::QMpo
-    ket::QMps
+    bra::QMPS  # to be optimized
+    mpo::QMPO
+    ket::QMPS
     trans::Symbol
     env::Dict
 
     function Environment(
-        bra::QMps,
-        mpo::QMpo,
-        ket::QMps,
+        bra::QMPS,
+        mpo::QMPO,
+        ket::QMPS,
         trans::Symbol=:n
     )
         @assert trans ∈ (:n, :c)
@@ -28,9 +28,9 @@ mutable struct Environment <: AbstractEnvironment
 end
 
 function SpinGlassTensors.compress!(
-    bra::QMps,
-    mpo::QMpo,
-    ket::QMps,
+    bra::QMPS,
+    mpo::QMPO,
+    ket::QMPS,
     Dcut::Int,
     tol::Real=1E-8,
     max_sweeps::Int=4,
@@ -60,7 +60,7 @@ function SpinGlassTensors.compress!(
 end
 
 function compress_twosite!(
-    bra::QMps, mpo::QMpo, ket::QMps, Dcut::Int, tol::Real=1E-8, max_sweeps::Int=4, args...
+    bra::QMPS, mpo::QMPO, ket::QMPS, Dcut::Int, tol::Real=1E-8, max_sweeps::Int=4, args...
 )
     env = Environment(bra, mpo, ket)
     overlap = Inf
@@ -647,7 +647,7 @@ function measure_env(env::Environment, site::Site, trans::Symbol=:n)
     @tensor L[t, c, b] * R[b, c, t]
 end
 
-function truncate!(ψ::QMps, s::Symbol, Dcut::Int=typemax(Int), args...)
+function truncate!(ψ::QMPS, s::Symbol, Dcut::Int=typemax(Int), args...)
     @assert s ∈ (:left, :right)
     if s == :right
         _right_sweep!(ψ, args...)
@@ -657,11 +657,11 @@ function truncate!(ψ::QMps, s::Symbol, Dcut::Int=typemax(Int), args...)
         _right_sweep!(ψ, Dcut, args...)
     end
 end
-canonise!(ψ::QMps, s::Symbol) = canonise!(ψ, Val(s))
-canonise!(ψ::QMps, ::Val{:right}) = _left_sweep!(ψ, typemax(Int))
-canonise!(ψ::QMps, ::Val{:left}) = _right_sweep!(ψ, typemax(Int))
+canonise!(ψ::QMPS, s::Symbol) = canonise!(ψ, Val(s))
+canonise!(ψ::QMPS, ::Val{:right}) = _left_sweep!(ψ, typemax(Int))
+canonise!(ψ::QMPS, ::Val{:left}) = _right_sweep!(ψ, typemax(Int))
 
-function _right_sweep!(ψ::QMps, Dcut::Int=typemax(Int), args...)
+function _right_sweep!(ψ::QMPS, Dcut::Int=typemax(Int), args...)
     R = ones(eltype(ψ[1]), 1, 1)
     for i ∈ ψ.sites
         A = ψ[i]
@@ -673,7 +673,7 @@ function _right_sweep!(ψ::QMps, Dcut::Int=typemax(Int), args...)
     end
 end
 
-function _left_sweep!(ψ::QMps, Dcut::Int=typemax(Int), args...)
+function _left_sweep!(ψ::QMPS, Dcut::Int=typemax(Int), args...)
     R = ones(eltype(ψ[1]), 1, 1)
     for i ∈ reverse(ψ.sites)
         B = ψ[i]

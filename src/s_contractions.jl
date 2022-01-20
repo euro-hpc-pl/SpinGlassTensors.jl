@@ -1,9 +1,9 @@
 export contract_left, contract_down, contract_up, dot, overlap_density_matrix
 
-LinearAlgebra.dot(ψ::QMps, ϕ::QMps) = dot(MPS(ψ), MPS(ϕ))
-LinearAlgebra.norm(ψ::QMps) = sqrt(abs(dot(ψ, ψ)))
+LinearAlgebra.dot(ψ::QMPS, ϕ::QMPS) = dot(MPS(ψ), MPS(ϕ))
+LinearAlgebra.norm(ψ::QMPS) = sqrt(abs(dot(ψ, ψ)))
 
-function LinearAlgebra.dot(ψ::QMpo, ϕ::QMps)
+function LinearAlgebra.dot(ψ::QMPO, ϕ::QMPS)
     D = Dict()
     for i ∈ reverse(ϕ.sites)
         T = sort(collect(ψ[i]), by = x -> x[begin])
@@ -18,10 +18,10 @@ function LinearAlgebra.dot(ψ::QMpo, ϕ::QMps)
         end
         push!(D, i => TT)
     end
-    QMps(D)
+    QMPS(D)
 end
 
-function LinearAlgebra.dot(ϕ::QMps, ψ::QMpo)
+function LinearAlgebra.dot(ϕ::QMPS, ψ::QMPO)
     D = Dict()
     for i ∈ reverse(ϕ.sites)
         T = sort(collect(ψ[i]), by = x -> x[begin])
@@ -36,18 +36,18 @@ function LinearAlgebra.dot(ϕ::QMps, ψ::QMpo)
         end
         push!(D, i => TT)
     end
-    QMps(D)
+    QMPS(D)
 end
 
-function LinearAlgebra.dot(W, ϕ::QMps)
-    QMps(Dict(i => contract_up(ϕ[i], A) for (i, A) ∈ enumerate(W)))
+function LinearAlgebra.dot(W, ϕ::QMPS)
+    QMPS(Dict(i => contract_up(ϕ[i], A) for (i, A) ∈ enumerate(W)))
 end
 
-function LinearAlgebra.dot(ϕ::QMps, W)
-    QMps(Dict(i => contract_down(A, ϕ[i]) for (i, A) ∈ enumerate(W)))
+function LinearAlgebra.dot(ϕ::QMPS, W)
+    QMPS(Dict(i => contract_down(A, ϕ[i]) for (i, A) ∈ enumerate(W)))
 end
-Base.:(*)(W::QMpo, ψ::QMps) = dot(W, ψ)
-Base.:(*)(ψ::QMps, W::QMpo) = dot(ψ, W)
+Base.:(*)(W::QMPO, ψ::QMPS) = dot(W, ψ)
+Base.:(*)(ψ::QMPS, W::QMPO) = dot(ψ, W)
 
 function contract_left(A::AbstractArray{T, 3}, B::AbstractMatrix{T}) where T
     @cast C[(x, y), u, r] := sum(σ) B[y, σ] * A[(x, σ), u, r] (σ ∈ 1:size(B, 2))
@@ -105,7 +105,7 @@ function contract_up(A::AbstractArray{T, 3}, B::SparseVirtualTensor) where T
     CC
 end
 
-function overlap_density_matrix(ϕ::QMps, ψ::QMps, k::Union{Int, Rational})
+function overlap_density_matrix(ϕ::QMPS, ψ::QMPS, k::Union{Int, Rational})
     @assert ψ.sites == ϕ.sites
     C, D = ones(1, 1), ones(1, 1)
     for i ∈ ψ.sites

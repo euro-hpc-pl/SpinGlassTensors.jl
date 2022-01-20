@@ -4,9 +4,9 @@
     sites = 2
     T = Float64
 
-    ψ = QMps(randn(MPS{T}, sites, D, d))
-    ϕ = QMps(randn(MPS{T}, sites, D, d))
-    O1 = QMpo(randn(MPO{T}, sites, D, d))
+    ψ = QMPS(randn(MPS{T}, sites, D, d))
+    ϕ = QMPS(randn(MPS{T}, sites, D, d))
+    O1 = QMPO(randn(MPO{T}, sites, D, d))
 
     @testset "dot products of MPS" begin
         @testset "is equal to itself" begin
@@ -50,14 +50,14 @@
             @test size(contract_down(C, B)) == (8 ,2, 6)
         end
 
-        @testset "dot product of QMpo and QMps" begin
+        @testset "dot product of QMPO and QMPS" begin
             D = dot(O2, ψ)
             E = dot(O1, ψ)
             @test size(D[1]) == size(E[1]) == (1, 2, 4)
             @test size(D[2]) == size(E[2]) == (4, 2, 1)
         end
 
-        @testset "dot product of QMps and QMpo" begin
+        @testset "dot product of QMPS and QMPO" begin
             F = dot(ψ, O2)
             G = dot(ψ, O1)
             @test size(F[1]) == size(G[1]) == (1, 2, 4)

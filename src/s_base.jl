@@ -21,16 +21,22 @@ struct SparseVirtualTensor <: AbstractSparseTensor
     projs::NTuple{N, Vector{Int}} where N
 end
 
-struct QMPS <: AbstractTensorNetwork{Number}
-    tensors::Dict
+struct QMPS{T <: Number} <: AbstractMPS{T}
+    tensors::Dict{Site, Array{T, 3}}
     sites::Vector{Site}
-    QMPS(tensors::Dict) = new(tensors, sort(collect(keys(tensors))))
 end
 
-struct QMPO <: AbstractTensorNetwork{Number}
-    tensors::Dict # of Dict
+function QMPS(tensors::Dict{<:Site, Array{T, 3}}) where {T <: Number}
+    QMPS{T}(tensors, sort(collect(keys(tensors))))
+end
+
+struct QMPO{T <: Number} <: AbstractMPO{T}
+    tensors::Dict{Site, Dict{Site, Array{T, 4}}}
     sites::Vector{Site}
-    QMPO(tensors::Dict) = new(tensors, sort(collect(keys(tensors))))
+end
+
+function QMPO(tensors::Dict{<:Site, <:Dict{<:Site, Array{T, 4}}}) where {T <: Number}
+    QMPO{T}(tensors, sort(collect(keys(tensors))))
 end
 
 function local_dims(mpo::QMPO, dir::Symbol)

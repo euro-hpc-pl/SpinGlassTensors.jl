@@ -1,13 +1,14 @@
 export canonise!, truncate!, compress!, compress
 
+# TODO: check if we need this
 # This is for backwards compatibility
-function compress(ϕ::AbstractMPS, Dcut::Int, tol::Number=1E-8, max_sweeps::Int=4, args...)
+function compress(ϕ::AbstractMPS, Dcut::Int, tol::Number=1e-8, max_sweeps::Int=4, args...)
     ψ = copy(ϕ)
     compress!(ψ, Dcut, tol, max_sweeps, args...)
     ψ
 end
 
-function compress!(ϕ::AbstractMPS, Dcut::Int, tol::Number=1E-8, max_sweeps::Int=4, args...)
+function compress!(ϕ::AbstractMPS, Dcut::Int, tol::Number=1e-8, max_sweeps::Int=4, args...)
     # Right canonise ϕ
     _left_sweep!(ϕ, args...)
 
@@ -78,6 +79,38 @@ function _left_sweep!(ψ::AbstractMPS, Dcut::Int=typemax(Int), args...)
     end
 end
 
+function _right_sweep(A::AbstractArray, Dcut::Int=typemax(Int), args...)
+    rank = ndims(A)
+    ψ = MPS(eltype(A), rank)
+    R = reshape(copy(A), (1, length(A)))
+
+    for i ∈ 1:rank
+        d = size(A, i)
+        @cast M[(x, σ), y] := R[x, (σ, y)] (σ ∈ 1:d)
+        Q, R = qr_fact(M, Dcut, args...)
+        R = R ./ maximum(abs.(R))
+        @cast B[x, σ, y] := Q[(x, σ), y] (σ ∈ 1:d)
+        ψ[i] = B
+    end
+    ψ
+end
+
+function _left_sweep(A::AbstractArray, Dcut::Int=typemax(Int), args...)
+    rank = ndims(A)
+    ψ = MPS(eltype(A), rank)
+    R = reshape(copy(A), (length(A), 1))
+
+    for i ∈ rank:-1:1
+        d = size(A, i)
+        @cast M[x, (σ, y)] := R[(x, σ), y] (σ ∈ 1:d)
+        R, Q = rq_fact(M, Dcut, args...)
+        R = R ./ maximum(abs.(R))
+        @cast B[x, σ, y] := Q[x, (σ, y)] (σ ∈ 1:d)
+        ψ[i] = B
+    end
+    ψ
+end
+
 function _left_sweep_var!!(
     ϕ::AbstractMPS, env::Vector{<:AbstractMatrix}, ψ::AbstractMPS, args...
 )
@@ -127,40 +160,4 @@ function _right_sweep_var!!(
         env[i+1] = LL
     end
     env[end][1]
-end
-
-function _right_sweep(
-    A::AbstractArray, Dcut::Int=typemax(Int), args...
-) where {T <: AbstractMPS}
-    rank = ndims(A)
-    ψ = MPS(eltype(A), rank)
-    R = reshape(copy(A), (1, length(A)))
-
-    for i ∈ 1:rank
-        d = size(A, i)
-        @cast M[(x, σ), y] := R[x, (σ, y)] (σ ∈ 1:d)
-        Q, R = qr_fact(M, Dcut, args...)
-        R = R ./ maximum(abs.(R))
-        @cast B[x, σ, y] := Q[(x, σ), y] (σ ∈ 1:d)
-        ψ[i] = B
-    end
-    ψ
-end
-
-function _left_sweep(
-    A::AbstractArray, Dcut::Int=typemax(Int), args...
-) where {T <: AbstractMPS}
-    rank = ndims(A)
-    ψ = MPS(eltype(A), rank)
-    R = reshape(copy(A), (length(A), 1))
-
-    for i ∈ rank:-1:1
-        d = size(A, i)
-        @cast M[x, (σ, y)] := R[(x, σ), y] (σ ∈ 1:d)
-        R, Q = rq_fact(M, Dcut, args...)
-        R = R ./ maximum(abs.(R))
-        @cast B[x, σ, y] := Q[x, (σ, y)] (σ ∈ 1:d)
-        ψ[i] = B
-    end
-    ψ
 end

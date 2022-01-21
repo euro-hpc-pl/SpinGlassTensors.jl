@@ -1,4 +1,4 @@
-export QMps, QMpo, local_dims, SparseSiteTensor, SparseVirtualTensor, IdentityQMps
+export QMps, QMpo, local_dims, SparseSiteTensor, SparseVirtualTensor, IdentityQMps, Site
 
 abstract type AbstractEnvironment end
 abstract type AbstractSparseTensor end

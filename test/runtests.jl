@@ -18,7 +18,7 @@ my_tests = [
     "compressions.jl",
     "s_compressions.jl",
     # "ss_compressions.jl", # two site compression problem
-    "s_contractions.jl",
+    #"s_contractions.jl",
     "identities.jl"
 ]
 

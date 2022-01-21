@@ -4,7 +4,7 @@ LinearAlgebra.dot(ψ::QMPS, ϕ::QMPS) = dot(MPS(ψ), MPS(ϕ))
 LinearAlgebra.norm(ψ::QMPS) = sqrt(abs(dot(ψ, ψ)))
 
 function LinearAlgebra.dot(ψ::QMPO, ϕ::QMPS)
-    D = Dict()
+    D = Dict{Site, Tensor}()
     for i ∈ reverse(ϕ.sites)
         T = sort(collect(ψ[i]), by = x -> x[begin])
         TT = ϕ[i]
@@ -22,7 +22,7 @@ function LinearAlgebra.dot(ψ::QMPO, ϕ::QMPS)
 end
 
 function LinearAlgebra.dot(ϕ::QMPS, ψ::QMPO)
-    D = Dict()
+    D = Dict{Site, Tensor}()
     for i ∈ reverse(ϕ.sites)
         T = sort(collect(ψ[i]), by = x -> x[begin])
         TT = ϕ[i]

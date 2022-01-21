@@ -1,10 +1,12 @@
-export 
+export
     QMPS,
     QMPO,
     SparseSiteTensor,
     SparseVirtualTensor,
     IdentityQMps,
-    local_dims
+    local_dims,
+    Site,
+    Tensor
 
 abstract type AbstractEnvironment end
 abstract type AbstractSparseTensor end
@@ -21,22 +23,23 @@ struct SparseVirtualTensor <: AbstractSparseTensor
     projs::NTuple{N, Vector{Int}} where N
 end
 
-struct QMPS{T <: Number} <: AbstractMPS{T}
-    tensors::Dict{Site, Array{T, 3}}
+const Tensor = Union{AbstractArray{Float64}, SparseSiteTensor, SparseVirtualTensor}
+struct QMPS <: AbstractMPS{Number}
+    tensors::Dict{Site, Tensor}
     sites::Vector{Site}
 end
 
-function QMPS(tensors::Dict{<:Site, Array{T, 3}}) where {T <: Number}
-    QMPS{T}(tensors, sort(collect(keys(tensors))))
+function QMPS(tensors::Dict{<:Site, <:Tensor})
+    QMPS(tensors, sort(collect(keys(tensors))))
 end
 
-struct QMPO{T <: Number} <: AbstractMPO{T}
-    tensors::Dict{Site, Dict{Site, Array{T, 4}}}
+struct QMPO <: AbstractMPO{Number}
+    tensors::Dict{Site, Dict{Site, Tensor}}
     sites::Vector{Site}
 end
 
-function QMPO(tensors::Dict{<:Site, <:Dict{<:Site, Array{T, 4}}}) where {T <: Number}
-    QMPO{T}(tensors, sort(collect(keys(tensors))))
+function QMPO(tensors::Dict{<:Site, <:Dict{<:Site, <:Tensor}})
+    QMPO(tensors, sort(collect(keys(tensors))))
 end
 
 function local_dims(mpo::QMPO, dir::Symbol)
@@ -58,7 +61,7 @@ function local_dims(mpo::QMPO, dir::Symbol)
 end
 
 function IdentityQMps(loc_dims::Dict, Dmax::Int=1)
-    id = Dict(site => zeros(Dmax, ld, Dmax) for (site, ld) ∈ loc_dims)
+    id = Dict{Site, Tensor}(site => zeros(Dmax, ld, Dmax) for (site, ld) ∈ loc_dims)
     site, ld = minimum(loc_dims)
     id[site] = zeros(1, ld, Dmax)
     site, ld = maximum(loc_dims)

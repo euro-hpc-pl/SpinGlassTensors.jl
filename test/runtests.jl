@@ -4,7 +4,7 @@ using TensorCast
 using Logging
 using LinearAlgebra
 
-#disable_logging(LogLevel(1))
+disable_logging(LogLevel(1))
 
 using Test
 

@@ -1,4 +1,5 @@
-export QMps, QMpo, local_dims, SparseSiteTensor, SparseVirtualTensor, IdentityQMps, Site
+export QMps, QMpo, local_dims, Site, Tensor
+export SparseSiteTensor, SparseVirtualTensor, IdentityQMps
 
 abstract type AbstractEnvironment end
 abstract type AbstractSparseTensor end
@@ -14,6 +15,8 @@ struct SparseVirtualTensor <: AbstractSparseTensor
     con::Matrix{<:Real}
     projs::NTuple{N, Vector{Int}} where N
 end
+
+const Tensor = Union{AbstractArray{Float64}, SparseSiteTensor, SparseVirtualTensor}
 
 struct QMps <: AbstractTensorNetwork{Number}
     tensors::Dict
@@ -46,7 +49,7 @@ function local_dims(mpo::QMpo, dir::Symbol)
 end
 
 function IdentityQMps(loc_dims::Dict, Dmax::Int=1)
-    id = Dict(site => zeros(Dmax, ld, Dmax) for (site, ld) ∈ loc_dims)
+    id = Dict{Site, Tensor}(site => zeros(Dmax, ld, Dmax) for (site, ld) ∈ loc_dims)
     site, ld = minimum(loc_dims)
     id[site] = zeros(1, ld, Dmax)
     site, ld = maximum(loc_dims)

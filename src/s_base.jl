@@ -19,15 +19,17 @@ end
 const Tensor = Union{AbstractArray{Float64}, SparseSiteTensor, SparseVirtualTensor}
 
 struct QMps <: AbstractTensorNetwork{Number}
-    tensors::Dict
+    tensors::Dict{Site, Tensor}
     sites::Vector{Site}
-    QMps(tensors::Dict) = new(tensors, sort(collect(keys(tensors))))
+    QMps(tensors::Dict{<:Site, <:Tensor}) = new(tensors, sort(collect(keys(tensors))))
 end
 
 struct QMpo <: AbstractTensorNetwork{Number}
-    tensors::Dict # of Dict
+    tensors::Dict{Site, Dict{Site, Tensor}}
     sites::Vector{Site}
-    QMpo(tensors::Dict) = new(tensors, sort(collect(keys(tensors))))
+    function QMpo(tensors::Dict)
+        new(tensors, sort(collect(keys(tensors))))
+    end
 end
 
 function local_dims(mpo::QMpo, dir::Symbol)

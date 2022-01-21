@@ -27,7 +27,7 @@ end
 struct QMpo <: AbstractTensorNetwork{Number}
     tensors::Dict{Site, Dict{Site, Tensor}}
     sites::Vector{Site}
-    function QMpo(tensors::Dict)
+    function QMpo(tensors::Dict{<:Site, <:Dict{<:Site, <:Tensor}})
         new(tensors, sort(collect(keys(tensors))))
     end
 end

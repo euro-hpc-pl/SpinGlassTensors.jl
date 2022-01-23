@@ -1,4 +1,4 @@
-export 
+export
     AbstractTensorNetwork,
     State,
     PEPSRow,
@@ -144,6 +144,7 @@ function verify_bonds(ψ::AbstractMPS)
 end
 
 function Base.show(io::IO, ψ::AbstractTensorNetwork)
+    # TODO: fix for Q*
     L = length(ψ)
     dims = [size(A) for A ∈ ψ]
 

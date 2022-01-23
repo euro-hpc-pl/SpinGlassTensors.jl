@@ -13,29 +13,30 @@ abstract type AbstractSparseTensor end
 
 const Site = Union{Int, Rational{Int}}
 
-struct SparseSiteTensor <: AbstractSparseTensor
-    loc_exp::Vector{<:Real}
+struct SparseSiteTensor{T} <: AbstractSparseTensor where {T <: Real}
+    loc_exp::Vector{T}
     projs::NTuple{N, Vector{Int}} where N
 end
 
-struct SparseVirtualTensor <: AbstractSparseTensor
-    con::Matrix{<:Real}
+struct SparseVirtualTensor{T} <: AbstractSparseTensor where {T <: Real}
+    con::Matrix{T}
     projs::NTuple{N, Vector{Int}} where N
 end
 
-const Tensor = Union{AbstractArray{Float64}, SparseSiteTensor, SparseVirtualTensor}
-struct QMPS <: AbstractMPS{Number}
-    tensors::Dict{Site, Tensor}
-    sites::Vector{Site}
+const Tensor{T} = Union{Array{T}, SparseSiteTensor{T}, SparseVirtualTensor{T}} where {T <: Real}
+
+struct QMPS{T <: Real} <: AbstractMPS{T}
+    tensors::Dict{<: Site, <: Tensor{T}}
+    sites::Vector{<: Site}
 end
 
 function QMPS(tensors::Dict{<:Site, <:Tensor})
     QMPS(tensors, sort(collect(keys(tensors))))
 end
 
-struct QMPO <: AbstractMPO{Number}
-    tensors::Dict{Site, Dict{Site, Tensor}}
-    sites::Vector{Site}
+struct QMPO{T <: Real} <: AbstractMPO{T}
+    tensors::Dict{<: Site, <: Dict{<: Site, <: Tensor{T}}}
+    sites::Vector{<: Site}
 end
 
 function QMPO(tensors::Dict{<:Site, <:Dict{<:Site, <:Tensor}})

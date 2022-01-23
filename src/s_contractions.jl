@@ -5,7 +5,7 @@ LinearAlgebra.norm(ψ::QMPS) = sqrt(abs(dot(ψ, ψ)))
 
 function _dot(ψ::QMPO{S}, ϕ::QMPS{S}, contract_func) where {S <: Real}
     D = Dict{Site, Tensor{S}}()
-    for i ∈ ϕ.sites
+    for i ∈ ψ.sites
         T = collect(ψ[i])
         TT = ϕ[i]
         for (_, v) ∈ T
@@ -23,20 +23,16 @@ function _dot(ψ::QMPO{S}, ϕ::QMPS{S}, contract_func) where {S <: Real}
     QMPS(D)
 end
 
-_rev(f) = (x, y) -> f(y, x)
-
 LinearAlgebra.dot(ψ::QMPO{S}, ϕ::QMPS{S}) where {S <: Real} = _dot(ψ, ϕ, contract_up)
-LinearAlgebra.dot(ϕ::QMPS{S}, ψ::QMPO{S}) where {S <: Real} = _dot(ψ, ϕ, _rev(contract_down))
+LinearAlgebra.dot(ϕ::QMPS{S}, ψ::QMPO{S}) where {S <: Real} = _dot(ψ, ϕ, contract_down)
 
-function LinearAlgebra.dot(W::AbstractMPO, ϕ::QMPS)
+function LinearAlgebra.dot(W::MPO, ϕ::QMPS)
     QMPS(Dict(i => contract_up(ϕ[i], A) for (i, A) ∈ enumerate(W)))
 end
 
-function LinearAlgebra.dot(ϕ::QMPS, W::AbstractMPO)
-    QMPS(Dict(i => contract_down(A, ϕ[i]) for (i, A) ∈ enumerate(W)))
+function LinearAlgebra.dot(ϕ::QMPS, W::MPO)
+    QMPS(Dict(i => contract_down(ϕ[i], A) for (i, A) ∈ enumerate(W)))
 end
-Base.:(*)(W::QMPO, ψ::QMPS) = dot(W, ψ)
-Base.:(*)(ψ::QMPS, W::QMPO) = dot(ψ, W)
 
 function contract_left(A::AbstractArray{T, 3}, B::AbstractMatrix{T}) where T
     @cast C[(x, y), u, r] := sum(σ) B[y, σ] * A[(x, σ), u, r] (σ ∈ 1:size(B, 2))
@@ -48,15 +44,15 @@ function contract_up(A::AbstractArray{T, 3}, B::AbstractArray{T, 2}) where T
     C
 end
 
-contract_down(A::AbstractArray{T, 2}, B::AbstractArray{T, 3}) where T = contract_up(B, A')
+contract_down(A::AbstractArray{T, 3}, B::AbstractArray{T, 2}) where T = contract_up(A, B')
 
 function contract_up(A::AbstractArray{T, 3}, B::AbstractArray{T, 4}) where T
     @matmul C[(x, y), z, (b, a)] := sum(σ) B[y, z, a, σ] * A[x, σ, b]
     C
 end
 
-function contract_down(A::AbstractArray{T, 4}, B::AbstractArray{T, 3}) where T
-    contract_up(B, PermutedDimsArray(A, (1, 4, 3, 2)))
+function contract_down(A::AbstractArray{T, 3}, B::AbstractArray{T, 4}) where T
+    contract_up(A, PermutedDimsArray(B, (1, 4, 3, 2)))
 end
 
 # TODO: improve performance

@@ -149,17 +149,15 @@ function _right_sweep_var_twosite!(env::Environment, Dcut::Int, tol::Number, arg
 end
 
 # Largest x in sites: x < site
-function _left_nbrs_site(site::Site, sites)
-    ls = filter(i -> i < site, sites)
-    if isempty(ls) return -Inf end
-    maximum(ls)
+function _left_nbrs_site(site::Site, sorted_sites)
+    site_pos = searchsortedfirst(sorted_sites, site)
+    site_pos == 1 ? -Inf : sorted_sites[site_pos-1]
 end
 
 # Smallest x in sites: x > site
-function _right_nbrs_site(site::Site, sites)
-    ms = filter(i -> i > site, sites)
-    if isempty(ms) return Inf end
-    minimum(ms)
+function _right_nbrs_site(site::Site, sorted_sites)
+    site_pos = searchsortedlast(sorted_sites, site)
+    site_pos == length(sorted_sites) ? Inf : sorted_sites[site_pos+1]
 end
 
 function update_env_left!(env::Environment, site::Site, trans::Symbol=:n)

@@ -46,8 +46,8 @@
         end
 
         @testset "contract_down gives correct sizes" begin
-            @test size(contract_down(A, B)) == (4, 2, 3)
-            @test size(contract_down(C, B)) == (8 ,2, 6)
+            @test size(contract_down(B, A)) == (4, 2, 3)
+            @test size(contract_down(B, C)) == (8 ,2, 6)
         end
 
         @testset "dot product of QMPO and QMPS" begin

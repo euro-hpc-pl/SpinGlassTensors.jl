@@ -3,13 +3,13 @@ export contract_left, contract_down, contract_up, dot, overlap_density_matrix
 LinearAlgebra.dot(ψ::QMPS, ϕ::QMPS) = dot(MPS(ψ), MPS(ϕ))
 LinearAlgebra.norm(ψ::QMPS) = sqrt(abs(dot(ψ, ψ)))
 
-function LinearAlgebra.dot(ψ::QMPO, ϕ::QMPS)
-    D = Dict{Site, Tensor}()
+function _dot(ψ::QMPO{S}, ϕ::QMPS{S}, contract_func) where {S <: Real}
+    D = Dict{Site, Tensor{S}}()
     for i ∈ ϕ.sites
         T = collect(ψ[i])
         TT = ϕ[i]
         for (_, v) ∈ T
-             TT = contract_up(TT, v)
+             TT = contract_func(TT, v)
         end
 
         mps_li = _left_nbrs_site(i, ϕ.sites)
@@ -23,29 +23,16 @@ function LinearAlgebra.dot(ψ::QMPO, ϕ::QMPS)
     QMPS(D)
 end
 
-function LinearAlgebra.dot(ϕ::QMPS, ψ::QMPO)
-    D = Dict{Site, Tensor}()
-    for i ∈ reverse(ϕ.sites)
-        T = sort(collect(ψ[i]), by = x -> x[begin])
-        TT = ϕ[i]
-        for (t, v) ∈ T TT = contract_down(v, TT) end
+_rev(f) = (x, y) -> f(y, x)
 
-        mps_li = _left_nbrs_site(i, ϕ.sites)
-        mpo_li = _left_nbrs_site(i, ψ.sites)
-        while mpo_li > mps_li
-            TT = contract_left(TT, ψ[mpo_li][0])
-            mpo_li = _left_nbrs_site(mpo_li, ψ.sites)
-        end
-        push!(D, i => TT)
-    end
-    QMPS(D)
-end
+LinearAlgebra.dot(ψ::QMPO{S}, ϕ::QMPS{S}) where {S <: Real} = _dot(ψ, ϕ, contract_up)
+LinearAlgebra.dot(ϕ::QMPS{S}, ψ::QMPO{S}) where {S <: Real} = _dot(ψ, ϕ, _rev(contract_down))
 
-function LinearAlgebra.dot(W, ϕ::QMPS)
+function LinearAlgebra.dot(W::AbstractMPO, ϕ::QMPS)
     QMPS(Dict(i => contract_up(ϕ[i], A) for (i, A) ∈ enumerate(W)))
 end
 
-function LinearAlgebra.dot(ϕ::QMPS, W)
+function LinearAlgebra.dot(ϕ::QMPS, W::AbstractMPO)
     QMPS(Dict(i => contract_down(A, ϕ[i]) for (i, A) ∈ enumerate(W)))
 end
 Base.:(*)(W::QMPO, ψ::QMPS) = dot(W, ψ)
@@ -61,10 +48,7 @@ function contract_up(A::AbstractArray{T, 3}, B::AbstractArray{T, 2}) where T
     C
 end
 
-function contract_down(A::AbstractArray{T, 2}, B::AbstractArray{T, 3}) where T
-    @tensor C[l, d, r] := A[σ, d] * B[l, σ, r]
-    C
-end
+contract_down(A::AbstractArray{T, 2}, B::AbstractArray{T, 3}) where T = contract_up(B, A')
 
 function contract_up(A::AbstractArray{T, 3}, B::AbstractArray{T, 4}) where T
     @matmul C[(x, y), z, (b, a)] := sum(σ) B[y, z, a, σ] * A[x, σ, b]
@@ -72,8 +56,7 @@ function contract_up(A::AbstractArray{T, 3}, B::AbstractArray{T, 4}) where T
 end
 
 function contract_down(A::AbstractArray{T, 4}, B::AbstractArray{T, 3}) where T
-    @matmul C[(x, y), z, (b, a)] := sum(σ) A[y, σ, a, z] * B[x, σ, b]
-    C
+    contract_up(B, PermutedDimsArray(A, (1, 4, 3, 2)))
 end
 
 # TODO: improve performance

@@ -86,7 +86,7 @@ function contract_up(A::AbstractArray{T, 3}, B::SparseVirtualTensor) where T
     CC
 end
 
-function overlap_density_matrix(ϕ::QMPS, ψ::QMPS, k::Union{Int, Rational})
+function overlap_density_matrix(ϕ::QMPS, ψ::QMPS, k::Site)
     @assert ψ.sites == ϕ.sites
     C, D = ones(1, 1), ones(1, 1)
     for i ∈ ψ.sites

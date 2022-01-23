@@ -1,4 +1,4 @@
-export compress!, _left_nbrs_site, _right_nbrs_site, compress_twosite!
+export compress!, compress_twosite!
 
 mutable struct Environment <: AbstractEnvironment
     bra::QMPS  # to be optimized
@@ -208,9 +208,14 @@ function update_env_left(
     sites = sort(collect(keys(M)))
     A =_update_tensor_forward(A₀, M, sites, Val(trans))
     B = _update_tensor_backwards(B₀, M, sites, Val(trans))
-    B = trans == :c ? PermutedDimsArray(B, (1, 4, 3, 2)) : B
-    @tensor L[nb, nc, nt] := LE[ob, oc, ot] * A[ot, α, nt] *
-                             M[0][oc, α, nc, β] * B[ob, β, nb] order = (ot, α, oc, β, ob)
+
+    if trans == :c
+        @tensor L[nb, nc, nt] := LE[ob, oc, ot] * A[ot, α, nt] *
+                                 M[0][oc, α, nc, β] * B[ob, β, nb] order = (ot, α, oc, β, ob)
+    else
+        @tensor L[nb, nc, nt] := LE[ob, oc, ot] * A[ot, α, nt] *
+                                 M[0][oc, β, nc, α] * B[ob, β, nb] order = (ot, α, oc, β, ob)
+    end
     L
 end
 
@@ -268,9 +273,13 @@ function update_env_right(
     sites = sort(collect(keys(M)))
     A = _update_tensor_forward(A₀, M, sites, Val(trans))
     B = _update_tensor_backwards(B₀, M, sites, Val(trans))
-    B = trans == :n ? B : PermutedDimsArray(B, (1, 4, 3, 2))
-    @tensor RR[nt, nc, nb] := RE[ot, oc, ob] * A[nt, α, ot] *
-                             M[0][nc, β, oc, α] * B[nb, β, ob] order = (ot, α, oc, β, ob)
+    if trans == :n
+        @tensor RR[nt, nc, nb] := RE[ot, oc, ob] * A[nt, α, ot] *
+                                  M[0][nc, β, oc, α] * B[nb, β, ob] order = (ot, α, oc, β, ob)
+    else
+        @tensor RR[nt, nc, nb] := RE[ot, oc, ob] * A[nt, α, ot] *
+                                  M[0][nc, α, oc, β] * B[nb, β, ob] order = (ot, α, oc, β, ob)
+    end
     RR
 end
 

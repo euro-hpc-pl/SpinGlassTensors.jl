@@ -168,7 +168,7 @@ function update_env_left!(env::Environment, site::Site, trans::Symbol=:n)
 
     rs = _right_nbrs_site(ls, env.mpo.sites)
     while rs < site
-        LL = update_env_left(LL, env.mpo[rs], Val(trans))
+        @tensor LL[nt, nc, nb] :=  LE[nt, oc, nb] * env.mpo[rs][0][oc, nc]
         rs = _right_nbrs_site(rs, env.mpo.sites)
     end
     push!(env.env, (site, :left) => LL)
@@ -199,113 +199,88 @@ end
 #      |    |
 #        -- B --
 function update_env_left(
-    LE::S, A₀::S, M::T, B₀::S, trans::Symbol=:n
-) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
+    LE::AbstractArray{T, 3},
+    A₀::AbstractArray{T, 3},
+    M::Dict,
+    B₀::AbstractArray{T, 3},
+    trans::Symbol=:n
+) where {T <: Real}
     sites = sort(collect(keys(M)))
     A =_update_tensor_forward(A₀, M, sites, Val(trans))
     B = _update_tensor_backwards(B₀, M, sites, Val(trans))
-    update_env_left(LE, A, M[0], B, Val(trans))
-end
-
-function update_env_left(
-    LE::S, M::T, ::Val{:n}
-) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
-    MM = M[0]  # Can be more general
-    @tensor L[nt, nc, nb] :=  LE[nt, oc, nb] * MM[oc, nc]
-    L
-end
-
-function update_env_left(
-    LE::S, M::T, ::Val{:c}
-) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
-    MM = M[0]  # Can be more general
-    @tensor L[nt, nc, nb] :=  LE[nt, oc, nb] * MM[oc, nc]
-    L
-end
-
-function update_env_left(
-    LE::S, A::S, M::T, B::S, ::Val{:n}
-) where {S <: AbstractArray{Float64, 3}, T <: AbstractArray{Float64, 4}}
+    B = trans == :c ? PermutedDimsArray(B, (1, 4, 3, 2)) : B
     @tensor L[nb, nc, nt] := LE[ob, oc, ot] * A[ot, α, nt] *
-                             M[oc, α, nc, β] * B[ob, β, nb] order = (ot, α, oc, β, ob)
-    L
-end
-
-function update_env_left(
-    LE::S, A::S, M::T, B::S, ::Val{:c}
-) where {S <: AbstractArray{Float64, 3}, T <: AbstractArray{Float64, 4}}
-    @tensor L[nb, nc, nt] := LE[ob, oc, ot] * A[ot, α, nt] *
-                             M[oc, β, nc, α] * B[ob, β, nb] order = (ot, α, oc, β, ob)
+                             M[0][oc, α, nc, β] * B[ob, β, nb] order = (ot, α, oc, β, ob)
     L
 end
 
 # Improve this functiion with brodcasting
-function update_env_left(
-    LE::S, A::S, M::T, B::S, ::Val{:n}
-) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
-    L = zeros(size(B, 3), maximum(M.projs[3]), size(A, 3))
-    for (σ, lexp) ∈ enumerate(M.loc_exp)
-        AA = @view A[:, M.projs[2][σ], :]
-        LL = @view LE[:, M.projs[1][σ], :]
-        BB = @view B[:, M.projs[4][σ], :]
-        L[:, M.projs[3][σ], :] += lexp .* (BB' * LL * AA)
-    end
-    L
-end
+# function update_env_left(
+#     LE::S, A::S, M::T, B::S, ::Val{:n}
+# ) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
+#     L = zeros(size(B, 3), maximum(M.projs[3]), size(A, 3))
+#     for (σ, lexp) ∈ enumerate(M.loc_exp)
+#         AA = @view A[:, M.projs[2][σ], :]
+#         LL = @view LE[:, M.projs[1][σ], :]
+#         BB = @view B[:, M.projs[4][σ], :]
+#         L[:, M.projs[3][σ], :] += lexp .* (BB' * LL * AA)
+#     end
+#     L
+# end
 
-function update_env_left(
-    LE::S, A::S, M::T, B::S, ::Val{:c}
-) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
-    L = zeros(size(B, 3), maximum(M.projs[3]), size(A, 3))
+# function update_env_left(
+#     LE::S, A::S, M::T, B::S, ::Val{:c}
+# ) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
+#     L = zeros(size(B, 3), maximum(M.projs[3]), size(A, 3))
 
-    for (σ, lexp) ∈ enumerate(M.loc_exp)
-        AA = @view A[:, M.projs[4][σ], :]
-        LL = @view LE[:, M.projs[1][σ], :]
-        BB = @view B[:, M.projs[2][σ], :]
-        L[:, M.projs[3][σ], :] += lexp .* (BB' * LL * AA)
-    end
-    L
-end
+#     for (σ, lexp) ∈ enumerate(M.loc_exp)
+#         AA = @view A[:, M.projs[4][σ], :]
+#         LL = @view LE[:, M.projs[1][σ], :]
+#         BB = @view B[:, M.projs[2][σ], :]
+#         L[:, M.projs[3][σ], :] += lexp .* (BB' * LL * AA)
+#     end
+#     L
+# end
 
-# This is not optimal
-function update_env_left(
-    LE::S, A::S, M::T, B::S, ::Val{:n}
-) where {S <: AbstractArray{Float64, 3}, T <: SparseVirtualTensor}
-    h = M.con
-    p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
+# # This is not optimal
+# function update_env_left(
+#     LE::S, A::S, M::T, B::S, ::Val{:n}
+# ) where {S <: AbstractArray{Float64, 3}, T <: SparseVirtualTensor}
+#     h = M.con
+#     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
 
-    @cast A4[x, k, l, y] := A[x, (k, l), y] (k ∈ 1:maximum(p_rt))
-    @cast B4[x, k, l, y] := B[x, (k, l), y] (k ∈ 1:maximum(p_lb))
+#     @cast A4[x, k, l, y] := A[x, (k, l), y] (k ∈ 1:maximum(p_rt))
+#     @cast B4[x, k, l, y] := B[x, (k, l), y] (k ∈ 1:maximum(p_lb))
 
-    L = zeros(size(B, 3), length(p_r), size(A, 3))
-    for l ∈ 1:length(p_l), r ∈ 1:length(p_r)
-        AA = @view A4[:, p_rt[r], p_lt[l], :]
-        LL = @view LE[:, l, :]
-        BB = @view B4[:, p_lb[l], p_rb[r], :]
-        L[:, r, :] += h[p_l[l], p_r[r]] .* (BB' * LL * AA)
-    end
-    L
-end
+#     L = zeros(size(B, 3), length(p_r), size(A, 3))
+#     for l ∈ 1:length(p_l), r ∈ 1:length(p_r)
+#         AA = @view A4[:, p_rt[r], p_lt[l], :]
+#         LL = @view LE[:, l, :]
+#         BB = @view B4[:, p_lb[l], p_rb[r], :]
+#         L[:, r, :] += h[p_l[l], p_r[r]] .* (BB' * LL * AA)
+#     end
+#     L
+# end
 
-function update_env_left(
-    LE::S, A::S, M::T, B::S, ::Val{:c}
-) where {S <: AbstractArray{Float64, 3}, T <: SparseVirtualTensor}
-    ## TO BE WRITTEN
-    h = M.con
-    p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
+# function update_env_left(
+#     LE::S, A::S, M::T, B::S, ::Val{:c}
+# ) where {S <: AbstractArray{Float64, 3}, T <: SparseVirtualTensor}
+#     ## TO BE WRITTEN
+#     h = M.con
+#     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
 
-    @cast A4[x, k, l, y] := A[x, (k, l), y] (k ∈ 1:maximum(p_rt))
-    @cast B4[x, k, l, y] := B[x, (k, l), y] (k ∈ 1:maximum(p_lb))
+#     @cast A4[x, k, l, y] := A[x, (k, l), y] (k ∈ 1:maximum(p_rt))
+#     @cast B4[x, k, l, y] := B[x, (k, l), y] (k ∈ 1:maximum(p_lb))
 
-    L = zeros(size(B, 3), length(p_r), size(A, 3))
-    for l ∈ 1:length(p_l), r ∈ 1:length(p_r)
-        AA = @view A4[:, p_lb[l], p_rb[r], :]
-        LL = @view LE[:, l, :]
-        BB = @view B4[:, p_rt[r], p_lt[l], :]
-        L[:, r, :] += h[p_l[l], p_r[r]] .* (BB' * LL * AA)
-    end
-    L
-end
+#     L = zeros(size(B, 3), length(p_r), size(A, 3))
+#     for l ∈ 1:length(p_l), r ∈ 1:length(p_r)
+#         AA = @view A4[:, p_lb[l], p_rb[r], :]
+#         LL = @view LE[:, l, :]
+#         BB = @view B4[:, p_rt[r], p_lt[l], :]
+#         L[:, r, :] += h[p_l[l], p_r[r]] .* (BB' * LL * AA)
+#     end
+#     L
+# end
 
 function _update_tensor_forward(
     A::S, M::T, sites, ::Val{:n}

@@ -5,10 +5,12 @@ LinearAlgebra.norm(ψ::QMPS) = sqrt(abs(dot(ψ, ψ)))
 
 function LinearAlgebra.dot(ψ::QMPO, ϕ::QMPS)
     D = Dict{Site, Tensor}()
-    for i ∈ reverse(ϕ.sites)
-        T = sort(collect(ψ[i]), by = x -> x[begin])
+    for i ∈ ϕ.sites
+        T = collect(ψ[i])
         TT = ϕ[i]
-        for (t, v) ∈ reverse(T) TT = contract_up(TT, v) end
+        for (_, v) ∈ T
+             TT = contract_up(TT, v)
+        end
 
         mps_li = _left_nbrs_site(i, ϕ.sites)
         mpo_li = _left_nbrs_site(i, ψ.sites)

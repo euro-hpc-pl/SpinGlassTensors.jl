@@ -3,7 +3,7 @@
     d = 2
     sites = 100
     T = Float64
-    
+
     Dcut = 8
     max_sweeps = 100
     tol = 1E-10
@@ -14,7 +14,7 @@
     ket = QMPS(ψ)
     mpo = QMPO(W)
 
-    @testset "Two mps representations are compressed to the same state" begin 
+    @testset "Two mps representations are compressed to the same state" begin
         χ = W * ψ
         overlap = compress!(χ, Dcut, tol, max_sweeps)
         @test is_left_normalized(χ)
@@ -22,9 +22,9 @@
         ϕ = copy(ψ)
         canonise!(ϕ, :left)
         bra = QMPS(ϕ)
-
+        @show typeof(mpo[1][0])
         overlap = compress!(bra, mpo, ket, Dcut, tol, max_sweeps)
-        
+
         ϕ = MPS(bra)
         is_right_normalized(ϕ)
         @test norm(χ) ≈ norm(ϕ) ≈ 1

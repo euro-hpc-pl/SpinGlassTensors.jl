@@ -1,19 +1,16 @@
 export compress!, compress_twosite!
+mutable struct Environment{T <: Real, S}
+    bra::QMPS{T}
+    mpo::QMPO{T}
+    ket::QMPS{T}
+    env::Dict{Tuple{Site, Symbol}, Tensor{T}}
 
-mutable struct Environment <: AbstractEnvironment
-    bra::QMPS  # to be optimized
-    mpo::QMPO
-    ket::QMPS
-    trans::Symbol
-    env::Dict
-
-    function Environment(
-        bra::QMPS,
-        mpo::QMPO,
-        ket::QMPS,
-        trans::Symbol=:n
-    )
-        @assert trans ∈ (:n, :c)
+    function Environment{T, S}(
+        bra::QMPS{T},
+        mpo::QMPO{T},
+        ket::QMPS{T},
+    ) where {T <: Real, S}
+        @assert S ∈ (:n, :c)
         @assert bra.sites == ket.sites
         @assert issubset(bra.sites, mpo.sites)
 
@@ -21,11 +18,18 @@ mutable struct Environment <: AbstractEnvironment
             (first(bra.sites), :left) => ones(1, 1, 1),
             (last(bra.sites), :right) => ones(1, 1, 1)
         )
-        env = new(bra, mpo, ket, trans, env0)
-        for site ∈ env.bra.sites update_env_left!(env, site, trans) end
+        env = new(bra, mpo, ket, env0)
+        for site ∈ env.bra.sites update_env_left!(env, site) end
         env
     end
 end
+
+function Environment(bra::QMPS, mpo::QMPO, ket::QMPS, trans::Symbol=:n)
+    T = reduce(promote_type, eltype.((bra, mpo, ket)))
+    Environment{T, trans}(bra, mpo, ket)
+end
+
+trans(::Environment{T, S}) where {T, S} = S
 
 function SpinGlassTensors.compress!(
     bra::QMPS,
@@ -33,9 +37,8 @@ function SpinGlassTensors.compress!(
     ket::QMPS;
     tol::Real=1E-8,
     max_sweeps::Int=4,
-    trans::Symbol=:n,
 )
-    env = Environment(bra, mpo, ket, trans)
+    env = Environment(bra, mpo, ket)
     overlap = Inf
     overlap_before = measure_env(env, last(env.bra.sites), trans)
 
@@ -158,11 +161,11 @@ function _right_nbrs_site(site::Site, sorted_sites)
     site_pos == length(sorted_sites) ? Inf : sorted_sites[site_pos+1]
 end
 
-function update_env_left!(env::Environment, site::Site, trans::Symbol=:n)
+function update_env_left!(env::Environment, site::Site)
     if site <= first(env.bra.sites) return end
 
     ls = _left_nbrs_site(site, env.bra.sites)
-    LL = update_env_left(env.env[(ls, :left)], env.bra[ls], env.mpo[ls], env.ket[ls], trans)
+    LL = update_env_left(env.env[(ls, :left)], env.bra[ls], env.mpo[ls], env.ket[ls], trans(env))
 
     rs = _right_nbrs_site(ls, env.mpo.sites)
     while rs < site
@@ -201,7 +204,7 @@ function update_env_left(
     A₀::AbstractArray{T, 3},
     M::Dict,
     B₀::AbstractArray{T, 3},
-    trans::Symbol=:n
+    trans::Symbol
 ) where {T <: Real}
     sites = sort(collect(keys(M)))
     A =_update_tensor_forward(A₀, M, sites, Val(trans))
@@ -444,10 +447,8 @@ function project_ket_on_bra(
     TT
 end
 
-function measure_env(env::Environment, site::Site, trans::Symbol=:n)
-    L = update_env_left(
-        env.env[(site, :left)], env.bra[site], env.mpo[site], env.ket[site], trans
-    )
+function measure_env(env::Environment, site::Site)
+    L = update_env_left(env.env[(site, :left)], env.bra[site], env.mpo[site], env.ket[site])
     R = env.env[(site, :right)]
     @tensor L[t, c, b] * R[b, c, t]
 end

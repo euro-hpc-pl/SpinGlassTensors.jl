@@ -133,3 +133,77 @@
 #     end
 #     R
 # end
+
+
+
+
+
+
+
+# function project_ket_on_bra(
+#     LE::S, B::S, M::T, RE::S, ::Val{:c}
+# ) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
+#     ## TO BE WRITTEN
+#     A = zeros(size(LE, 3), maximum(M.projs[4]), size(RE, 1))
+
+#     #Threads.@threads for σ ∈ 1:length(M.loc_exp)
+#     #    lexp = M.loc_exp[σ]
+#     for (σ, lexp) ∈ enumerate(M.loc_exp)
+#         le = @view LE[:, M.projs[1][σ], :]
+#         b = @view B[:, M.projs[2][σ], :]
+#         re = @view RE[:, M.projs[3][σ], :]
+#         A[:, M.projs[4][σ], :] += lexp .* (le' * b * re')
+#     end
+#     A
+# end
+
+# function project_ket_on_bra(
+#     LE::S, B::S, M::T, RE::S, ::Val{:c}
+# ) where {S <: AbstractArray{Float64, 3}, T <: SparseVirtualTensor}
+#     h = M.con
+#     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
+#     @cast B4[x, k, l, y] := B[x, (k, l), y] (k ∈ 1:maximum(p_lb))
+#     A = zeros(size(LE, 3), maximum(p_lb), maximum(p_rb), size(RE, 1))
+#     for l ∈ 1:length(p_l), r ∈ 1:length(p_r)
+#         le = @view LE[:, l, :]
+#         b = @view B4[:, p_rt[r], p_lt[l], :]
+#         re = @view RE[:, r, :]
+#         A[:, p_lb[l], p_rb[r], :] += h[p_l[l], p_r[r]] .* (le' * b * re')
+#     end
+#     @cast AA[l, (ũ, u), r] := A[l, ũ, u, r]
+#     AA
+# end
+
+# function project_ket_on_bra(
+#     LE::S, B::S, M::T, RE::S, ::Val{:n}
+# ) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
+#     A = zeros(size(LE, 3), maximum(M.projs[2]), size(RE, 1))
+
+#     #Threads.@threads for σ ∈ 1:length(M.loc_exp)
+#     #    lexp = M.loc_exp[σ]
+#     for (σ, lexp) ∈ enumerate(M.loc_exp)
+#         le = @view LE[:, M.projs[1][σ], :]
+#         b = @view B[:, M.projs[4][σ], :]
+#         re = @view RE[:, M.projs[3][σ], :]
+#         A[:, M.projs[2][σ], :] += lexp .* (le' * b * re')
+#     end
+#     A
+# end
+
+# function project_ket_on_bra(
+#     LE::S, B::S, M::T, RE::S, ::Val{:n}
+# ) where {S <: AbstractArray{Float64, 3}, T <: SparseVirtualTensor}
+
+#     h = M.con
+#     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
+#     @cast B4[x, k, l, y] := B[x, (k, l), y] (k ∈ 1:maximum(p_lb))
+#     A = zeros(size(LE, 3), maximum(p_rt), maximum(p_lt), size(RE, 1))
+#     for l ∈ 1:length(p_l), r ∈ 1:length(p_r)
+#         le = @view LE[:, l, :]
+#         b = @view B4[:, p_lb[l], p_rb[r], :]
+#         re = @view RE[:, r, :]
+#         A[:,  p_rt[r], p_lt[l], :] += h[p_l[l], p_r[r]] .* (le' * b * re')
+#     end
+#     @cast AA[l, (ũ, u), r] := A[l, ũ, u, r]
+#     AA
+# end

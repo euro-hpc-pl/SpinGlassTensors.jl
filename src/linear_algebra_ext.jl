@@ -1,15 +1,15 @@
 export rq_fact, qr_fact
 
-function qr_fact(M::AbstractMatrix, Dcut::Int=typemax(Int), tol::Float64=1e-12, args...)
-    F = qr(M, args...)
+function qr_fact(M::AbstractMatrix, Dcut::Int=typemax(Int), tol::Float64=1e-12)
+    F = qr(M)
     q, r = _qr_fix(Array(F.Q), Array(F.R))
     if Dcut > size(q, 2) return q, r end
     U, Σ, V = _psvd(r, Dcut, tol)
     q * U, Diagonal(Σ) * V'
 end
 
-function rq_fact(M::AbstractMatrix, Dcut::Int=typemax(Int), tol::Float64=1e-12, args...)
-    q, r = qr_fact(M', Dcut, tol, args...)
+function rq_fact(M::AbstractMatrix, Dcut::Int=typemax(Int), tol::Float64=1e-12)
+    q, r = qr_fact(M', Dcut, tol)
     Matrix(r'), Matrix(q') # Matrix is to ensure types compatibility
 end
 
@@ -23,9 +23,9 @@ function _qr_fix(Q::T, R::AbstractMatrix) where {T <: AbstractMatrix}
 end
 
 function _psvd(
-    A::AbstractMatrix, Dcut::Int=typemax(Int), tol::Float64=1e-12, args...
+    A::AbstractMatrix, Dcut::Int=typemax(Int), tol::Float64=1e-12
 )
-    U, Σ, V = svd(A, args...)
+    U, Σ, V = svd(A)
 
     tol = Σ[begin] * max(eps(), tol)
     δ = min(Dcut, sum(Σ .> tol))

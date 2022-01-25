@@ -30,20 +30,18 @@ end
 function SpinGlassTensors.compress!(
     bra::QMPS,
     mpo::QMPO,
-    ket::QMPS,
-    Dcut::Int,
+    ket::QMPS;
     tol::Real=1E-8,
     max_sweeps::Int=4,
     trans::Symbol=:n,
-    args...
 )
     env = Environment(bra, mpo, ket, trans)
     overlap = Inf
     overlap_before = measure_env(env, last(env.bra.sites), trans)
 
     for sweep ∈ 1:max_sweeps
-        _left_sweep_var!(env, trans, args...)
-        _right_sweep_var!(env, trans, args...)
+        _left_sweep_var!(env, trans)
+        _right_sweep_var!(env, trans)
 
         overlap = measure_env(env, last(env.bra.sites), trans)
         Δ = abs(overlap_before - abs(overlap))
@@ -60,14 +58,14 @@ function SpinGlassTensors.compress!(
 end
 
 function compress_twosite!(
-    bra::QMPS, mpo::QMPO, ket::QMPS, Dcut::Int, tol::Real=1E-8, max_sweeps::Int=4, args...
+    bra::QMPS, mpo::QMPO, ket::QMPS, Dcut::Int, tol::Real=1E-8, max_sweeps::Int=4
 )
     env = Environment(bra, mpo, ket)
     overlap = Inf
     overlap_before = measure_env(env, last(env.bra.sites))
     for sweep ∈ 1:max_sweeps
-        _left_sweep_var_twosite!(env, Dcut, tol, args...)
-        _right_sweep_var_twosite!(env, Dcut, tol, args...)
+        _left_sweep_var_twosite!(env, Dcut, tol)
+        _right_sweep_var_twosite!(env, Dcut, tol)
 
         overlap = measure_env(env, last(env.bra.sites))
 
@@ -84,36 +82,36 @@ function compress_twosite!(
     overlap
 end
 
-function _left_sweep_var!(env::Environment, trans::Symbol=:n, args...)
+function _left_sweep_var!(env::Environment, trans::Symbol=:n)
     for site ∈ reverse(env.bra.sites)
         update_env_right!(env, site, trans)
         A = project_ket_on_bra(env, site, trans)
         @cast B[x, (y, z)] := A[x, y, z]
-        _, Q = rq_fact(B, args...)
+        _, Q = rq_fact(B)
         @cast C[x, σ, y] := Q[x, (σ, y)] (σ ∈ 1:size(A, 2))
         env.bra[site] = C
         clear_env_containing_site!(env, site)
     end
 end
 
-function _right_sweep_var!(env::Environment, trans::Symbol=:n, args...)
+function _right_sweep_var!(env::Environment, trans::Symbol=:n)
     for site ∈ env.bra.sites
         update_env_left!(env, site, trans)
         A = project_ket_on_bra(env, site, trans)
         @cast B[(x, y), z] := A[x, y, z]
-        Q, _ = qr_fact(B, args...)
+        Q, _ = qr_fact(B)
         @cast C[x, σ, y] := Q[(x, σ), y] (σ ∈ 1:size(A, 2))
         env.bra[site] = C
         clear_env_containing_site!(env, site)
     end
 end
 
-function _left_sweep_var_twosite!(env::Environment, Dcut::Int, tol::Number, args...)
+function _left_sweep_var_twosite!(env::Environment, Dcut::Int, tol::Number)
     for site ∈ reverse(env.bra.sites[2:end])
         update_env_right!(env, site)
         A = project_ket_on_bra_twosite(env, site)
         @cast B[(x, y), (z, w)] := A[x, y, z, w]
-        U, S, VV = svd(B, Dcut, tol, args...)
+        U, S, VV = svd(B, Dcut, tol)
         V = VV'
         @cast C[x, σ, y] := V[x, (σ, y)] (σ ∈ 1:size(A, 3))
         env.bra[site] = C
@@ -128,13 +126,13 @@ function _left_sweep_var_twosite!(env::Environment, Dcut::Int, tol::Number, args
     end
 end
 
-function _right_sweep_var_twosite!(env::Environment, Dcut::Int, tol::Number, args...)
+function _right_sweep_var_twosite!(env::Environment, Dcut::Int, tol::Number)
     for site ∈ env.bra.sites[1:end-1]
         site_r = _right_nbrs_site(site, env.bra.sites)
         update_env_left!(env, site)
         A = project_ket_on_bra_twosite(env, site_r)
         @cast B[(x, y), (z, w)] := A[x, y, z, w]
-        U, S, V = svd(B, Dcut, tol, args...)
+        U, S, V = svd(B, Dcut, tol)
         @cast C[x, σ, y] := U[(x, σ), y] (σ ∈ 1:size(A, 2))
         env.bra[site] = C
         clear_env_containing_site!(env, site)
@@ -454,38 +452,38 @@ function measure_env(env::Environment, site::Site, trans::Symbol=:n)
     @tensor L[t, c, b] * R[b, c, t]
 end
 
-function truncate!(ψ::QMPS, s::Symbol, Dcut::Int=typemax(Int), args...)
+function truncate!(ψ::QMPS, s::Symbol, Dcut::Int=typemax(Int))
     @assert s ∈ (:left, :right)
     if s == :right
-        _right_sweep!(ψ, args...)
-        _left_sweep!(ψ, Dcut, args...)
+        _right_sweep!(ψ)
+        _left_sweep!(ψ, Dcut)
     else
-        _left_sweep!(ψ, args...)
-        _right_sweep!(ψ, Dcut, args...)
+        _left_sweep!(ψ)
+        _right_sweep!(ψ, Dcut)
     end
 end
 canonise!(ψ::QMPS, s::Symbol) = canonise!(ψ, Val(s))
 canonise!(ψ::QMPS, ::Val{:right}) = _left_sweep!(ψ, typemax(Int))
 canonise!(ψ::QMPS, ::Val{:left}) = _right_sweep!(ψ, typemax(Int))
 
-function _right_sweep!(ψ::QMPS, Dcut::Int=typemax(Int), args...)
+function _right_sweep!(ψ::QMPS, Dcut::Int=typemax(Int))
     R = ones(eltype(ψ[1]), 1, 1)
     for i ∈ ψ.sites
         A = ψ[i]
         @matmul M̃[(x, σ), y] := sum(α) R[x, α] * A[α, σ, y]
-        Q, R = qr_fact(M̃, Dcut, args...)
+        Q, R = qr_fact(M̃, Dcut)
         R = R ./ maximum(abs.(R))
         @cast A[x, σ, y] := Q[(x, σ), y] (σ ∈ 1:size(A, 2))
         ψ[i] = A
     end
 end
 
-function _left_sweep!(ψ::QMPS, Dcut::Int=typemax(Int), args...)
+function _left_sweep!(ψ::QMPS, Dcut::Int=typemax(Int))
     R = ones(eltype(ψ[1]), 1, 1)
     for i ∈ reverse(ψ.sites)
         B = ψ[i]
         @matmul M̃[x, (σ, y)] := sum(α) B[x, σ, α] * R[α, y]
-        R, Q = rq_fact(M̃, Dcut, args...)
+        R, Q = rq_fact(M̃, Dcut)
         R = R ./ maximum(abs.(R))
         @cast B[x, σ, y] := Q[x, (σ, y)] (σ ∈ 1:size(B, 2))
         ψ[i] = B

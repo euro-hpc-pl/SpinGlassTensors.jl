@@ -8,7 +8,6 @@ export
     Site,
     Tensor
 
-abstract type AbstractEnvironment end
 abstract type AbstractSparseTensor end
 
 const Site = Union{Int, Rational{Int}}

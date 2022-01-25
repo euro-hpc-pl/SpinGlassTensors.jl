@@ -310,14 +310,14 @@ function project_ket_on_bra(
 end
 
 function project_ket_on_bra(
-    LE::S, B::S, M::T, RE::S, ::Val{:n}
+    ::S, B::S, M::T, ::S, ::Val{:n}
 ) where {T <: AbstractArray{Float64, 2}, S <: AbstractArray{Float64, 3}}
     @tensor A[x, y, z] := B[x, a, z] * M[y, a]
     A
 end
 
 function project_ket_on_bra(
-    LE::S, B::S, M::T, RE::S, ::Val{:c}
+    ::S, B::S, M::T, ::S, ::Val{:c}
 ) where {T <: AbstractArray{Float64, 2}, S <: AbstractArray{Float64, 3}}
     @tensor A[x, y, z] := B[x, a, z] * M[a, y]
     A

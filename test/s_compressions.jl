@@ -13,6 +13,13 @@
 
     ket = QMPS(ψ)
     mpo = QMPO(W)
+    bra = QMPS(ψ)
+    ttrans = :n
+
+    @testset "Environment type" begin
+        env = SpinGlassTensors.Environment(bra, mpo, ket, ttrans)
+        @test SpinGlassTensors.trans(env) == ttrans
+    end
 
     @testset "Two mps representations are compressed to the same state" begin
         χ = W * ψ
@@ -23,7 +30,7 @@
         canonise!(ϕ, :left)
         bra = QMPS(ϕ)
         @show typeof(mpo[1][0])
-        overlap = compress!(bra, mpo, ket, Dcut, tol, max_sweeps)
+        overlap = compress!(bra, mpo, ket; tol, max_sweeps)
 
         ϕ = MPS(bra)
         is_right_normalized(ϕ)

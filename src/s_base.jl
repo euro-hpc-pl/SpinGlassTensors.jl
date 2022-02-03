@@ -1,11 +1,11 @@
-export QMps, QMpo, local_dims, Site, Tensor
+export QMps, QMpo, local_dims, Site, Sites, Tensor
 export SparseSiteTensor, SparseVirtualTensor, IdentityQMps
 
 abstract type AbstractEnvironment end
 abstract type AbstractSparseTensor end
 
 const Site = Union{Int, Rational{Int}}
-
+const Sites = NTuple{N, Site} where N
 struct SparseSiteTensor <: AbstractSparseTensor
     loc_exp::Vector{<:Real}
     projs::NTuple{N, Vector{Int}} where N

@@ -1,4 +1,5 @@
 export compress!, _left_nbrs_site, _right_nbrs_site, compress_twosite!
+export Environment
 
 mutable struct Environment <: AbstractEnvironment
     bra::QMps  # to be optimized

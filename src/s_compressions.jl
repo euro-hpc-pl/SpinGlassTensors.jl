@@ -687,69 +687,87 @@ function _left_sweep!(ψ::QMps, Dcut::Int=typemax(Int), args...)
     end
 end
 
-function optimize_gauges_for_overlaps!(ψ_top::QMps, ψ_bot::QMps)
+function optimize_gauges_for_overlaps!(ψ_top::QMps, ψ_bot::QMps, tol::Real=1E-8,
+    max_sweeps::Int=4)
     canonise!(ψ_top, :right)
     canonise!(ψ_bot, :right)
+    overlap_old = dot(ψ_top, ψ_bot)
     D = Dict(i => ones(size(ψ_top[i], 2)) for i ∈ ψ_top.sites)
-    RT = ones(1, 1)
-    RB = ones(1, 1)
-    for i ∈ ψ_top.sites
-        T = ψ_top[i]
-        @tensor T[a,b,c] := RT[a, s] * T[s, b, c]
-        TT = conj(T)
-        B = ψ_bot[i]
-        @tensor B[a,b,c] := RB[a, s] * B[s, b, c]
-        BB = conj(B)
-        @tensor ρ_t[r,s] := T[i, r, j] * TT[i, s, j]
-        @tensor ρ_b[r,s] := B[i, r, j] * BB[i, s, j]
-        dρ_b = Diagonal(ρ_b)
-        dρ_t = Diagonal(ρ_t)
-        gauge = sqrt.(sqrt.(dρ_b./dρ_t))
-        push!(D, i => gauge .* D[i])
-        gauge_inv = 1 ./ gauge
-        AT = T * reshape(gauge, (1, :, 1))
-        AB = B * reshape(gauge_inv, (1, :, 1))
-        
-        QT, RT = qr_fact(AT)
-        RT = RT ./ maximum(abs.(RT))
-        @cast AT[x, σ, y] := QT[(x, σ), y] (σ ∈ 1:size(AT, 2))
-        ψ_top[i] = AT
+    for sweep ∈ 1:max_sweeps
+        RT = ones(1, 1)
+        RB = ones(1, 1)
+        for i ∈ ψ_top.sites
+            T = ψ_top[i]
+            @tensor T[a,b,c] := RT[a, s] * T[s, b, c]
+            TT = conj(T)
+            B = ψ_bot[i]
+            @tensor B[a,b,c] := RB[a, s] * B[s, b, c]
+            BB = conj(B)
+            @tensor ρ_t[r,s] := T[i, r, j] * TT[i, s, j]
+            @tensor ρ_b[r,s] := B[i, r, j] * BB[i, s, j]
+            dρ_b = diag(ρ_b)
+            dρ_t = diag(ρ_t)
+            gauge = sqrt.(sqrt.(dρ_b./dρ_t))
+            push!(D, i => gauge .* D[i])
+            gauge_inv = 1 ./ gauge
+            AT = T .* reshape(gauge, (1, :, 1))
+            AB = B .* reshape(gauge_inv, (1, :, 1))
 
-        QB, RB = qr_fact(AB)
-        RB = RB ./ maximum(abs.(RB))
-        @cast AB[x, σ, y] := QB[(x, σ), y] (σ ∈ 1:size(AB, 2))
-        ψ_bot[i] = AB
-    end
+            @cast ATR[(x, σ), y] := AT[x, σ, y]
+            QT, RT = qr_fact(ATR)
+            RT = RT ./ maximum(abs.(RT))
+            @cast AT[x, σ, y] := QT[(x, σ), y] (σ ∈ 1:size(AT, 2))
+            ψ_top[i] = AT
 
-    RT = ones(1, 1)
-    RB = ones(1, 1)
+            @cast ABR[(x, σ), y] := AB[x, σ, y]
+            QB, RB = qr_fact(ABR)
+            RB = RB ./ maximum(abs.(RB))
+            @cast AB[x, σ, y] := QB[(x, σ), y] (σ ∈ 1:size(AB, 2))
+            ψ_bot[i] = AB
+        end
 
-    for i ∈ reverse(ψ_top.sites)
-        T = ψ_top[i]
-        @tensor T[a,b,c] := T[a, b, s] * RT[s, c]
-        TT = conj(T)
-        B = ψ_bot[i]
-        @tensor B[a,b,c] :=  B[a, b, s] * RB[s, c]
-        BB = conj(B)
-        @tensor ρ_t[r,s] := T[i, r, j] * TT[i, s, j]
-        @tensor ρ_b[r,s] := B[i, r, j] * BB[i, s, j]
-        dρ_b = Diagonal(ρ_b)
-        dρ_t = Diagonal(ρ_t)
-        gauge = sqrt.(sqrt.(dρ_b./dρ_t))
-        push!(D, i => gauge .* D[i])
-        gauge_inv = 1 ./ gauge
-        AT = T * reshape(gauge, (1, :, 1))
-        AB = B * reshape(gauge_inv, (1, :, 1))
+        RT = ones(1, 1)
+        RB = ones(1, 1)
 
-        RT, QT = rq_fact(AT)
-        RT = RT ./ maximum(abs.(RT))
-        @cast AT[x, σ, y] := QT[x, (σ, y)] (σ ∈ 1:size(AT, 2))
-        ψ_top[i] = AT
+        for i ∈ reverse(ψ_top.sites)
+            T = ψ_top[i]
+            @tensor T[a,b,c] := T[a, b, s] * RT[s, c]
+            TT = conj(T)
+            B = ψ_bot[i]
+            @tensor B[a,b,c] :=  B[a, b, s] * RB[s, c]
+            BB = conj(B)
+            @tensor ρ_t[r,s] := T[i, r, j] * TT[i, s, j]
+            @tensor ρ_b[r,s] := B[i, r, j] * BB[i, s, j]
+            dρ_b = diag(ρ_b)
+            dρ_t = diag(ρ_t)
+            gauge = sqrt.(sqrt.(dρ_b./dρ_t))
+            push!(D, i => gauge .* D[i])
+            gauge_inv = 1 ./ gauge
+            AT = T .* reshape(gauge, (1, :, 1))
+            AB = B .* reshape(gauge_inv, (1, :, 1))
 
-        RB, QB = rq_fact(AB)
-        RB = RB ./ maximum(abs.(RB))
-        @cast AB[x, σ, y] := QB[x, (σ, y)] (σ ∈ 1:size(AB, 2))
-        ψ_bot[i] = AB
+            @cast ATR[x, (σ, y)] := AT[x, σ, y]
+            RT, QT = rq_fact(ATR)
+            RT = RT ./ maximum(abs.(RT))
+            @cast AT[x, σ, y] := QT[x, (σ, y)] (σ ∈ 1:size(AT, 2))
+            ψ_top[i] = AT
+
+            @cast ABR[x, (σ, y)] := AB[x, σ, y]
+            RB, QB = rq_fact(ABR)
+            RB = RB ./ maximum(abs.(RB))
+            @cast AB[x, σ, y] := QB[x, (σ, y)] (σ ∈ 1:size(AB, 2))
+            ψ_bot[i] = AB
+        end
+
+        overlap_new = dot(ψ_top, ψ_bot)
+        Δ = overlap_new / overlap_old
+        println("overlap_old ", overlap_old)
+        println("overlap_new ", overlap_new)
+        overlap_old = overlap_new
+        if abs(Δ - 1) < tol
+            break
+        end
+
     end
     D
 end

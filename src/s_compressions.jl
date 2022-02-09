@@ -1,5 +1,6 @@
 export compress!, _left_nbrs_site, _right_nbrs_site, compress_twosite!
 export Environment
+export optimize_gauges_for_overlaps!
 
 mutable struct Environment <: AbstractEnvironment
     bra::QMps  # to be optimized
@@ -684,4 +685,71 @@ function _left_sweep!(ψ::QMps, Dcut::Int=typemax(Int), args...)
         @cast B[x, σ, y] := Q[x, (σ, y)] (σ ∈ 1:size(B, 2))
         ψ[i] = B
     end
+end
+
+function optimize_gauges_for_overlaps!(ψ_top::QMps, ψ_bot::QMps)
+    canonise!(ψ_top, :right)
+    canonise!(ψ_bot, :right)
+    D = Dict(i => ones(size(ψ_top[i], 2)) for i ∈ ψ_top.sites)
+    RT = ones(1, 1)
+    RB = ones(1, 1)
+    for i ∈ ψ_top.sites
+        T = ψ_top[i]
+        @tensor T[a,b,c] := RT[a, s] * T[s, b, c]
+        TT = conj(T)
+        B = ψ_bot[i]
+        @tensor B[a,b,c] := RB[a, s] * B[s, b, c]
+        BB = conj(B)
+        @tensor ρ_t[r,s] := T[i, r, j] * TT[i, s, j]
+        @tensor ρ_b[r,s] := B[i, r, j] * BB[i, s, j]
+        dρ_b = Diagonal(ρ_b)
+        dρ_t = Diagonal(ρ_t)
+        gauge = sqrt.(sqrt.(dρ_b./dρ_t))
+        push!(D, i => gauge .* D[i])
+        gauge_inv = 1 ./ gauge
+        AT = T * reshape(gauge, (1, :, 1))
+        AB = B * reshape(gauge_inv, (1, :, 1))
+        
+        QT, RT = qr_fact(AT)
+        RT = RT ./ maximum(abs.(RT))
+        @cast AT[x, σ, y] := QT[(x, σ), y] (σ ∈ 1:size(AT, 2))
+        ψ_top[i] = AT
+
+        QB, RB = qr_fact(AB)
+        RB = RB ./ maximum(abs.(RB))
+        @cast AB[x, σ, y] := QB[(x, σ), y] (σ ∈ 1:size(AB, 2))
+        ψ_bot[i] = AB
+    end
+
+    RT = ones(1, 1)
+    RB = ones(1, 1)
+
+    for i ∈ reverse(ψ_top.sites)
+        T = ψ_top[i]
+        @tensor T[a,b,c] := T[a, b, s] * RT[s, c]
+        TT = conj(T)
+        B = ψ_bot[i]
+        @tensor B[a,b,c] :=  B[a, b, s] * RB[s, c]
+        BB = conj(B)
+        @tensor ρ_t[r,s] := T[i, r, j] * TT[i, s, j]
+        @tensor ρ_b[r,s] := B[i, r, j] * BB[i, s, j]
+        dρ_b = Diagonal(ρ_b)
+        dρ_t = Diagonal(ρ_t)
+        gauge = sqrt.(sqrt.(dρ_b./dρ_t))
+        push!(D, i => gauge .* D[i])
+        gauge_inv = 1 ./ gauge
+        AT = T * reshape(gauge, (1, :, 1))
+        AB = B * reshape(gauge_inv, (1, :, 1))
+
+        RT, QT = rq_fact(AT)
+        RT = RT ./ maximum(abs.(RT))
+        @cast AT[x, σ, y] := QT[x, (σ, y)] (σ ∈ 1:size(AT, 2))
+        ψ_top[i] = AT
+
+        RB, QB = rq_fact(AB)
+        RB = RB ./ maximum(abs.(RB))
+        @cast AB[x, σ, y] := QB[x, (σ, y)] (σ ∈ 1:size(AB, 2))
+        ψ_bot[i] = AB
+    end
+    D
 end

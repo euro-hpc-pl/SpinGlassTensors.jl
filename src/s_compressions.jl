@@ -700,22 +700,22 @@ function _gauges_right_sweep!!!(ψ_top::QMps, ψ_bot::QMps, all_gauges::Dict)
         @tensor ρ_t[r, s] := T[i, r, j] * conj(T)[i, s, j]
         @tensor ρ_b[r, s] := B[i, r, j] * conj(B)[i, s, j]
 
-        gauge = (diag(ρ_b) ./ diag(ρ_t)) .^ (1 / 4)
+        gauge = (diag(ρ_b) ./ diag(ρ_t)) .^ (1 / 4) # optimize
         gauge_inv = 1.0 ./ gauge
-        all_gauges[i] .*= gauge
+        all_gauges[i] .*= gauge # update
 
         AT = T .* reshape(gauge, (1, :, 1))
         AB = B .* reshape(gauge_inv, (1, :, 1))
 
         @cast ATR[(x, σ), y] := AT[x, σ, y]
         QT, RT = qr_fact(ATR)
-        RT = RT ./ maximum(abs.(RT))
+        RT ./= maximum(abs.(RT))
         @cast AT[x, σ, y] := QT[(x, σ), y] (σ ∈ 1:size(AT, 2))
         ψ_top[i] = AT
 
         @cast ABR[(x, σ), y] := AB[x, σ, y]
         QB, RB = qr_fact(ABR)
-        RB = RB ./ maximum(abs.(RB))
+        RB ./= maximum(abs.(RB))
         @cast AB[x, σ, y] := QB[(x, σ), y] (σ ∈ 1:size(AB, 2))
         ψ_bot[i] = AB
     end
@@ -732,22 +732,22 @@ function _gauges_left_sweep!!!(ψ_top::QMps, ψ_bot::QMps, all_gauges::Dict)
         @tensor ρ_t[r, s] := T[i, r, j] * conj(T)[i, s, j]
         @tensor ρ_b[r, s] := B[i, r, j] * conj(B)[i, s, j]
 
-        gauge = (diag(ρ_b) ./ diag(ρ_t)) .^ (1 / 4)
+        gauge = (diag(ρ_b) ./ diag(ρ_t)) .^ (1 / 4) # optimize
         gauge_inv = 1.0 ./ gauge
-        all_gauges[i] .*= gauge
+        all_gauges[i] .*= gauge # update
 
         AT = T .* reshape(gauge, (1, :, 1))
         AB = B .* reshape(gauge_inv, (1, :, 1))
 
         @cast ATR[x, (σ, y)] := AT[x, σ, y]
         RT, QT = rq_fact(ATR)
-        RT = RT ./ maximum(abs.(RT))
+        RT ./= maximum(abs.(RT))
         @cast AT[x, σ, y] := QT[x, (σ, y)] (σ ∈ 1:size(AT, 2))
         ψ_top[i] = AT
 
         @cast ABR[x, (σ, y)] := AB[x, σ, y]
         RB, QB = rq_fact(ABR)
-        RB = RB ./ maximum(abs.(RB))
+        RB ./= maximum(abs.(RB))
         @cast AB[x, σ, y] := QB[x, (σ, y)] (σ ∈ 1:size(AB, 2))
         ψ_bot[i] = AB
     end

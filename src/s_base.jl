@@ -11,6 +11,7 @@ struct SparseSiteTensor <: AbstractSparseTensor
     projs::NTuple{N, Vector{Int}} where N
 end
 
+#TODO: potentially change name. Used in SquareStar geometry.
 struct SparseVirtualTensor <: AbstractSparseTensor
     con::Matrix{<:Real}
     projs::NTuple{N, Vector{Int}} where N
@@ -18,6 +19,7 @@ end
 
 const Tensor = Union{AbstractArray{Float64}, SparseSiteTensor, SparseVirtualTensor}
 
+#TODO: type of sites
 struct QMps <: AbstractTensorNetwork{Number}
     tensors::Dict{Site, Tensor}
     sites::Vector{Site}
@@ -32,9 +34,10 @@ struct QMpo <: AbstractTensorNetwork{Number}
     end
 end
 
+#TODO: rethink this function
 function local_dims(mpo::QMpo, dir::Symbol)
     @assert dir ∈ (:down, :up)
-    lds = Dict()
+    lds = Dict{Site, Int}()
     for site ∈ mpo.sites
         mkeys = sort(collect(keys(mpo[site])))
         if any(length(size(mpo[site][k])) > 2 for k ∈ mkeys)
@@ -67,6 +70,7 @@ end
     ket.tensors[i] = A
 end
 
+#TODO: unify QMps and MPS
 MPS(ket::QMps) = MPS([ket[i] for i ∈ 1:length(ket)])
 QMps(ϕ::AbstractMPS) = QMps(Dict(i => A for (i, A) ∈ enumerate(ϕ)))
 QMpo(ϕ::AbstractMPO) = QMpo(Dict(i => Dict(0 => A) for (i, A) ∈ enumerate(ϕ)))

@@ -64,6 +64,7 @@ function SpinGlassTensors.compress!(
     overlap
 end
 
+# doesn't work 
 function compress_twosite!(
     bra::QMps, mpo::QMpo, ket::QMps, Dcut::Int, tol::Real=1E-8, max_sweeps::Int=4, args...
 )
@@ -113,6 +114,7 @@ function _right_sweep_var!(env::Environment, trans::Symbol=:n, args...)
     end
 end
 
+#TODO: to be changed
 function _left_sweep_var_twosite!(env::Environment, Dcut::Int, tol::Number, args...)
     for site ∈ reverse(env.bra.sites[2:end])
         update_env_right!(env, site)
@@ -133,6 +135,7 @@ function _left_sweep_var_twosite!(env::Environment, Dcut::Int, tol::Number, args
     end
 end
 
+#TODO: to be changed
 function _right_sweep_var_twosite!(env::Environment, Dcut::Int, tol::Number, args...)
     for site ∈ env.bra.sites[1:end-1]
         site_r = _right_nbrs_site(site, env.bra.sites)
@@ -153,14 +156,14 @@ function _right_sweep_var_twosite!(env::Environment, Dcut::Int, tol::Number, arg
     end
 end
 
-# Largest x in sites: x < site
+"Largest x in sites: x < site"
 function _left_nbrs_site(site::Site, sites)
     ls = filter(i -> i < site, sites)
     if isempty(ls) return -Inf end
     maximum(ls)
 end
 
-# Smallest x in sites: x > site
+"Smallest x in sites: x > site"
 function _right_nbrs_site(site::Site, sites)
     ms = filter(i -> i > site, sites)
     if isempty(ms) return Inf end
@@ -246,7 +249,7 @@ function update_env_left(
     L
 end
 
-# Improve this functiion with brodcasting
+# Improve this function with brodcasting
 function update_env_left(
     LE::S, A::S, M::T, B::S, ::Val{:n}
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
@@ -274,6 +277,7 @@ function update_env_left(
     L
 end
 
+# TODO: TikZ picture to be added
 # This is not optimal
 function update_env_left(
     LE::S, A::S, M::T, B::S, ::Val{:n}
@@ -294,10 +298,10 @@ function update_env_left(
     L
 end
 
+# TODO: TikZ picture to be added
 function update_env_left(
     LE::S, A::S, M::T, B::S, ::Val{:c}
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseVirtualTensor}
-    ## TO BE WRITTEN
     h = M.con
     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
 
@@ -383,9 +387,10 @@ function update_env_right(
     R
 end
 
+#TODO: think of doing threading over σ
 function update_env_right(
     RE::S, A::S, M::T, B::S, ::Val{:n}
-) where {T <: SparseSiteTensor, S} # {T <: SparseSiteTensor, S <: AbstractArray{Float64, 3}}
+) where {T <: SparseSiteTensor, S <: AbstractArray{Float64, 3}}
     R = zeros(size(A, 1), maximum(M.projs[1]), size(B, 1))
 
     #Threads.@threads for σ ∈ 1:length(M.loc_exp)
@@ -399,6 +404,7 @@ function update_env_right(
     R
 end
 
+#TODO: think of doing threading over σ
 function update_env_right(
     RE::S, A::S, M::T, B::S, ::Val{:c}
 ) where {T <: SparseSiteTensor, S <: AbstractArray{Float64, 3}}
@@ -415,6 +421,7 @@ function update_env_right(
     R
 end
 
+# TODO: TikZ picture to be added
 function update_env_right(
     RE::S, A::S, M::T, B::S, ::Val{:n}
 ) where {T <: SparseVirtualTensor, S <: AbstractArray{Float64,3}}
@@ -433,6 +440,7 @@ function update_env_right(
     R
 end
 
+# TODO: TikZ picture to be added
 function update_env_right(
     RE::S, A::S, M::T, B::S, ::Val{:c}
 ) where {T <: SparseVirtualTensor, S <: AbstractArray{Float64, 3}}
@@ -453,7 +461,7 @@ end
 
 function update_env_right(
     RE::S, A₀::S, M::T, B₀::S, trans::Symbol=:n
-) where {T <: AbstractDict, S} # {T <: AbstractDict, S <: AbstractArray{Float64, 3}}
+) where {T <: AbstractDict, S <: AbstractArray{Float64, 3}}
     sites = sort(collect(keys(M)))
     A = _update_tensor_forward(A₀, M, sites, Val(trans))
     B = _update_tensor_backwards(B₀, M, sites, Val(trans))
@@ -467,7 +475,7 @@ end
 #           --
 function update_env_right(
     RE::S, M::T, ::Val{:c}
-) where {S, T <: AbstractDict} # {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
+) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
     MM = M[0]
     @tensor R[nt, nc, nb] := MM[nc, oc] * RE[nt, oc, nb]
     R
@@ -475,7 +483,7 @@ end
 
 function update_env_right(
     RE::S, M::T, ::Val{:n}
-) where {S, T <: AbstractDict} # {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
+) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
     MM = M[0]
     @tensor R[nt, nc, nb] := MM[nc, oc] * RE[nt, oc, nb]
     R
@@ -539,6 +547,7 @@ function project_ket_on_bra(
     A
 end
 
+#TODO: think of threading over σ
 function project_ket_on_bra(
     LE::S, B::S, M::T, RE::S, ::Val{:n}
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
@@ -590,10 +599,10 @@ function project_ket_on_bra(
     A
 end
 
+#TODO: think of threading over σ
 function project_ket_on_bra(
     LE::S, B::S, M::T, RE::S, ::Val{:c}
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
-    ## TO BE WRITTEN
     A = zeros(size(LE, 3), maximum(M.projs[4]), size(RE, 1))
 
     #Threads.@threads for σ ∈ 1:length(M.loc_exp)
@@ -672,7 +681,7 @@ function _right_sweep!(ψ::QMps, Dcut::Int=typemax(Int), args...)
         A = ψ[i]
         @matmul M̃[(x, σ), y] := sum(α) R[x, α] * A[α, σ, y]
         Q, R = qr_fact(M̃, Dcut, args...)
-        R = R ./ maximum(abs.(R))
+        R ./= maximum(abs.(R))
         @cast A[x, σ, y] := Q[(x, σ), y] (σ ∈ 1:size(A, 2))
         ψ[i] = A
     end
@@ -684,7 +693,7 @@ function _left_sweep!(ψ::QMps, Dcut::Int=typemax(Int), args...)
         B = ψ[i]
         @matmul M̃[x, (σ, y)] := sum(α) B[x, σ, α] * R[α, y]
         R, Q = rq_fact(M̃, Dcut, args...)
-        R = R ./ maximum(abs.(R))
+        R ./= maximum(abs.(R))
         @cast B[x, σ, y] := Q[x, (σ, y)] (σ ∈ 1:size(B, 2))
         ψ[i] = B
     end
@@ -769,6 +778,8 @@ function optimize_gauges_for_overlaps!!(
         _gauges_left_sweep!!!(ψ_top, ψ_bot, all_gauges)
 
         overlap_new = dot(ψ_top, ψ_bot)
+        println("overlap_old ", overlap_old)
+        println("overlap_new ", overlap_new)
         Δ = overlap_new / overlap_old
         overlap_old = overlap_new
         if abs(Δ - 1.0) < tol break end

@@ -2,12 +2,20 @@ export canonise!, truncate!, compress!, compress
 
 # TODO: check if we need this
 # This is for backwards compatibility
+"""
+$(TYPEDSIGNATURES)
+
+"""
 function compress(ϕ::AbstractMPS, Dcut::Int, tol::Number=1e-8, max_sweeps::Int=4)
     ψ = copy(ϕ)
     compress!(ψ, Dcut, tol, max_sweeps)
     ψ
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+"""
 function compress!(ϕ::AbstractMPS, Dcut::Int, tol::Number=1e-8, max_sweeps::Int=4)
     # Right canonise ϕ
     _left_sweep!(ϕ)
@@ -42,6 +50,10 @@ function compress!(ϕ::AbstractMPS, Dcut::Int, tol::Number=1e-8, max_sweeps::Int
     overlap
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+"""
 function truncate!(ψ::AbstractMPS, s::Symbol, Dcut::Int=typemax(Int))
     @assert s ∈ (:left, :right)
     if s == :right
@@ -52,10 +64,29 @@ function truncate!(ψ::AbstractMPS, s::Symbol, Dcut::Int=typemax(Int))
         _right_sweep!(ψ, Dcut)
     end
 end
+
+"""
+$(TYPEDSIGNATURES)
+
+"""
 canonise!(ψ::AbstractMPS, s::Symbol) = canonise!(ψ, Val(s))
+
+"""
+$(TYPEDSIGNATURES)
+
+"""
 canonise!(ψ::AbstractMPS, ::Val{:right}) = _left_sweep!(ψ, typemax(Int))
+
+"""
+$(TYPEDSIGNATURES)
+
+"""
 canonise!(ψ::AbstractMPS, ::Val{:left}) = _right_sweep!(ψ, typemax(Int))
 
+"""
+$(TYPEDSIGNATURES)
+
+"""
 function _right_sweep!(ψ::AbstractMPS, Dcut::Int=typemax(Int))
     R = ones(eltype(ψ), 1, 1)
     for (i, A) ∈ enumerate(ψ)
@@ -67,6 +98,10 @@ function _right_sweep!(ψ::AbstractMPS, Dcut::Int=typemax(Int))
     end
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+"""
 function _left_sweep!(ψ::AbstractMPS, Dcut::Int=typemax(Int))
     R = ones(eltype(ψ), 1, 1)
     for i ∈ length(ψ):-1:1
@@ -79,6 +114,10 @@ function _left_sweep!(ψ::AbstractMPS, Dcut::Int=typemax(Int))
     end
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+"""
 function _right_sweep(A::AbstractArray, Dcut::Int=typemax(Int))
     rank = ndims(A)
     ψ = MPS(eltype(A), rank)
@@ -95,6 +134,10 @@ function _right_sweep(A::AbstractArray, Dcut::Int=typemax(Int))
     ψ
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+"""
 function _left_sweep(A::AbstractArray, Dcut::Int=typemax(Int))
     rank = ndims(A)
     ψ = MPS(eltype(A), rank)
@@ -111,6 +154,10 @@ function _left_sweep(A::AbstractArray, Dcut::Int=typemax(Int))
     ψ
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+"""
 function _left_sweep_var!!(
     ϕ::AbstractMPS, env::Vector{<:AbstractMatrix}, ψ::AbstractMPS
 )
@@ -137,6 +184,10 @@ function _left_sweep_var!!(
     env[1][1]
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+"""
 function _right_sweep_var!!(
     ϕ::AbstractMPS, env::Vector{<:AbstractMatrix}, ψ::AbstractMPS
 )

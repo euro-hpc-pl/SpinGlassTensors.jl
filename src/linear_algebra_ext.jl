@@ -1,5 +1,9 @@
 export rq_fact, qr_fact
 
+"""
+$(TYPEDSIGNATURES)
+
+"""
 function qr_fact(M::AbstractMatrix, Dcut::Int=typemax(Int), tol::Float64=1e-12)
     F = qr(M)
     q, r = _qr_fix(Array(F.Q), Array(F.R))
@@ -8,11 +12,19 @@ function qr_fact(M::AbstractMatrix, Dcut::Int=typemax(Int), tol::Float64=1e-12)
     q * U, Diagonal(Σ) * V'
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+"""
 function rq_fact(M::AbstractMatrix, Dcut::Int=typemax(Int), tol::Float64=1e-12)
     q, r = qr_fact(M', Dcut, tol)
     Matrix(r'), Matrix(q') # Matrix is to ensure types compatibility
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+"""
 function _qr_fix(Q::T, R::AbstractMatrix) where {T <: AbstractMatrix}
     d = diag(R)
     for i ∈ eachindex(d)
@@ -22,6 +34,10 @@ function _qr_fix(Q::T, R::AbstractMatrix) where {T <: AbstractMatrix}
     Q * Diagonal(ph), Diagonal(ph) * R
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+"""
 function _psvd(
     A::AbstractMatrix, Dcut::Int=typemax(Int), tol::Float64=1e-12
 )

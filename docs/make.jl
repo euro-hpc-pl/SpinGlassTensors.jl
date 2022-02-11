@@ -1,4 +1,9 @@
 using Documenter, SpinGlassTensors
+# makedocs(
+#     modules=[SpinGlassTensors],
+#     sitename="SpinGlassTensors.jl",
+#     format=Documenter.LaTeX()
+# )
 makedocs(
     modules=[SpinGlassTensors],
     sitename="SpinGlassTensors.jl",

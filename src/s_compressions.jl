@@ -1,4 +1,11 @@
 export compress!, compress_twosite!
+
+"""
+$(TYPEDEF)
+
+$(TYPEDFIELDS)
+
+"""
 mutable struct Environment{T <: Real, S}
     bra::QMPS{T}
     mpo::QMPO{T}
@@ -24,13 +31,25 @@ mutable struct Environment{T <: Real, S}
     end
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+"""
 function Environment(bra::QMPS, mpo::QMPO, ket::QMPS, trans::Symbol=:n)
     T = reduce(promote_type, eltype.((bra, mpo, ket)))
     Environment{T, trans}(bra, mpo, ket)
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+"""
 trans(::Environment{T, S}) where {T, S} = S
 
+"""
+$(TYPEDSIGNATURES)
+
+"""
 function SpinGlassTensors.compress!(
     bra::QMPS,
     mpo::QMPO,
@@ -60,6 +79,10 @@ function SpinGlassTensors.compress!(
     overlap
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+"""
 function compress_twosite!(
     bra::QMPS, mpo::QMPO, ket::QMPS, Dcut::Int, tol::Real=1E-8, max_sweeps::Int=4
 )
@@ -85,6 +108,10 @@ function compress_twosite!(
     overlap
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+"""
 function _left_sweep_var!(env::Environment)
     for site ∈ reverse(env.bra.sites)
         update_env_right!(env, site)
@@ -97,6 +124,10 @@ function _left_sweep_var!(env::Environment)
     end
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+"""
 function _right_sweep_var!(env::Environment)
     for site ∈ env.bra.sites
         update_env_left!(env, site)
@@ -109,6 +140,10 @@ function _right_sweep_var!(env::Environment)
     end
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+"""
 function _left_sweep_var_twosite!(env::Environment, Dcut::Int, tol::Number)
     for site ∈ reverse(env.bra.sites[2:end])
         update_env_right!(env, site)
@@ -129,6 +164,10 @@ function _left_sweep_var_twosite!(env::Environment, Dcut::Int, tol::Number)
     end
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+"""
 function _right_sweep_var_twosite!(env::Environment, Dcut::Int, tol::Number)
     for site ∈ env.bra.sites[1:end-1]
         site_r = _right_nbrs_site(site, env.bra.sites)
@@ -150,17 +189,29 @@ function _right_sweep_var_twosite!(env::Environment, Dcut::Int, tol::Number)
 end
 
 # Largest x in sites: x < site
+"""
+$(TYPEDSIGNATURES)
+
+"""
 function _left_nbrs_site(site::Site, sorted_sites)
     site_pos = searchsortedfirst(sorted_sites, site)
     site_pos == 1 ? -Inf : sorted_sites[site_pos-1]
 end
 
 # Smallest x in sites: x > site
+"""
+$(TYPEDSIGNATURES)
+
+"""
 function _right_nbrs_site(site::Site, sorted_sites)
     site_pos = searchsortedlast(sorted_sites, site)
     site_pos == length(sorted_sites) ? Inf : sorted_sites[site_pos+1]
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+"""
 function update_env_left!(env::Environment, site::Site)
     if site <= first(env.bra.sites) return end
 
@@ -175,6 +226,10 @@ function update_env_left!(env::Environment, site::Site)
     push!(env.env, (site, :left) => LL)
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+"""
 function update_env_right!(env::Environment, site::Site)
     if site >= last(env.bra.sites) return end
 
@@ -189,6 +244,10 @@ function update_env_right!(env::Environment, site::Site)
     push!(env.env, (site, :right) => RR)
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+"""
 function clear_env_containing_site!(env::Environment, site::Site)
     delete!(env.env, (_left_nbrs_site(site, env.ket.sites), :right))
     delete!(env.env, (_right_nbrs_site(site, env.ket.sites), :left))
@@ -199,6 +258,10 @@ end
 # L = LE -- M --
 #      |    |
 #        -- B --
+"""
+$(TYPEDSIGNATURES)
+
+"""
 function update_env_left(
     LE::AbstractArray{T, 3},
     A₀::AbstractArray{T, 3},
@@ -220,6 +283,10 @@ function update_env_left(
     L
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+"""
 function _update_tensor_forward(
     A::S, M::T, sites, ::Val{:n}
 ) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
@@ -232,6 +299,10 @@ function _update_tensor_forward(
     B
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+"""
 function _update_tensor_forward(
     A::S, M::T, sites, ::Val{:c}
 ) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
@@ -244,6 +315,10 @@ function _update_tensor_forward(
     B
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+"""
 function _update_tensor_backwards(
     A::S, M::T, sites, ::Val{:n}
 ) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
@@ -256,6 +331,10 @@ function _update_tensor_backwards(
     B
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+"""
 function _update_tensor_backwards(
     A::S, M::T, sites, ::Val{:c}
 ) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
@@ -268,6 +347,10 @@ function _update_tensor_backwards(
     B
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+"""
 function update_env_right(
     RE::S, A₀::S, M::T, B₀::S, trans::Symbol=:n
 ) where {T <: Dict, S} # {T <: AbstractDict, S <: AbstractArray{Float64, 3}}
@@ -284,6 +367,10 @@ function update_env_right(
     RR
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+"""
 function project_ket_on_bra(env::Environment, site::Site)
     LE = env.env[(site, :left)]
     B₀ = env.ket[site]
@@ -301,6 +388,10 @@ end
 #  LE -- M -- RE
 #   |    |    |
 #     -- B --
+"""
+$(TYPEDSIGNATURES)
+
+"""
 function project_ket_on_bra(
     LE::S, B::S, M::T, RE::S, ::Val{:n}
 ) where {T <: AbstractArray{Float64, 4}, S <: AbstractArray{Float64, 3}}
@@ -309,6 +400,10 @@ function project_ket_on_bra(
     A
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+"""
 function project_ket_on_bra(
     ::S, B::S, M::T, ::S, ::Val{:n}
 ) where {T <: AbstractArray{Float64, 2}, S <: AbstractArray{Float64, 3}}
@@ -316,6 +411,10 @@ function project_ket_on_bra(
     A
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+"""
 function project_ket_on_bra(
     ::S, B::S, M::T, ::S, ::Val{:c}
 ) where {T <: AbstractArray{Float64, 2}, S <: AbstractArray{Float64, 3}}
@@ -323,6 +422,10 @@ function project_ket_on_bra(
     A
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+"""
 function project_ket_on_bra(
     LE::S, B::S, M::T, RE::S, ::Val{:c}
 ) where {T <: AbstractArray{Float64, 4}, S <: AbstractArray{Float64, 3}}
@@ -331,6 +434,10 @@ function project_ket_on_bra(
     A
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+"""
 function project_ket_on_bra_twosite(env::Environment, site::Site)
     site_l = _left_nbrs_site(site, env.bra.sites)
     LE = env.env[(site_l, :left)]
@@ -346,12 +453,20 @@ function project_ket_on_bra_twosite(env::Environment, site::Site)
     A
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+"""
 function measure_env(env::Environment, site::Site)
     L = update_env_left(env.env[(site, :left)], env.bra[site], env.mpo[site], env.ket[site], trans(env))
     R = env.env[(site, :right)]
     @tensor L[t, c, b] * R[b, c, t]
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+"""
 function truncate!(ψ::QMPS, s::Symbol, Dcut::Int=typemax(Int))
     @assert s ∈ (:left, :right)
     if s == :right
@@ -362,10 +477,29 @@ function truncate!(ψ::QMPS, s::Symbol, Dcut::Int=typemax(Int))
         _right_sweep!(ψ, Dcut)
     end
 end
+
+"""
+$(TYPEDSIGNATURES)
+
+"""
 canonise!(ψ::QMPS, s::Symbol) = canonise!(ψ, Val(s))
+
+"""
+$(TYPEDSIGNATURES)
+
+"""
 canonise!(ψ::QMPS, ::Val{:right}) = _left_sweep!(ψ, typemax(Int))
+
+"""
+$(TYPEDSIGNATURES)
+
+"""
 canonise!(ψ::QMPS, ::Val{:left}) = _right_sweep!(ψ, typemax(Int))
 
+"""
+$(TYPEDSIGNATURES)
+
+"""
 function _right_sweep!(ψ::QMPS, Dcut::Int=typemax(Int))
     R = ones(eltype(ψ[1]), 1, 1)
     for i ∈ ψ.sites
@@ -378,6 +512,10 @@ function _right_sweep!(ψ::QMPS, Dcut::Int=typemax(Int))
     end
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+"""
 function _left_sweep!(ψ::QMPS, Dcut::Int=typemax(Int))
     R = ones(eltype(ψ[1]), 1, 1)
     for i ∈ reverse(ψ.sites)

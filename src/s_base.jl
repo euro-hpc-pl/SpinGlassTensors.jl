@@ -76,7 +76,7 @@ end
 $(TYPEDSIGNATURES)
 
 """
-function QMPO(tensors::Dict{<:Site, <:Dict{<:Site, <:Tensor}})
+function QMPO(tensors::Dict{<:Site, <:Dict{<:Site, <:Tensor{T}}}) where T
     QMPO(tensors, sort(collect(keys(tensors))))
 end
 

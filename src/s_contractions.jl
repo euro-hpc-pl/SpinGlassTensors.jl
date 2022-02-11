@@ -1,8 +1,21 @@
 export contract_left, contract_down, contract_up, dot, overlap_density_matrix
 
+"""
+$(TYPEDSIGNATURES)
+
+"""
 LinearAlgebra.dot(ψ::QMPS, ϕ::QMPS) = dot(MPS(ψ), MPS(ϕ))
+
+"""
+$(TYPEDSIGNATURES)
+
+"""
 LinearAlgebra.norm(ψ::QMPS) = sqrt(abs(dot(ψ, ψ)))
 
+"""
+$(TYPEDSIGNATURES)
+
+"""
 function _dot(ψ::QMPO{S}, ϕ::QMPS{S}, contract_func) where {S <: Real}
     D = Dict{Site, Tensor{S}}()
     for i ∈ ψ.sites
@@ -23,39 +36,80 @@ function _dot(ψ::QMPO{S}, ϕ::QMPS{S}, contract_func) where {S <: Real}
     QMPS(D)
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+"""
 LinearAlgebra.dot(ψ::QMPO{S}, ϕ::QMPS{S}) where {S <: Real} = _dot(ψ, ϕ, contract_up)
+
+"""
+$(TYPEDSIGNATURES)
+
+"""
 LinearAlgebra.dot(ϕ::QMPS{S}, ψ::QMPO{S}) where {S <: Real} = _dot(ψ, ϕ, contract_down)
 
+"""
+$(TYPEDSIGNATURES)
+
+"""
 function LinearAlgebra.dot(W::MPO, ϕ::QMPS)
     QMPS(Dict(i => contract_up(ϕ[i], A) for (i, A) ∈ enumerate(W)))
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+"""
 function LinearAlgebra.dot(ϕ::QMPS, W::MPO)
     QMPS(Dict(i => contract_down(ϕ[i], A) for (i, A) ∈ enumerate(W)))
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+"""
 function contract_left(A::AbstractArray{T, 3}, B::AbstractMatrix{T}) where T
     @cast C[(x, y), u, r] := sum(σ) B[y, σ] * A[(x, σ), u, r] (σ ∈ 1:size(B, 2))
     C
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+"""
 function contract_up(A::AbstractArray{T, 3}, B::AbstractArray{T, 2}) where T
     @tensor C[l, u, r] := B[u, σ] * A[l, σ, r]
     C
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+"""
 contract_down(A::AbstractArray{T, 3}, B::AbstractArray{T, 2}) where T = contract_up(A, B')
 
+"""
+$(TYPEDSIGNATURES)
+
+"""
 function contract_up(A::AbstractArray{T, 3}, B::AbstractArray{T, 4}) where T
     @matmul C[(x, y), z, (b, a)] := sum(σ) B[y, z, a, σ] * A[x, σ, b]
     C
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+"""
 function contract_down(A::AbstractArray{T, 3}, B::AbstractArray{T, 4}) where T
     contract_up(A, PermutedDimsArray(B, (1, 4, 3, 2)))
 end
 
 # TODO: improve performance
+"""
+$(TYPEDSIGNATURES)
+
+"""
 function contract_up(A::AbstractArray{T, 3}, B::SparseSiteTensor) where T
     sal, sac, sar = size(A)
     sbl, sbt, sbr = maximum.(B.projs[1:3])
@@ -70,6 +124,10 @@ function contract_up(A::AbstractArray{T, 3}, B::SparseSiteTensor) where T
 end
 
 # TODO: improve performance
+"""
+$(TYPEDSIGNATURES)
+
+"""
 function contract_up(A::AbstractArray{T, 3}, B::SparseVirtualTensor) where T
     h = B.con
     sal, sac, sar = size(A)
@@ -86,6 +144,10 @@ function contract_up(A::AbstractArray{T, 3}, B::SparseVirtualTensor) where T
     CC
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+"""
 function overlap_density_matrix(ϕ::QMPS, ψ::QMPS, k::Site)
     @assert ψ.sites == ϕ.sites
     C, D = ones(1, 1), ones(1, 1)

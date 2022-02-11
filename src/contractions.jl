@@ -7,7 +7,10 @@ export left_env, right_env, dot!
 #   1 - A - 3    1 - B - 3    1 - W - 3      L               R
 #                                 4           - 2          1 -
 # ---------------------------------------------------------------
+"""
+$(TYPEDSIGNATURES)
 
+"""
 function LinearAlgebra.dot(ϕ::AbstractMPS, ψ::AbstractMPS)
     T = promote_type(eltype(ψ), eltype(ϕ))
     C = ones(T, 1, 1)
@@ -18,6 +21,8 @@ function LinearAlgebra.dot(ϕ::AbstractMPS, ψ::AbstractMPS)
 end
 
 """
+$(TYPEDSIGNATURES)
+
 Creates left environment (ϕ - bra, ψ - ket)
 """
 function left_env(ϕ::AbstractMPS, ψ::AbstractMPS)
@@ -35,6 +40,10 @@ function left_env(ϕ::AbstractMPS, ψ::AbstractMPS)
 end
 
 # TODO: remove it (after SpinGlassEngine is updated)
+"""
+$(TYPEDSIGNATURES)
+
+"""
 @memoize Dict function left_env(ϕ::AbstractMPS, σ::Vector{Int})
     l = length(σ)
     if l == 0 return ones(eltype(ϕ), 1) end
@@ -46,6 +55,8 @@ end
 end
 
 """
+$(TYPEDSIGNATURES)
+
 Creates right environment (ϕ - bra, ψ - ket)
 """
 function right_env(ϕ::AbstractMPS, ψ::AbstractMPS)
@@ -66,6 +77,10 @@ function right_env(ϕ::AbstractMPS, ψ::AbstractMPS)
 end
 
 # TODO: remove it (after SpinGlassEngine is updated)
+"""
+$(TYPEDSIGNATURES)
+
+"""
 @memoize Dict function right_env(
     ϕ::AbstractMPS{T}, W::AbstractMPO{T}, σ::Union{Vector, NTuple}
 ) where {T}
@@ -116,6 +131,10 @@ function LinearAlgebra.dot(ϕ::AbstractMPS, O::Union{Vector, NTuple}, ψ::Abstra
     tr(C)
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+"""
 function LinearAlgebra.dot(O::AbstractMPO, ψ::AbstractMPS)
     S = promote_type(eltype(ψ), eltype(O))
     T = typeof(ψ)
@@ -127,6 +146,10 @@ function LinearAlgebra.dot(O::AbstractMPO, ψ::AbstractMPS)
     ϕ
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+"""
 function LinearAlgebra.dot(O1::AbstractMPO, O2::AbstractMPO)
     S = promote_type(eltype(O1), eltype(O2))
     T = typeof(O1)

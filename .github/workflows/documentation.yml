@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - master
+      - sparse-doc
     tags: '*'
   pull_request:
 

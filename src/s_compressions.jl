@@ -778,8 +778,6 @@ function optimize_gauges_for_overlaps!!(
         _gauges_left_sweep!!!(ψ_top, ψ_bot, all_gauges)
 
         overlap_new = dot(ψ_top, ψ_bot)
-        println("overlap_old ", overlap_old)
-        println("overlap_new ", overlap_new)
         Δ = overlap_new / overlap_old
         overlap_old = overlap_new
         if abs(Δ - 1.0) < tol break end

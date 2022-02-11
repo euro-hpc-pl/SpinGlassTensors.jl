@@ -57,7 +57,7 @@ end
 $(TYPEDSIGNATURES)
 
 """
-function QMPS(tensors::Dict{<:Site, <:Tensor})
+function QMPS(tensors::Dict{<:Site, <:Tensor{T}}) where T
     QMPS(tensors, sort(collect(keys(tensors))))
 end
 

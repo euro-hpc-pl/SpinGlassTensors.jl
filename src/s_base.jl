@@ -70,7 +70,7 @@ end
     ket.tensors[i] = A
 end
 
-#TODO: unify QMps and MPS
+#TODO: remove old mps
 MPS(ket::QMps) = MPS([ket[i] for i ∈ 1:length(ket)])
 QMps(ϕ::AbstractMPS) = QMps(Dict(i => A for (i, A) ∈ enumerate(ϕ)))
 QMpo(ϕ::AbstractMPO) = QMpo(Dict(i => Dict(0 => A) for (i, A) ∈ enumerate(ϕ)))

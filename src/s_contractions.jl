@@ -1,7 +1,15 @@
 export contract_left, contract_down, contract_up, dot, overlap_density_matrix
 
+# TODO  remove all connenctions with old mps
 LinearAlgebra.dot(ψ::QMps, ϕ::QMps) = dot(MPS(ψ), MPS(ϕ))
+
 LinearAlgebra.norm(ψ::QMps) = sqrt(abs(dot(ψ, ψ)))
+
+
+
+# TODO write the function below
+# function LinearAlgebra.dot(ψ::QMps, ϕ::QMps)
+# end
 
 function LinearAlgebra.dot(ψ::QMpo, ϕ::QMps)
     D = Dict{Site, Tensor}()

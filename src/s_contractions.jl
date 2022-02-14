@@ -1,15 +1,20 @@
 export contract_left, contract_down, contract_up, dot, overlap_density_matrix
 
 # TODO  remove all connenctions with old mps
-LinearAlgebra.dot(ψ::QMps, ϕ::QMps) = dot(MPS(ψ), MPS(ϕ))
-
+#LinearAlgebra.dot(ψ::QMps, ϕ::QMps) = dot(MPS(ψ), MPS(ϕ))
 LinearAlgebra.norm(ψ::QMps) = sqrt(abs(dot(ψ, ψ)))
 
+function LinearAlgebra.dot(ψ::QMps, ϕ::QMps)
+    TTT = ones(1, 1)
+    @assert ψ.sites == ϕ.sites
+    for i ∈ ϕ.sites
+        T = ϕ[i]
+        TT = ψ[i]
+        @tensor TTT[x, y] := conj(TT)[β, σ, x] * TTT[β, α] * T[α, σ, y] order = (α, β, σ)
+    end
+    tr(TTT)
+end
 
-
-# TODO write the function below
-# function LinearAlgebra.dot(ψ::QMps, ϕ::QMps)
-# end
 
 function LinearAlgebra.dot(ψ::QMpo, ϕ::QMps)
     D = Dict{Site, Tensor}()
@@ -97,6 +102,20 @@ function contract_up(A::AbstractArray{T, 3}, B::SparseSiteTensor) where T
 end
 
 # TODO: improve performance
+function contract_down(A::SparseSiteTensor, B::AbstractArray{T, 3}) where T
+    sal, sac, sar = size(B)
+    sbl, _, sbt, sbr = maximum.(A.projs[1:4])
+    C = zeros(sal, sbl, sbr, sar, sbt)
+
+    for (σ, lexp) ∈ enumerate(A.loc_exp)
+        AA = @view B[:, A.projs[2][σ], :]
+        C[:, A.projs[1][σ], A.projs[4][σ], :, A.projs[3][σ]] += lexp .* AA
+    end
+    @cast CC[(x, y), z, (b, a)] := C[x, y, z, b, a]
+    CC
+end
+
+# TODO: improve performance
 function contract_up(A::AbstractArray{T, 3}, B::SparseVirtualTensor) where T
     h = B.con
     sal, sac, sar = size(A)
@@ -108,6 +127,22 @@ function contract_up(A::AbstractArray{T, 3}, B::SparseVirtualTensor) where T
     for l ∈ 1:length(p_l), r ∈ 1:length(p_r)
         AA = @view A4[:, p_lb[l], p_rb[r], :]
         C[:, l, p_rt[r], p_lt[l], :, r] += h[p_l[l], p_r[r]] .* AA
+    end
+    @cast CC[(x, y), (t1, t2), (b, a)] := C[x, y, t1, t2, b, a]
+    CC
+end
+
+function contract_down(A::SparseVirtualTensor, B::AbstractArray{T, 3}) where T
+    h = A.con
+    sal, sac, sar = size(B)
+
+    p_lb, p_l, p_lt, p_rb, p_r, p_rt = A.projs
+    @cast B4[x, k, l, y] := B[x, (k, l), y] (k ∈ 1:maximum(p_lb))
+
+    C = zeros(sal, length(p_l), maximum(p_rt), maximum(p_lt), sar, length(p_r))
+    for l ∈ 1:length(p_l), r ∈ 1:length(p_r)
+        BB = @view B4[:, p_lt[l], p_rt[r], :]
+        C[:, l, p_rb[r], p_lb[l], :, r] += h[p_l[l], p_r[r]] .* BB
     end
     @cast CC[(x, y), (t1, t2), (b, a)] := C[x, y, t1, t2, b, a]
     CC

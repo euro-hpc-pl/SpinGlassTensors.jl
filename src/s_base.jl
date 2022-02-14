@@ -40,7 +40,7 @@ struct SparseVirtualTensor{T} <: AbstractSparseTensor where {T <: Real}
     projs::NTuple{N, Vector{Int}} where N
 end
 
-const Tensor{T} = Union{Array{T}, SparseSiteTensor{T}, SparseVirtualTensor{T}} where {T <: Real}
+const Tensor{T} = Union{<: AbstractArray{T}, SparseSiteTensor{T}, SparseVirtualTensor{T}} where {T <: Real}
 
 """
 $(TYPEDEF)

@@ -212,7 +212,7 @@ function update_env_left(
     LE::S, A₀::S, M::T, B₀::S, trans::Symbol=:n
 ) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
     sites = sort(collect(keys(M)))
-    A =_update_tensor_forward(A₀, M, sites, Val(trans))
+    A = _update_tensor_forward(A₀, M, sites, Val(trans))
     B = _update_tensor_backwards(B₀, M, sites, Val(trans))
     update_env_left(LE, A, M[0], B, Val(trans))
 end
@@ -593,12 +593,21 @@ end
 function project_ket_on_bra(
     LE::S, B::S, C::S, M::T, N::T, RE::S, ::Val{:c}
 ) where {T <: AbstractArray{Float64, 4}, S <: AbstractArray{Float64, 3}}
+    @tensor A[x, m, s, r] := LE[k, l, x] * B[k, y, o] *
+                          M[l, y, n, m] * C[o, z, q] *
+                          N[n, z, p, s] * RE[r, p, q] order = (k, l, y, n, o, z, p, q)
+    A
+end
+#=
+function project_ket_on_bra(
+    LE::S, B::S, C::S, M::T, N::T, RE::S, ::Val{:c}
+) where {T <: AbstractArray{Float64, 4}, S <: AbstractArray{Float64, 3}}
     @tensor A[x, y, z, r] := LE[k, l, x] * B[k, m, o] *
                           M[l, y, n, m] * C[o, s, q] *
                           N[n, z, p, s] * RE[r, p, q] order = (k, l, m, n, o, s, p, q)
     A
 end
-
+=#
 #TODO: think of threading over σ
 function project_ket_on_bra(
     LE::S, B::S, M::T, RE::S, ::Val{:c}

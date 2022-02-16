@@ -72,6 +72,6 @@ end
 
 #TODO: remove old mps
 #MPS(ket::QMps) = MPS([ket[i] for i ∈ 1:length(ket)])
-MPS(ket::QMps) = MPS([ket[i] for i ∈ ket.sites])
+#MPS(ket::QMps) = MPS([ket[i] for i ∈ ket.sites])
 QMps(ϕ::AbstractMPS) = QMps(Dict(i => A for (i, A) ∈ enumerate(ϕ)))
 QMpo(ϕ::AbstractMPO) = QMpo(Dict(i => Dict(0 => A) for (i, A) ∈ enumerate(ϕ)))

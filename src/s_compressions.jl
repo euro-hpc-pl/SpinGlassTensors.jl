@@ -64,7 +64,7 @@ function SpinGlassTensors.compress!(
     overlap
 end
 
-# doesn't work 
+# doesn't work
 function compress_twosite!(
     bra::QMps, mpo::QMpo, ket::QMps, Dcut::Int, tol::Real=1E-8, max_sweeps::Int=4, args...
 )
@@ -460,8 +460,8 @@ function update_env_right(
 end
 
 function update_env_right(
-    RE::S, A₀::S, M::T, B₀::S, trans::Symbol=:n
-) where {T <: AbstractDict, S <: AbstractArray{Float64, 3}}
+    RE::S, A₀::S1, M::T, B₀::S, trans::Symbol=:n
+) where {T <: AbstractDict, S <: AbstractArray{Float64, 3}, S1 <: AbstractArray{Float64, 3}}
     sites = sort(collect(keys(M)))
     A = _update_tensor_forward(A₀, M, sites, Val(trans))
     B = _update_tensor_backwards(B₀, M, sites, Val(trans))

@@ -1,25 +1,29 @@
-export rq_fact, qr_fact
+export
+    rq_fact,
+    qr_fact
 
 function qr_fact(M::AbstractMatrix, Dcut::Int=typemax(Int), tol::Float64=1E-15, args...)
-    F = qr(M, args...)
-    q, r = _qr_fix(Array(F.Q), Array(F.R))
+    q, r = _qr_fix(qr(M, args...))
     if Dcut > size(q, 2) return q, r end
     U, Σ, V = svd(r, Dcut, tol)
-    q * U, Diagonal(Σ) * V'
+    q * U, Σ .* V'
 end
 
 function rq_fact(M::AbstractMatrix, Dcut::Int=typemax(Int), tol::Float64=1E-15, args...)
     q, r = qr_fact(M', Dcut, tol, args...)
-    Matrix(r'), Matrix(q') # Matrix is to ensure types compatibility
+    r', q'
 end
 
-function _qr_fix(Q::T, R::AbstractMatrix) where {T <: AbstractMatrix}
-    d = diag(R)
-    for i ∈ eachindex(d)
-        @inbounds d[i] = ifelse(isapprox(d[i], 0, atol=1e-14), 1, d[i])
+function _qr_fix(QR_fact::T) where T <: LinearAlgebra.QRCompactWY
+    d = diag(QR_fact.R)
+    L = length(d)
+    ph = zeros(L, L)
+    for i ∈ 1:L
+        @inbounds ph[i, i] = ifelse(
+            isapprox(d[i], 0, atol=1e-14), 1, d[i] / abs(d[i])
+        )
     end
-    ph = d ./ abs.(d)
-    Q * Diagonal(ph), Diagonal(ph) * R
+    QR_fact.Q * ph, diag(ph) .* QR_fact.R
 end
 
 function LinearAlgebra.svd(

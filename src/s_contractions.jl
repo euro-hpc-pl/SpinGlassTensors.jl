@@ -1,4 +1,9 @@
-export contract_left, contract_down, contract_up, dot, overlap_density_matrix
+export
+    contract_left,
+    contract_down,
+    contract_up,
+    dot,
+    overlap_density_matrix
 
 # TODO  remove all connenctions with old mps
 #LinearAlgebra.dot(ψ::QMps, ϕ::QMps) = dot(MPS(ψ), MPS(ϕ))
@@ -89,7 +94,7 @@ end
 
 # TODO: improve performance
 function contract_up(A::AbstractArray{T, 3}, B::SparseSiteTensor) where T
-    sal, sac, sar = size(A)
+    sal, _, sar = size(A)
     sbl, sbt, sbr = maximum.(B.projs[1:3])
     C = zeros(sal, sbl, sbt, sar, sbr)
 
@@ -103,7 +108,7 @@ end
 
 # TODO: improve performance
 function contract_down(A::SparseSiteTensor, B::AbstractArray{T, 3}) where T
-    sal, sac, sar = size(B)
+    sal, _, sar = size(B)
     sbl, _, sbt, sbr = maximum.(A.projs[1:4])
     C = zeros(sal, sbl, sbr, sar, sbt)
 
@@ -118,7 +123,7 @@ end
 # TODO: improve performance
 function contract_up(A::AbstractArray{T, 3}, B::SparseVirtualTensor) where T
     h = B.con
-    sal, sac, sar = size(A)
+    sal, _, sar = size(A)
 
     p_lb, p_l, p_lt, p_rb, p_r, p_rt = B.projs
     @cast A4[x, k, l, y] := A[x, (k, l), y] (k ∈ 1:maximum(p_lb))
@@ -134,7 +139,7 @@ end
 
 function contract_down(A::SparseVirtualTensor, B::AbstractArray{T, 3}) where T
     h = A.con
-    sal, sac, sar = size(B)
+    sal, _, sar = size(B)
 
     p_lb, p_l, p_lt, p_rb, p_r, p_rt = A.projs
     @cast B4[x, k, l, y] := B[x, (k, l), y] (k ∈ 1:maximum(p_lb))

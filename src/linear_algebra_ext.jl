@@ -1,6 +1,6 @@
 export rq_fact, qr_fact
 
-function qr_fact(M::AbstractMatrix, Dcut::Int=typemax(Int), tol::Float64=1E-12, args...)
+function qr_fact(M::AbstractMatrix, Dcut::Int=typemax(Int), tol::Float64=1E-15, args...)
     F = qr(M, args...)
     q, r = _qr_fix(Array(F.Q), Array(F.R))
     if Dcut > size(q, 2) return q, r end
@@ -8,7 +8,7 @@ function qr_fact(M::AbstractMatrix, Dcut::Int=typemax(Int), tol::Float64=1E-12, 
     q * U, Diagonal(Σ) * V'
 end
 
-function rq_fact(M::AbstractMatrix, Dcut::Int=typemax(Int), tol::Float64=1E-12, args...)
+function rq_fact(M::AbstractMatrix, Dcut::Int=typemax(Int), tol::Float64=1E-15, args...)
     q, r = qr_fact(M', Dcut, tol, args...)
     Matrix(r'), Matrix(q') # Matrix is to ensure types compatibility
 end
@@ -23,7 +23,7 @@ function _qr_fix(Q::T, R::AbstractMatrix) where {T <: AbstractMatrix}
 end
 
 function LinearAlgebra.svd(
-    A::AbstractMatrix, Dcut::Int=typemax(Int), tol::Float64=1E-12, args...
+    A::AbstractMatrix, Dcut::Int=typemax(Int), tol::Float64=1E-15, args...
 )
     U, Σ, V = svd(A, args...)
 

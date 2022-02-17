@@ -63,7 +63,7 @@ Base.:(*)(W::QMpo, ψ::QMps) = dot(W, ψ)
 Base.:(*)(ψ::QMps, W::QMpo) = dot(ψ, W)
 
 function contract_left(A::AbstractArray{T, 3}, B::AbstractMatrix{T}) where T
-    @cast C[(x, y), u, r] := sum(σ) B[y, σ] * A[(x, σ), u, r] (σ ∈ 1:size(B, 2))
+    @matmul C[(x, y), u, r] := sum(σ) B[y, σ] * A[(x, σ), u, r] (σ ∈ 1:size(B, 2))
     C
 end
 

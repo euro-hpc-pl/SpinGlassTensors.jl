@@ -13,5 +13,4 @@ makedocs(
 )
 deploydocs(
     repo="github.com/euro-hpc-pl/SpinGlassTensors.jl.git",
-    devbranch="sparse-doc"
 )

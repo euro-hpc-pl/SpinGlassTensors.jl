@@ -18,7 +18,7 @@ $(TYPEDSIGNATURES)
 """
 function _dot(ψ::QMPO{S}, ϕ::QMPS{S}, contract_func) where {S <: Real}
     D = Dict{Site, Tensor{S}}()
-    for i ∈ ψ.sites
+    for i ∈ ϕ.sites
         T = collect(ψ[i])
         TT = ϕ[i]
         for (_, v) ∈ T

@@ -4,7 +4,7 @@ export contract_left, contract_down, contract_up, dot, overlap_density_matrix
 $(TYPEDSIGNATURES)
 
 """
-LinearAlgebra.dot(ψ::QMPS, ϕ::QMPS) = dot(MPS(ψ), MPS(ϕ))
+#LinearAlgebra.dot(ψ::QMPS, ϕ::QMPS) = dot(MPS(ψ), MPS(ϕ))
 
 """
 $(TYPEDSIGNATURES)
@@ -12,41 +12,29 @@ $(TYPEDSIGNATURES)
 """
 LinearAlgebra.norm(ψ::QMPS) = sqrt(abs(dot(ψ, ψ)))
 
-"""
-$(TYPEDSIGNATURES)
-
-"""
-function _dot(ψ::QMPO{S}, ϕ::QMPS{S}, contract_func) where {S <: Real}
+function _dot(ψ::QMPO{S}, ϕ::QMPS{S}, contract_func, rev::Bool) where S
     D = Dict{Site, Tensor{S}}()
-    for i ∈ ϕ.sites
-        T = collect(ψ[i])
+    for i ∈ reverse(ϕ.sites)
+        T = sort(collect(ψ[i]), by = x -> x[begin], rev=rev)
         TT = ϕ[i]
-        for (_, v) ∈ T
-             TT = contract_func(TT, v)
-        end
+        for (t, v) ∈ T TT = contract_func(TT, v) end
 
-        mps_li = _left_nbrs_site(i, ϕ.sites)
-        mpo_li = _left_nbrs_site(i, ψ.sites)
+        mps_li = left_nbrs_site(i, ϕ.sites)
+        mpo_li = left_nbrs_site(i, ψ.sites)
         while mpo_li > mps_li
             TT = contract_left(TT, ψ[mpo_li][0])
-            mpo_li = _left_nbrs_site(mpo_li, ψ.sites)
+            mpo_li = left_nbrs_site(mpo_li, ψ.sites)
         end
         push!(D, i => TT)
     end
     QMPS(D)
 end
 
-"""
-$(TYPEDSIGNATURES)
+_contract_down(x, y) = contract_down(y, x)
 
-"""
-LinearAlgebra.dot(ψ::QMPO{S}, ϕ::QMPS{S}) where {S <: Real} = _dot(ψ, ϕ, contract_up)
+LinearAlgebra.dot(ψ::QMPO{S}, ϕ::QMPS{S}) where S = _dot(ψ, ϕ, contract_up, true)
+LinearAlgebra.dot(ϕ::QMPS{S}, ψ::QMPO{S}) where S = _dot(ψ, ϕ, _contract_down, false)
 
-"""
-$(TYPEDSIGNATURES)
-
-"""
-LinearAlgebra.dot(ϕ::QMPS{S}, ψ::QMPO{S}) where {S <: Real} = _dot(ψ, ϕ, contract_down)
 
 """
 $(TYPEDSIGNATURES)

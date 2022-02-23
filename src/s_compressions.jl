@@ -1,4 +1,4 @@
-export compress!, compress_twosite!
+export compress!, compress_twosite!, left_nbrs_site, right_nbrs_site
 
 """
 $(TYPEDEF)
@@ -170,7 +170,7 @@ $(TYPEDSIGNATURES)
 """
 function _right_sweep_var_twosite!(env::Environment, Dcut::Int, tol::Number)
     for site ∈ env.bra.sites[1:end-1]
-        site_r = _right_nbrs_site(site, env.bra.sites)
+        site_r = right_nbrs_site(site, env.bra.sites)
         update_env_left!(env, site)
         A = project_ket_on_bra_twosite(env, site_r)
         @cast B[(x, y), (z, w)] := A[x, y, z, w]
@@ -193,7 +193,7 @@ end
 $(TYPEDSIGNATURES)
 
 """
-function _left_nbrs_site(site::Site, sorted_sites)
+function left_nbrs_site(site::Site, sorted_sites)
     site_pos = searchsortedfirst(sorted_sites, site)
     site_pos == 1 ? -Inf : sorted_sites[site_pos-1]
 end
@@ -203,7 +203,7 @@ end
 $(TYPEDSIGNATURES)
 
 """
-function _right_nbrs_site(site::Site, sorted_sites)
+function right_nbrs_site(site::Site, sorted_sites)
     site_pos = searchsortedlast(sorted_sites, site)
     site_pos == length(sorted_sites) ? Inf : sorted_sites[site_pos+1]
 end
@@ -215,13 +215,13 @@ $(TYPEDSIGNATURES)
 function update_env_left!(env::Environment, site::Site)
     if site <= first(env.bra.sites) return end
 
-    ls = _left_nbrs_site(site, env.bra.sites)
+    ls = left_nbrs_site(site, env.bra.sites)
     LL = update_env_left(env.env[(ls, :left)], env.bra[ls], env.mpo[ls], env.ket[ls], trans(env))
 
-    rs = _right_nbrs_site(ls, env.mpo.sites)
+    rs = right_nbrs_site(ls, env.mpo.sites)
     while rs < site
-        @tensor LL[nt, nc, nb] :=  LE[nt, oc, nb] * env.mpo[rs][0][oc, nc]
-        rs = _right_nbrs_site(rs, env.mpo.sites)
+        @tensor LL[nt, nc, nb] :=  LL[nt, oc, nb] * env.mpo[rs][0][oc, nc]
+        rs = right_nbrs_site(rs, env.mpo.sites)
     end
     push!(env.env, (site, :left) => LL)
 end
@@ -233,13 +233,13 @@ $(TYPEDSIGNATURES)
 function update_env_right!(env::Environment, site::Site)
     if site >= last(env.bra.sites) return end
 
-    rs = _right_nbrs_site(site, env.bra.sites)
+    rs = right_nbrs_site(site, env.bra.sites)
     RR = update_env_right(env.env[(rs, :right)], env.bra[rs], env.mpo[rs], env.ket[rs], trans(env))
 
-    ls = _left_nbrs_site(rs, env.mpo.sites)
+    ls = left_nbrs_site(rs, env.mpo.sites)
     while ls > site
-        @tensor RR[nt, nc, nb] := env.mpo[ls][0][nc, oc] * RE[nt, oc, nb]
-        ls = _left_nbrs_site(ls, env.mpo.sites)
+        @tensor RR[nt, nc, nb] := env.mpo[ls][0][nc, oc] * RR[nt, oc, nb]
+        ls = left_nbrs_site(ls, env.mpo.sites)
     end
     push!(env.env, (site, :right) => RR)
 end
@@ -249,8 +249,8 @@ $(TYPEDSIGNATURES)
 
 """
 function clear_env_containing_site!(env::Environment, site::Site)
-    delete!(env.env, (_left_nbrs_site(site, env.ket.sites), :right))
-    delete!(env.env, (_right_nbrs_site(site, env.ket.sites), :left))
+    delete!(env.env, (left_nbrs_site(site, env.ket.sites), :right))
+    delete!(env.env, (right_nbrs_site(site, env.ket.sites), :left))
 end
 
 #        -- A --
@@ -270,15 +270,51 @@ function update_env_left(
     trans::Symbol
 ) where {T <: Real}
     sites = sort(collect(keys(M)))
-    A =_update_tensor_forward(A₀, M, sites, Val(trans))
+    A = _update_tensor_forward(A₀, M, sites, Val(trans))
     B = _update_tensor_backwards(B₀, M, sites, Val(trans))
 
-    if trans == :c
+    _L_tensor(LE, A, M[0], B, trans)
+    # if trans == :n
+    #     @tensor L[nb, nc, nt] := LE[ob, oc, ot] * A[ot, α, nt] *
+    #                              M[0][oc, α, nc, β] * B[ob, β, nb] order = (ot, α, oc, β, ob)
+    # else
+    #     @tensor L[nb, nc, nt] := LE[ob, oc, ot] * A[ot, α, nt] *
+    #                              M[0][oc, β, nc, α] * B[ob, β, nb] order = (ot, α, oc, β, ob)
+    # end
+    # L
+end
+
+
+function _L_tensor(
+    LE::S, A::S, M::T, B::S, trans::Symbol
+) where {S <: AbstractArray{Float64, 3}, T <: AbstractArray{Float64, 4}}
+    if trans == :n
         @tensor L[nb, nc, nt] := LE[ob, oc, ot] * A[ot, α, nt] *
-                                 M[0][oc, α, nc, β] * B[ob, β, nb] order = (ot, α, oc, β, ob)
+                                 M[oc, α, nc, β] * B[ob, β, nb] order = (ot, α, oc, β, ob)
     else
         @tensor L[nb, nc, nt] := LE[ob, oc, ot] * A[ot, α, nt] *
-                                 M[0][oc, β, nc, α] * B[ob, β, nb] order = (ot, α, oc, β, ob)
+                                 M[oc, β, nc, α] * B[ob, β, nb] order = (ot, α, oc, β, ob)
+    end
+    L
+end
+
+
+function _L_tensor(
+    LE::S, A::S, M::T, B::S, trans::Symbol
+) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
+    L = zeros(size(B, 3), maximum(M.projs[3]), size(A, 3))
+
+    for (σ, lexp) ∈ enumerate(M.loc_exp)
+        if trans == :c
+            AA = @view A[:, M.projs[4][σ], :]
+            LL = @view LE[:, M.projs[1][σ], :]
+            BB = @view B[:, M.projs[2][σ], :]
+        else
+            AA = @view A[:, M.projs[2][σ], :]
+            LL = @view LE[:, M.projs[1][σ], :]
+            BB = @view B[:, M.projs[4][σ], :]
+        end
+        L[:, M.projs[3][σ], :] += lexp .* (BB' * LL * AA)
     end
     L
 end
@@ -347,6 +383,40 @@ function _update_tensor_backwards(
     B
 end
 
+
+function _R_tensor(
+    RE::S, A::S, M::T, B::S, trans::Symbol
+) where {S <: AbstractArray{Float64, 3}, T <: AbstractArray{Float64, 4}}
+    if trans == :c
+        @tensor RR[nt, nc, nb] := RE[ot, oc, ob] * A[nt, α, ot] *
+                                  M[nc, β, oc, α] * B[nb, β, ob] order = (ot, α, oc, β, ob)
+    else
+        @tensor RR[nt, nc, nb] := RE[ot, oc, ob] * A[nt, α, ot] *
+                                  M[nc, α, oc, β] * B[nb, β, ob] order = (ot, α, oc, β, ob)
+    end
+    RR
+end
+
+function _R_tensor(
+    RE::S, A::S, M::T, B::S, trans::Symbol
+) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
+    R = zeros(size(A, 1), maximum(M.projs[1]), size(B, 1))
+    for (σ, lexp) ∈ enumerate(M.loc_exp)
+        if trans == :n
+            AA = @view A[:, M.projs[2][σ], :]
+            RR = @view RE[:, M.projs[3][σ], :]
+            BB = @view B[:, M.projs[4][σ], :]
+            R[:, M.projs[1][σ], :] += lexp .* (AA * RR * BB')
+        else
+            AA = @view A[:, M.projs[4][σ], :]
+            RR = @view RE[:, M.projs[3][σ], :]
+            BB = @view B[:, M.projs[2][σ], :]
+            R[:, M.projs[1][σ], :] += lexp .* (AA * RR * BB')
+        end
+    end
+    R
+end
+
 """
 $(TYPEDSIGNATURES)
 
@@ -357,14 +427,7 @@ function update_env_right(
     sites = sort(collect(keys(M)))
     A = _update_tensor_forward(A₀, M, sites, Val(trans))
     B = _update_tensor_backwards(B₀, M, sites, Val(trans))
-    if trans == :n
-        @tensor RR[nt, nc, nb] := RE[ot, oc, ob] * A[nt, α, ot] *
-                                  M[0][nc, β, oc, α] * B[nb, β, ob] order = (ot, α, oc, β, ob)
-    else
-        @tensor RR[nt, nc, nb] := RE[ot, oc, ob] * A[nt, α, ot] *
-                                  M[0][nc, α, oc, β] * B[nb, β, ob] order = (ot, α, oc, β, ob)
-    end
-    RR
+    _R_tensor(RE, A, M[0], B, trans)
 end
 
 """
@@ -434,12 +497,45 @@ function project_ket_on_bra(
     A
 end
 
+function project_ket_on_bra(
+    LE::S, B::S, M::T, RE::S, ::Val{:c}
+) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
+    ## TO BE WRITTEN
+    A = zeros(size(LE, 3), maximum(M.projs[4]), size(RE, 1))
+
+    #Threads.@threads for σ ∈ 1:length(M.loc_exp)
+    #    lexp = M.loc_exp[σ]
+    for (σ, lexp) ∈ enumerate(M.loc_exp)
+        le = @view LE[:, M.projs[1][σ], :]
+        b = @view B[:, M.projs[2][σ], :]
+        re = @view RE[:, M.projs[3][σ], :]
+        A[:, M.projs[4][σ], :] += lexp .* (le' * b * re')
+    end
+    A
+end
+
+function project_ket_on_bra(
+    LE::S, B::S, M::T, RE::S, ::Val{:n}
+) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
+    A = zeros(size(LE, 3), maximum(M.projs[2]), size(RE, 1))
+
+    #Threads.@threads for σ ∈ 1:length(M.loc_exp)
+    #    lexp = M.loc_exp[σ]
+    for (σ, lexp) ∈ enumerate(M.loc_exp)
+        le = @view LE[:, M.projs[1][σ], :]
+        b = @view B[:, M.projs[4][σ], :]
+        re = @view RE[:, M.projs[3][σ], :]
+        A[:, M.projs[2][σ], :] += lexp .* (le' * b * re')
+    end
+    A
+end
+
 """
 $(TYPEDSIGNATURES)
 
 """
 function project_ket_on_bra_twosite(env::Environment, site::Site)
-    site_l = _left_nbrs_site(site, env.bra.sites)
+    site_l = left_nbrs_site(site, env.bra.sites)
     LE = env.env[(site_l, :left)]
     B = env.ket[site_l]
     C = env.ket[site]

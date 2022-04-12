@@ -65,7 +65,7 @@ function SpinGlassTensors.compress!(
     overlap
 end
 
-# doesn't work
+# TODO: doesn't work
 function compress_twosite!(
     bra::QMps, mpo::QMpo, ket::QMps, Dcut::Int, tol::Real=1E-8, max_sweeps::Int=4, args...
 )
@@ -256,10 +256,10 @@ function update_env_left(
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
     L = zeros(size(B, 3), maximum(M.projs[3]), size(A, 3))
     for (σ, lexp) ∈ enumerate(M.loc_exp)
-        AA = @view A[:, M.projs[2][σ], :]
-        LL = @view LE[:, M.projs[1][σ], :]
-        BB = @view B[:, M.projs[4][σ], :]
-        L[:, M.projs[3][σ], :] += lexp .* (BB' * LL * AA)
+        AA = @inbounds @view A[:, M.projs[2][σ], :]
+        LL = @inbounds @view LE[:, M.projs[1][σ], :]
+        BB = @inbounds @view B[:, M.projs[4][σ], :]
+        @inbounds L[:, M.projs[3][σ], :] += lexp .* (BB' * LL * AA)
     end
     L
 end
@@ -270,10 +270,10 @@ function update_env_left(
     L = zeros(size(B, 3), maximum(M.projs[3]), size(A, 3))
 
     for (σ, lexp) ∈ enumerate(M.loc_exp)
-        AA = @view A[:, M.projs[4][σ], :]
-        LL = @view LE[:, M.projs[1][σ], :]
-        BB = @view B[:, M.projs[2][σ], :]
-        L[:, M.projs[3][σ], :] += lexp .* (BB' * LL * AA)
+        AA = @inbounds @view A[:, M.projs[4][σ], :]
+        LL = @inbounds @view LE[:, M.projs[1][σ], :]
+        BB = @inbounds @view B[:, M.projs[2][σ], :]
+        @inbounds L[:, M.projs[3][σ], :] += lexp .* (BB' * LL * AA)
     end
     L
 end
@@ -291,10 +291,10 @@ function update_env_left(
 
     L = zeros(size(B, 3), length(p_r), size(A, 3))
     for l ∈ 1:length(p_l), r ∈ 1:length(p_r)
-        AA = @view A4[:, p_rt[r], p_lt[l], :]
-        LL = @view LE[:, l, :]
-        BB = @view B4[:, p_lb[l], p_rb[r], :]
-        L[:, r, :] += h[p_l[l], p_r[r]] .* (BB' * LL * AA)
+        AA = @inbounds @view A4[:, p_rt[r], p_lt[l], :]
+        LL = @inbounds @view LE[:, l, :]
+        BB = @inbounds @view B4[:, p_lb[l], p_rb[r], :]
+        @inbounds L[:, r, :] += h[p_l[l], p_r[r]] .* (BB' * LL * AA)
     end
     L
 end
@@ -311,10 +311,10 @@ function update_env_left(
 
     L = zeros(size(B, 3), length(p_r), size(A, 3))
     for l ∈ 1:length(p_l), r ∈ 1:length(p_r)
-        AA = @view A4[:, p_lb[l], p_rb[r], :]
-        LL = @view LE[:, l, :]
-        BB = @view B4[:, p_rt[r], p_lt[l], :]
-        L[:, r, :] += h[p_l[l], p_r[r]] .* (BB' * LL * AA)
+        AA = @inbounds @view A4[:, p_lb[l], p_rb[r], :]
+        LL = @inbounds @view LE[:, l, :]
+        BB = @inbounds @view B4[:, p_rt[r], p_lt[l], :]
+        @inbounds L[:, r, :] += h[p_l[l], p_r[r]] .* (BB' * LL * AA)
     end
     L
 end
@@ -394,13 +394,11 @@ function update_env_right(
 ) where {T <: SparseSiteTensor, S <: AbstractArray{Float64, 3}}
     R = zeros(size(A, 1), maximum(M.projs[1]), size(B, 1))
 
-    #Threads.@threads for σ ∈ 1:length(M.loc_exp)
-    #    lexp = M.loc_exp[σ]
     for (σ, lexp) ∈ enumerate(M.loc_exp)
-        AA = @view A[:, M.projs[2][σ], :]
-        RR = @view RE[:, M.projs[3][σ], :]
-        BB = @view B[:, M.projs[4][σ], :]
-        R[:, M.projs[1][σ], :] += lexp .* (AA * RR * BB')
+        AA = @inbounds @view A[:, M.projs[2][σ], :]
+        RR = @inbounds @view RE[:, M.projs[3][σ], :]
+        BB = @inbounds @view B[:, M.projs[4][σ], :]
+        @inbounds R[:, M.projs[1][σ], :] += lexp .* (AA * RR * BB')
     end
     R
 end
@@ -411,13 +409,11 @@ function update_env_right(
 ) where {T <: SparseSiteTensor, S <: AbstractArray{Float64, 3}}
     R = zeros(size(A, 1), maximum(M.projs[1]), size(B, 1))
 
-    #Threads.@threads for σ ∈ 1:length(M.loc_exp)
-    #    lexp = M.loc_exp[σ]
     for (σ, lexp) ∈ enumerate(M.loc_exp)
-        AA = @view A[:, M.projs[4][σ], :]
-        RR = @view RE[:, M.projs[3][σ], :]
-        BB = @view B[:, M.projs[2][σ], :]
-        R[:, M.projs[1][σ], :] += lexp .* (AA * RR * BB')
+        AA = @inbounds @view A[:, M.projs[4][σ], :]
+        RR = @inbounds @view RE[:, M.projs[3][σ], :]
+        BB = @inbounds @view B[:, M.projs[2][σ], :]
+        @inbounds R[:, M.projs[1][σ], :] += lexp .* (AA * RR * BB')
     end
     R
 end
@@ -433,10 +429,10 @@ function update_env_right(
 
     R = zeros(size(A, 1), length(p_l), size(B, 1))
     for l ∈ 1:length(p_l), r ∈ 1:length(p_r)
-        AA = @view A4[:, p_rt[r], p_lt[l], :]
-        RR = @view RE[:, r, :]
-        BB = @view B4[:, p_lb[l], p_rb[r], :]
-        R[:, l, :] += h[p_l[l], p_r[r]] * (AA * RR * BB')
+        AA = @inbounds @view A4[:, p_rt[r], p_lt[l], :]
+        RR = @inbounds @view RE[:, r, :]
+        BB = @inbounds @view B4[:, p_lb[l], p_rb[r], :]
+        @inbounds R[:, l, :] += h[p_l[l], p_r[r]] * (AA * RR * BB')
     end
     R
 end
@@ -452,10 +448,10 @@ function update_env_right(
 
     R = zeros(size(A, 1), length(p_l), size(B, 1))
     for l ∈ 1:length(p_l), r ∈ 1:length(p_r)
-        AA = @view A4[:, p_lb[l], p_rb[r], :]
-        RR = @view RE[:, r, :]
-        BB = @view B4[:, p_rt[r], p_lt[l], :]
-        R[:, l, :] += h[p_l[l], p_r[r]] * (AA * RR * BB')
+        AA = @inbounds @view A4[:, p_lb[l], p_rb[r], :]
+        RR = @inbounds @view RE[:, r, :]
+        BB = @inbounds @view B4[:, p_rt[r], p_lt[l], :]
+        @inbounds R[:, l, :] += h[p_l[l], p_r[r]] * (AA * RR * BB')
     end
     R
 end
@@ -512,7 +508,6 @@ function project_ket_on_bra_twosite(env::Environment, site::Site)
     )
 end
 
-
 #   |    |    |
 #  LE -- M -- RE
 #   |    |    |
@@ -554,13 +549,11 @@ function project_ket_on_bra(
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
     A = zeros(size(LE, 3), maximum(M.projs[2]), size(RE, 1))
 
-    #Threads.@threads for σ ∈ 1:length(M.loc_exp)
-    #    lexp = M.loc_exp[σ]
     for (σ, lexp) ∈ enumerate(M.loc_exp)
-        le = @view LE[:, M.projs[1][σ], :]
-        b = @view B[:, M.projs[4][σ], :]
-        re = @view RE[:, M.projs[3][σ], :]
-        A[:, M.projs[2][σ], :] += lexp .* (le' * b * re')
+        le = @inbounds @view LE[:, M.projs[1][σ], :]
+        b = @inbounds @view B[:, M.projs[4][σ], :]
+        re = @inbounds @view RE[:, M.projs[3][σ], :]
+        @inbounds A[:, M.projs[2][σ], :] += lexp .* (le' * b * re')
     end
     A
 end
@@ -572,12 +565,13 @@ function project_ket_on_bra(
     h = M.con
     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
     @cast B4[x, k, l, y] := B[x, (k, l), y] (k ∈ 1:maximum(p_lb))
+
     A = zeros(size(LE, 3), maximum(p_rt), maximum(p_lt), size(RE, 1))
     for l ∈ 1:length(p_l), r ∈ 1:length(p_r)
-        le = @view LE[:, l, :]
-        b = @view B4[:, p_lb[l], p_rb[r], :]
-        re = @view RE[:, r, :]
-        A[:,  p_rt[r], p_lt[l], :] += h[p_l[l], p_r[r]] .* (le' * b * re')
+        le = @inbounds @view LE[:, l, :]
+        b = @inbounds @view B4[:, p_lb[l], p_rb[r], :]
+        re = @inbounds @view RE[:, r, :]
+        @inbounds A[:,  p_rt[r], p_lt[l], :] += h[p_l[l], p_r[r]] .* (le' * b * re')
     end
     @cast AA[l, (ũ, u), r] := A[l, ũ, u, r]
     AA
@@ -615,13 +609,11 @@ function project_ket_on_bra(
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
     A = zeros(size(LE, 3), maximum(M.projs[4]), size(RE, 1))
 
-    #Threads.@threads for σ ∈ 1:length(M.loc_exp)
-    #    lexp = M.loc_exp[σ]
     for (σ, lexp) ∈ enumerate(M.loc_exp)
-        le = @view LE[:, M.projs[1][σ], :]
-        b = @view B[:, M.projs[2][σ], :]
-        re = @view RE[:, M.projs[3][σ], :]
-        A[:, M.projs[4][σ], :] += lexp .* (le' * b * re')
+        le = @inbounds @view LE[:, M.projs[1][σ], :]
+        b = @inbounds @view B[:, M.projs[2][σ], :]
+        re = @inbounds @view RE[:, M.projs[3][σ], :]
+        @inbounds A[:, M.projs[4][σ], :] += lexp .* (le' * b * re')
     end
     A
 end
@@ -632,12 +624,13 @@ function project_ket_on_bra(
     h = M.con
     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
     @cast B4[x, k, l, y] := B[x, (k, l), y] (k ∈ 1:maximum(p_lb))
+
     A = zeros(size(LE, 3), maximum(p_lb), maximum(p_rb), size(RE, 1))
     for l ∈ 1:length(p_l), r ∈ 1:length(p_r)
-        le = @view LE[:, l, :]
-        b = @view B4[:, p_rt[r], p_lt[l], :]
-        re = @view RE[:, r, :]
-        A[:, p_lb[l], p_rb[r], :] += h[p_l[l], p_r[r]] .* (le' * b * re')
+        le = @inbounds @view LE[:, l, :]
+        b = @inbounds @view B4[:, p_rt[r], p_lt[l], :]
+        re = @inbounds @view RE[:, r, :]
+        @inbounds  A[:, p_lb[l], p_rb[r], :] += h[p_l[l], p_r[r]] .* (le' * b * re')
     end
     @cast AA[l, (ũ, u), r] := A[l, ũ, u, r]
     AA

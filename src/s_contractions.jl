@@ -99,8 +99,8 @@ function contract_up(A::AbstractArray{T, 3}, B::SparseSiteTensor) where T
     C = zeros(sal, sbl, sbt, sar, sbr)
 
     for (σ, lexp) ∈ enumerate(B.loc_exp)
-        AA = @view A[:, B.projs[4][σ], :]
-        C[:, B.projs[1][σ], B.projs[2][σ], :, B.projs[3][σ]] += lexp .* AA
+        AA = @inbounds @view A[:, B.projs[4][σ], :]
+        @inbounds C[:, B.projs[1][σ], B.projs[2][σ], :, B.projs[3][σ]] += lexp .* AA
     end
     @cast CC[(x, y), z, (b, a)] := C[x, y, z, b, a]
     CC
@@ -113,8 +113,8 @@ function contract_down(A::SparseSiteTensor, B::AbstractArray{T, 3}) where T
     C = zeros(sal, sbl, sbr, sar, sbt)
 
     for (σ, lexp) ∈ enumerate(A.loc_exp)
-        AA = @view B[:, A.projs[2][σ], :]
-        C[:, A.projs[1][σ], A.projs[4][σ], :, A.projs[3][σ]] += lexp .* AA
+        AA = @inbounds @view B[:, A.projs[2][σ], :]
+        @inbounds C[:, A.projs[1][σ], A.projs[4][σ], :, A.projs[3][σ]] += lexp .* AA
     end
     @cast CC[(x, y), z, (b, a)] := C[x, y, z, b, a]
     CC
@@ -130,8 +130,8 @@ function contract_up(A::AbstractArray{T, 3}, B::SparseVirtualTensor) where T
 
     C = zeros(sal, length(p_l), maximum(p_rt), maximum(p_lt), sar, length(p_r))
     for l ∈ 1:length(p_l), r ∈ 1:length(p_r)
-        AA = @view A4[:, p_lb[l], p_rb[r], :]
-        C[:, l, p_rt[r], p_lt[l], :, r] += h[p_l[l], p_r[r]] .* AA
+        AA = @inbounds @view A4[:, p_lb[l], p_rb[r], :]
+        @inbounds C[:, l, p_rt[r], p_lt[l], :, r] += h[p_l[l], p_r[r]] .* AA
     end
     @cast CC[(x, y), (t1, t2), (b, a)] := C[x, y, t1, t2, b, a]
     CC
@@ -146,8 +146,8 @@ function contract_down(A::SparseVirtualTensor, B::AbstractArray{T, 3}) where T
 
     C = zeros(sal, length(p_l), maximum(p_rt), maximum(p_lt), sar, length(p_r))
     for l ∈ 1:length(p_l), r ∈ 1:length(p_r)
-        BB = @view B4[:, p_lt[l], p_rt[r], :]
-        C[:, l, p_rb[r], p_lb[l], :, r] += h[p_l[l], p_r[r]] .* BB
+        BB = @inbounds @view B4[:, p_lt[l], p_rt[r], :]
+        @inbounds C[:, l, p_rb[r], p_lb[l], :, r] += h[p_l[l], p_r[r]] .* BB
     end
     @cast CC[(x, y), (t1, t2), (b, a)] := C[x, y, t1, t2, b, a]
     CC

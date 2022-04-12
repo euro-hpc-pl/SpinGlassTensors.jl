@@ -21,20 +21,32 @@ struct SparseSiteTensor <: AbstractSparseTensor
 end
 
 #TODO: potentially change name. Used in SquareStar geometry.
+"""
+$(TYPEDSIGNATURES)
+"""
 struct SparseVirtualTensor <: AbstractSparseTensor
     con::Matrix{<:Real}
     projs::NTuple{N, Vector{Int}} where N
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
 const Tensor = Union{AbstractArray{Float64}, SparseSiteTensor, SparseVirtualTensor}
 
 #TODO: type of sites
+"""
+$(TYPEDSIGNATURES)
+"""
 struct QMps <: AbstractTensorNetwork{Number}
     tensors::Dict{Site, Tensor}
     sites::Vector{Site}
     QMps(tensors::Dict{<:Site, <:Tensor}) = new(tensors, sort(collect(keys(tensors))))
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
 struct QMpo <: AbstractTensorNetwork{Number}
     tensors::Dict{Site, Dict{Site, Tensor}}
     sites::Vector{Site}
@@ -44,6 +56,9 @@ struct QMpo <: AbstractTensorNetwork{Number}
 end
 
 #TODO: rethink this function
+"""
+$(TYPEDSIGNATURES)
+"""
 function local_dims(mpo::QMpo, dir::Symbol)
     @assert dir ∈ (:down, :up)
     lds = Dict{Site, Int}()
@@ -62,6 +77,9 @@ function local_dims(mpo::QMpo, dir::Symbol)
     lds
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
 function IdentityQMps(loc_dims::Dict, Dmax::Int=1)
     id = Dict{Site, Tensor}(site => zeros(Dmax, ld, Dmax) for (site, ld) ∈ loc_dims)
     site, ld = minimum(loc_dims)
@@ -72,12 +90,26 @@ function IdentityQMps(loc_dims::Dict, Dmax::Int=1)
     QMps(id)
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
 @inline Base.size(tens::AbstractSparseTensor) = maximum.(tens.projs)
+
+"""
+$(TYPEDSIGNATURES)
+"""
 @inline function Base.setindex!(
     ket::AbstractTensorNetwork, A::AbstractArray, i::Site
 )
     ket.tensors[i] = A
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
 QMps(ϕ::AbstractMPS) = QMps(Dict(i => A for (i, A) ∈ enumerate(ϕ)))
+
+"""
+$(TYPEDSIGNATURES)
+"""
 QMpo(ϕ::AbstractMPO) = QMpo(Dict(i => Dict(0 => A) for (i, A) ∈ enumerate(ϕ)))

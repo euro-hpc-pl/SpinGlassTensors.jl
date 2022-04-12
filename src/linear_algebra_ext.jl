@@ -2,6 +2,9 @@ export
     rq_fact,
     qr_fact
 
+"""
+$(TYPEDSIGNATURES)
+"""
 function qr_fact(M::AbstractMatrix, Dcut::Int=typemax(Int), tol::Float64=1E-15, args...)
     q, r = _qr_fix(qr(M, args...))
     if Dcut > size(q, 2) return q, r end
@@ -9,11 +12,17 @@ function qr_fact(M::AbstractMatrix, Dcut::Int=typemax(Int), tol::Float64=1E-15, 
     q * U, Σ .* V'
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
 function rq_fact(M::AbstractMatrix, Dcut::Int=typemax(Int), tol::Float64=1E-15, args...)
     q, r = qr_fact(M', Dcut, tol, args...)
     r', q'
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
 function _qr_fix(QR_fact::T) where T <: LinearAlgebra.QRCompactWY
     d = diag(QR_fact.R)
     L = length(d)
@@ -26,6 +35,9 @@ function _qr_fix(QR_fact::T) where T <: LinearAlgebra.QRCompactWY
     QR_fact.Q * ph, diag(ph) .* QR_fact.R
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
 function LinearAlgebra.svd(
     A::AbstractMatrix, Dcut::Int=typemax(Int), tol::Float64=1E-15, args...
 )
@@ -40,7 +52,9 @@ function LinearAlgebra.svd(
     V = V[:, begin:δ]
 
     d = diag(U)
-    for i ∈ eachindex(d) @inbounds d[i] = ifelse(isapprox(d[i], 0, atol=1e-14), 1, d[i]) end
+    for i ∈ eachindex(d)
+        @inbounds d[i] = ifelse(isapprox(d[i], 0, atol=1e-14), 1, d[i])
+    end
     ph = d ./ abs.(d)
     U * Diagonal(ph), Σ, V * Diagonal(ph)
 end

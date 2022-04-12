@@ -6,6 +6,9 @@ export
     Environment,
     optimize_gauges_for_overlaps!!
 
+"""
+$(TYPEDSIGNATURES)
+"""
 mutable struct Environment <: AbstractEnvironment
     bra::QMps  # to be optimized
     mpo::QMpo
@@ -33,6 +36,9 @@ mutable struct Environment <: AbstractEnvironment
     end
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
 function SpinGlassTensors.compress!(
     bra::QMps,
     mpo::QMpo,
@@ -91,6 +97,9 @@ function compress_twosite!(
     overlap
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
 function _left_sweep_var!(env::Environment, trans::Symbol=:n, args...)
     for site ∈ reverse(env.bra.sites)
         update_env_right!(env, site, trans)
@@ -103,6 +112,9 @@ function _left_sweep_var!(env::Environment, trans::Symbol=:n, args...)
     end
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
 function _right_sweep_var!(env::Environment, trans::Symbol=:n, args...)
     for site ∈ env.bra.sites
         update_env_left!(env, site, trans)
@@ -116,6 +128,9 @@ function _right_sweep_var!(env::Environment, trans::Symbol=:n, args...)
 end
 
 #TODO: to be changed
+"""
+$(TYPEDSIGNATURES)
+"""
 function _left_sweep_var_twosite!(env::Environment, Dcut::Int, tol::Number, args...)
     for site ∈ reverse(env.bra.sites[2:end])
         update_env_right!(env, site)
@@ -129,7 +144,7 @@ function _left_sweep_var_twosite!(env::Environment, Dcut::Int, tol::Number, args
         if site == env.bra.sites[2]
             UU = U .* reshape(S, 1, :)
             @cast US[x, σ, y] := UU[(x, σ), y] (σ ∈ 1:size(A, 2))
-            env.bra[env.bra.sites[1]] = US/norm(US)
+            env.bra[env.bra.sites[1]] = US / norm(US)
             update_env_right!(env, env.bra.sites[2])
             update_env_right!(env, env.bra.sites[1])
         end
@@ -157,20 +172,29 @@ function _right_sweep_var_twosite!(env::Environment, Dcut::Int, tol::Number, arg
     end
 end
 
-"Largest x in sites: x < site"
+"""
+$(TYPEDSIGNATURES)
+Largest x in sites: x < site
+"""
 function _left_nbrs_site(site::Site, sites)
     ls = filter(i -> i < site, sites)
     if isempty(ls) return -Inf end
     maximum(ls)
 end
 
-"Smallest x in sites: x > site"
+"""
+$(TYPEDSIGNATURES)
+Smallest x in sites: x > site
+"""
 function _right_nbrs_site(site::Site, sites)
     ms = filter(i -> i > site, sites)
     if isempty(ms) return Inf end
     minimum(ms)
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
 function update_env_left!(env::Environment, site::Site, trans::Symbol=:n)
     if site <= first(env.bra.sites) return end
 
@@ -185,6 +209,9 @@ function update_env_left!(env::Environment, site::Site, trans::Symbol=:n)
     push!(env.env, (site, :left) => LL)
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
 function update_env_right!(env::Environment, site::Site, trans::Symbol=:n)
     if site >= last(env.bra.sites) return end
 
@@ -199,16 +226,22 @@ function update_env_right!(env::Environment, site::Site, trans::Symbol=:n)
     push!(env.env, (site, :right) => RR)
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
 function clear_env_containing_site!(env::Environment, site::Site)
     delete!(env.env, (_left_nbrs_site(site, env.ket.sites), :right))
     delete!(env.env, (_right_nbrs_site(site, env.ket.sites), :left))
 end
 
-#        -- A --
-#      |    |
-# L = LE -- M --
-#      |    |
-#        -- B --
+"""
+$(TYPEDSIGNATURES)
+        -- A --
+      |    |
+ L = LE -- M --
+      |    |
+        -- B --
+"""
 function update_env_left(
     LE::S, A₀::S, M::T, B₀::S, trans::Symbol=:n
 ) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
@@ -218,6 +251,9 @@ function update_env_left(
     update_env_left(LE, A, M[0], B, Val(trans))
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
 function update_env_left(
     LE::S, M::T, ::Val{:n}
 ) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
@@ -226,6 +262,9 @@ function update_env_left(
     L
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
 function update_env_left(
     LE::S, M::T, ::Val{:c}
 ) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
@@ -234,6 +273,9 @@ function update_env_left(
     L
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
 function update_env_left(
     LE::S, A::S, M::T, B::S, ::Val{:n}
 ) where {S <: AbstractArray{Float64, 3}, T <: AbstractArray{Float64, 4}}
@@ -242,6 +284,9 @@ function update_env_left(
     L
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
 function update_env_left(
     LE::S, A::S, M::T, B::S, ::Val{:c}
 ) where {S <: AbstractArray{Float64, 3}, T <: AbstractArray{Float64, 4}}
@@ -250,7 +295,10 @@ function update_env_left(
     L
 end
 
-# Improve this function with brodcasting
+# TODO: Improve this function with brodcasting, if possible
+"""
+$(TYPEDSIGNATURES)
+"""
 function update_env_left(
     LE::S, A::S, M::T, B::S, ::Val{:n}
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
@@ -264,6 +312,9 @@ function update_env_left(
     L
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
 function update_env_left(
     LE::S, A::S, M::T, B::S, ::Val{:c}
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
@@ -279,7 +330,9 @@ function update_env_left(
 end
 
 # TODO: TikZ picture to be added
-# This is not optimal
+"""
+$(TYPEDSIGNATURES)
+"""
 function update_env_left(
     LE::S, A::S, M::T, B::S, ::Val{:n}
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseVirtualTensor}
@@ -300,6 +353,9 @@ function update_env_left(
 end
 
 # TODO: TikZ picture to be added
+"""
+$(TYPEDSIGNATURES)
+"""
 function update_env_left(
     LE::S, A::S, M::T, B::S, ::Val{:c}
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseVirtualTensor}
@@ -319,6 +375,9 @@ function update_env_left(
     L
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
 function _update_tensor_forward(
     A::S, M::T, sites, ::Val{:n}
 ) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
@@ -331,6 +390,9 @@ function _update_tensor_forward(
     B
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
 function _update_tensor_forward(
     A::S, M::T, sites, ::Val{:c}
 ) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
@@ -343,6 +405,9 @@ function _update_tensor_forward(
     B
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
 function _update_tensor_backwards(
     A::S, M::T, sites, ::Val{:n}
 ) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
@@ -355,6 +420,9 @@ function _update_tensor_backwards(
     B
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
 function _update_tensor_backwards(
     A::S, M::T, sites, ::Val{:c}
 ) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
@@ -367,11 +435,14 @@ function _update_tensor_backwards(
     B
 end
 
-#      -- A --
-#         |    |
-# R =  -- M -- RE
-#         |    |
-#      -- B --
+"""
+$(TYPEDSIGNATURES)
+      -- A --
+         |    |
+ R =  -- M -- RE
+         |    |
+      -- B --
+"""
 function update_env_right(
     RE::S, A::S, M::T, B::S, ::Val{:n}
 ) where {T <: AbstractArray{Float64, 4}, S <: AbstractArray{Float64, 3}}
@@ -380,6 +451,9 @@ function update_env_right(
     R
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
 function update_env_right(
     RE::S, A::S, M::T, B::S, ::Val{:c}
 ) where {T <: AbstractArray{Float64, 4}, S <: AbstractArray{Float64, 3}}
@@ -388,7 +462,9 @@ function update_env_right(
     R
 end
 
-#TODO: think of doing threading over σ
+"""
+$(TYPEDSIGNATURES)
+"""
 function update_env_right(
     RE::S, A::S, M::T, B::S, ::Val{:n}
 ) where {T <: SparseSiteTensor, S <: AbstractArray{Float64, 3}}
@@ -403,7 +479,9 @@ function update_env_right(
     R
 end
 
-#TODO: think of doing threading over σ
+"""
+$(TYPEDSIGNATURES)
+"""
 function update_env_right(
     RE::S, A::S, M::T, B::S, ::Val{:c}
 ) where {T <: SparseSiteTensor, S <: AbstractArray{Float64, 3}}
@@ -419,6 +497,9 @@ function update_env_right(
 end
 
 # TODO: TikZ picture to be added
+"""
+$(TYPEDSIGNATURES)
+"""
 function update_env_right(
     RE::S, A::S, M::T, B::S, ::Val{:n}
 ) where {T <: SparseVirtualTensor, S <: AbstractArray{Float64,3}}
@@ -438,6 +519,9 @@ function update_env_right(
 end
 
 # TODO: TikZ picture to be added
+"""
+$(TYPEDSIGNATURES)
+"""
 function update_env_right(
     RE::S, A::S, M::T, B::S, ::Val{:c}
 ) where {T <: SparseVirtualTensor, S <: AbstractArray{Float64, 3}}
@@ -456,6 +540,9 @@ function update_env_right(
     R
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
 function update_env_right(
     RE::S, A₀::S1, M::T, B₀::S, trans::Symbol=:n
 ) where {T <: AbstractDict, S <: AbstractArray{Float64, 3}, S1 <: AbstractArray{Float64, 3}}
@@ -465,11 +552,14 @@ function update_env_right(
     update_env_right(RE, A, M[0], B, Val(trans))
 end
 
-#           --
-#              |
-# R =  -- M -- RE
-#              |
-#           --
+"""
+$(TYPEDSIGNATURES)
+           --
+              |
+ R =  -- M -- RE
+              |
+           --
+"""
 function update_env_right(
     RE::S, M::T, ::Val{:c}
 ) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
@@ -478,6 +568,9 @@ function update_env_right(
     R
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
 function update_env_right(
     RE::S, M::T, ::Val{:n}
 ) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
@@ -486,6 +579,9 @@ function update_env_right(
     R
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
 function project_ket_on_bra(env::Environment, site::Site, trans::Symbol=:n)
     project_ket_on_bra(
         env.env[(site, :left)],
@@ -496,6 +592,9 @@ function project_ket_on_bra(env::Environment, site::Site, trans::Symbol=:n)
     )
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
 function project_ket_on_bra_twosite(env::Environment, site::Site)
     site_l = _left_nbrs_site(site, env.bra.sites)
     project_ket_on_bra(
@@ -508,10 +607,14 @@ function project_ket_on_bra_twosite(env::Environment, site::Site)
     )
 end
 
-#   |    |    |
-#  LE -- M -- RE
-#   |    |    |
-#     -- B --
+"""
+$(TYPEDSIGNATURES)
+
+   |    |    |
+  LE -- M -- RE
+   |    |    |
+     -- B --
+"""
 function project_ket_on_bra(
     LE::S, B::S, M::T, RE::S, ::Val{:n}
 ) where {T <: AbstractArray{Float64, 4}, S <: AbstractArray{Float64, 3}}
@@ -520,6 +623,9 @@ function project_ket_on_bra(
     A
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
 function project_ket_on_bra(
     LE::S, B::S, C::S, M::T, N::T, RE::S, ::Val{:n}
 ) where {T <: AbstractArray{Float64, 4}, S <: AbstractArray{Float64, 3}}
@@ -529,6 +635,9 @@ function project_ket_on_bra(
     A
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
 function project_ket_on_bra(
     LE::S, B::S, M::T, RE::S, ::Val{:n}
 ) where {T <: AbstractArray{Float64, 2}, S <: AbstractArray{Float64, 3}}
@@ -536,6 +645,9 @@ function project_ket_on_bra(
     A
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
 function project_ket_on_bra(
     LE::S, B::S, M::T, RE::S, ::Val{:c}
 ) where {T <: AbstractArray{Float64, 2}, S <: AbstractArray{Float64, 3}}
@@ -543,7 +655,9 @@ function project_ket_on_bra(
     A
 end
 
-#TODO: think of threading over σ
+"""
+$(TYPEDSIGNATURES)
+"""
 function project_ket_on_bra(
     LE::S, B::S, M::T, RE::S, ::Val{:n}
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
@@ -558,6 +672,9 @@ function project_ket_on_bra(
     A
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
 function project_ket_on_bra(
     LE::S, B::S, M::T, RE::S, ::Val{:n}
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseVirtualTensor}
@@ -577,6 +694,9 @@ function project_ket_on_bra(
     AA
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
 function project_ket_on_bra(
     LE::S, B::S, M::T, RE::S, ::Val{:c}
 ) where {T <: AbstractArray{Float64, 4}, S <: AbstractArray{Float64, 3}}
@@ -585,6 +705,9 @@ function project_ket_on_bra(
     A
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
 function project_ket_on_bra(
     LE::S, B::S, C::S, M::T, N::T, RE::S, ::Val{:c}
 ) where {T <: AbstractArray{Float64, 4}, S <: AbstractArray{Float64, 3}}
@@ -593,17 +716,10 @@ function project_ket_on_bra(
                           N[n, z, p, s] * RE[r, p, q] order = (k, l, y, n, o, z, p, q)
     A
 end
-#=
-function project_ket_on_bra(
-    LE::S, B::S, C::S, M::T, N::T, RE::S, ::Val{:c}
-) where {T <: AbstractArray{Float64, 4}, S <: AbstractArray{Float64, 3}}
-    @tensor A[x, y, z, r] := LE[k, l, x] * B[k, m, o] *
-                          M[l, y, n, m] * C[o, s, q] *
-                          N[n, z, p, s] * RE[r, p, q] order = (k, l, m, n, o, s, p, q)
-    A
-end
-=#
-#TODO: think of threading over σ
+
+"""
+$(TYPEDSIGNATURES)
+"""
 function project_ket_on_bra(
     LE::S, B::S, M::T, RE::S, ::Val{:c}
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
@@ -618,6 +734,9 @@ function project_ket_on_bra(
     A
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
 function project_ket_on_bra(
     LE::S, B::S, M::T, RE::S, ::Val{:c}
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseVirtualTensor}
@@ -636,6 +755,9 @@ function project_ket_on_bra(
     AA
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
 function project_ket_on_bra(
     LE::S, B₀::S, M::T, RE::S, ::Val{:n}
 ) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
@@ -646,6 +768,9 @@ function project_ket_on_bra(
     TT
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
 function project_ket_on_bra(
     LE::S, B₀::S, M::T, RE::S, ::Val{:c}
 ) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
@@ -656,6 +781,9 @@ function project_ket_on_bra(
     TT
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
 function measure_env(env::Environment, site::Site, trans::Symbol=:n)
     L = update_env_left(
         env.env[(site, :left)], env.bra[site], env.mpo[site], env.ket[site], trans
@@ -664,6 +792,9 @@ function measure_env(env::Environment, site::Site, trans::Symbol=:n)
     @tensor L[t, c, b] * R[b, c, t]
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
 function truncate!(ψ::QMps, s::Symbol, Dcut::Int=typemax(Int), args...)
     @assert s ∈ (:left, :right)
     if s == :right
@@ -674,10 +805,25 @@ function truncate!(ψ::QMps, s::Symbol, Dcut::Int=typemax(Int), args...)
         _right_sweep!(ψ, Dcut, args...)
     end
 end
+
+"""
+$(TYPEDSIGNATURES)
+"""
 canonise!(ψ::QMps, s::Symbol) = canonise!(ψ, Val(s))
+
+"""
+$(TYPEDSIGNATURES)
+"""
 canonise!(ψ::QMps, ::Val{:right}) = _left_sweep!(ψ, typemax(Int))
+
+"""
+$(TYPEDSIGNATURES)
+"""
 canonise!(ψ::QMps, ::Val{:left}) = _right_sweep!(ψ, typemax(Int))
 
+"""
+$(TYPEDSIGNATURES)
+"""
 function _right_sweep!(ψ::QMps, Dcut::Int=typemax(Int), args...)
     R = ones(eltype(ψ[1]), 1, 1)
     for i ∈ ψ.sites
@@ -690,6 +836,9 @@ function _right_sweep!(ψ::QMps, Dcut::Int=typemax(Int), args...)
     end
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
 function _left_sweep!(ψ::QMps, Dcut::Int=typemax(Int), args...)
     R = ones(eltype(ψ[1]), 1, 1)
     for i ∈ reverse(ψ.sites)
@@ -702,6 +851,9 @@ function _left_sweep!(ψ::QMps, Dcut::Int=typemax(Int), args...)
     end
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
 function _gauges_right_sweep!!!(ψ_top::QMps, ψ_bot::QMps, all_gauges::Dict)
     RT, RB = ones(1, 1), ones(1, 1)
     for i ∈ ψ_top.sites
@@ -733,6 +885,9 @@ function _gauges_right_sweep!!!(ψ_top::QMps, ψ_bot::QMps, all_gauges::Dict)
     end
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
 function _gauges_left_sweep!!!(ψ_top::QMps, ψ_bot::QMps, all_gauges::Dict)
     RT, RB = ones(1, 1), ones(1, 1)
 
@@ -765,6 +920,9 @@ function _gauges_left_sweep!!!(ψ_top::QMps, ψ_bot::QMps, all_gauges::Dict)
     end
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
 function optimize_gauges_for_overlaps!!(
     ψ_top::QMps,
     ψ_bot::QMps,

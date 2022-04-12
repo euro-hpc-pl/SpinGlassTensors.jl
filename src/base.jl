@@ -1,5 +1,15 @@
-export AbstractTensorNetwork, bond_dimension, is_left_normalized, is_right_normalized
-export verify_bonds, verify_physical_dims, tensor, rank, physical_dim, State, dropindices
+export
+    AbstractTensorNetwork,
+    bond_dimension,
+    is_left_normalized,
+    is_right_normalized,
+    verify_bonds,
+    verify_physical_dims,
+    tensor,
+    rank,
+    physical_dim,
+    State,
+    dropindices
 
 const State = Union{Vector, NTuple}
 abstract type AbstractTensorNetwork{T} end
@@ -36,17 +46,59 @@ for (T, N) ∈ ((:PEPSRow, 5), (:MPO, 4), (:MPS, 3))
     end
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
 @inline Base.getindex(a::AbstractTensorNetwork, i) = getindex(a.tensors, i)
+
+"""
+$(TYPEDSIGNATURES)
+"""
 @inline Base.iterate(a::AbstractTensorNetwork) = iterate(a.tensors)
+
+"""
+$(TYPEDSIGNATURES)
+"""
 @inline Base.iterate(a::AbstractTensorNetwork, state) = iterate(a.tensors, state)
+
+"""
+$(TYPEDSIGNATURES)
+"""
 @inline Base.lastindex(a::AbstractTensorNetwork) = lastindex(a.tensors)
+
+"""
+$(TYPEDSIGNATURES)
+"""
 @inline Base.length(a::AbstractTensorNetwork) = length(a.tensors)
+
+"""
+$(TYPEDSIGNATURES)
+"""
 @inline Base.size(a::AbstractTensorNetwork) = (length(a.tensors), )
+
+"""
+$(TYPEDSIGNATURES)
+"""
 @inline Base.eachindex(a::AbstractTensorNetwork) = eachindex(a.tensors)
+
+"""
+$(TYPEDSIGNATURES)
+"""
 @inline LinearAlgebra.rank(ψ::AbstractMPS) = Tuple(size(A, 2) for A ∈ ψ)
+
+"""
+$(TYPEDSIGNATURES)
+"""
 @inline physical_dim(ψ::AbstractMPS, i::Int) = size(ψ[i], 2)
+
+"""
+$(TYPEDSIGNATURES)
+"""
 @inline MPS(A::AbstractArray) = MPS(A, :right)
 
+"""
+$(TYPEDSIGNATURES)
+"""
 @inline function MPS(A::AbstractArray, s::Symbol, Dcut::Int=typemax(Int))
     @assert s ∈ (:left, :right)
     if s == :right
@@ -58,22 +110,38 @@ end
     end
     ψ
 end
+
+"""
+$(TYPEDSIGNATURES)
+"""
 @inline dropindices(ψ::AbstractMPS, i::Int=2) = (dropdims(A, dims=i) for A ∈ ψ)
 
+"""
+$(TYPEDSIGNATURES)
+"""
 function MPS(states::Vector{Vector{T}}) where {T <: Number}
     state_arrays = [reshape(copy(v), (1, length(v), 1)) for v ∈ states]
     MPS(state_arrays)
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
 function (::Type{T})(ψ::AbstractMPS) where {T <: AbstractMPO}
     _verify_square(ψ)
     T([@cast W[x, σ, y, η] |= A[x, (σ, η), y] (σ ∈ 1:isqrt(size(A, 2))) for A in ψ])
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
 function (::Type{T})(O::AbstractMPO) where {T <: AbstractMPS}
     T([@cast A[x, (σ, η), y] := W[x, σ, y, η] for W in O])
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
 function Base.randn(::Type{MPS{T}}, D::Int, rank::Union{Vector, NTuple}) where {T}
     MPS([
         randn(T, 1, first(rank), D),
@@ -82,22 +150,42 @@ function Base.randn(::Type{MPS{T}}, D::Int, rank::Union{Vector, NTuple}) where {
     ])
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
 function Base.randn(::Type{MPS{T}}, L::Int, D::Int, d::Int) where {T}
     MPS([
         randn(T, 1, d, D), (randn(T, D, d, D) for _ in 2:L-1)..., randn(T, D, d, 1)
     ])
 end
+
+"""
+$(TYPEDSIGNATURES)
+"""
 Base.randn(::Type{MPS}, args...) = randn(MPS{Float64}, args...)
 
+"""
+$(TYPEDSIGNATURES)
+"""
 function Base.randn(::Type{MPO{T}}, L::Int, D::Int, d::Int) where {T}
     MPO(randn(MPS{T}, L, D, d^2))
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
 function Base.randn(::Type{MPO{T}}, D::Int, rank::Union{Vector, NTuple}) where {T}
     MPO(randn(MPS{T}, D, rank .^ 2))
 end
+
+"""
+$(TYPEDSIGNATURES)
+"""
 Base.randn(::Type{MPO}, args...) = randn(MPO{Float64}, args...)
 
+"""
+$(TYPEDSIGNATURES)
+"""
 function is_left_normalized(ψ::MPS)
     all(
        I(size(A, 3)) ≈ @tensor Id[x, y] := conj(A[α, σ, x]) * A[α, σ, y] order = (α, σ)
@@ -105,6 +193,9 @@ function is_left_normalized(ψ::MPS)
     )
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
 function is_right_normalized(ϕ::MPS)
     all(
         I(size(B, 1)) ≈ @tensor Id[x, y] := B[x, σ, α] * conj(B[y, σ, α]) order = (α, σ)
@@ -112,17 +203,26 @@ function is_right_normalized(ϕ::MPS)
     )
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
 function _verify_square(ψ::AbstractMPS)
     dims = physical_dim.(Ref(ψ), eachindex(ψ))
     @assert isqrt.(dims) .^ 2 == dims "Incorrect MPS dimensions"
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
 function verify_physical_dims(ψ::AbstractMPS, dims::NTuple)
     for i ∈ eachindex(ψ)
         @assert physical_dim(ψ, i) == dims[i] "Incorrect physical dim at site $(i)."
     end
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
 function verify_bonds(ψ::AbstractMPS)
     L = length(ψ)
 
@@ -134,6 +234,9 @@ function verify_bonds(ψ::AbstractMPS)
     end
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
 function Base.show(io::IO, ψ::AbstractTensorNetwork)
     L = length(ψ)
     dims = [size(A) for A ∈ ψ]
@@ -143,6 +246,9 @@ function Base.show(io::IO, ψ::AbstractTensorNetwork)
     println(io, "   ")
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
 function _show_sizes(io::IO, dims::Vector, sep::String=" x ", Lcut::Int=8)
     L = length(dims)
     if L > Lcut

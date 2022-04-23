@@ -44,14 +44,32 @@ function SpinGlassTensors.compress!(
     mpo::QMpo,
     ket::QMps,
     Dcut::Int,
-    tol::Real=1E-8,
+    tol::Real=1E-10,
     max_sweeps::Int=4,
     trans::Symbol=:n,
+    graduate_truncation::Bool=true,
+    tolS::Real=1E-16,
     args...
 )
     env = Environment(bra, mpo, ket, trans)
     overlap = Inf
     overlap_before = measure_env(env, last(env.bra.sites), trans)
+    _left_sweep_var!(env, trans, args...)
+
+    if graduate_truncation
+        _right_sweep_var!(env, trans, Dcut * 4, tolS/10, args...)
+        overlap = measure_env(env, last(env.bra.sites), trans)
+        Δ = abs(overlap_before - abs(overlap))
+        @info "Convergence" Δ
+
+        if Δ < tol
+            @info "Finished in $sweep sweeps of $(max_sweeps)."
+            return overlap
+        else
+            overlap_before = overlap
+        end
+        _left_sweep_var!(env, trans, Dcut *2, tolS/2, args... )
+    end
 
     for sweep ∈ 1:max_sweeps
         _left_sweep_var!(env, trans, args...)
@@ -100,12 +118,12 @@ end
 """
 $(TYPEDSIGNATURES)
 """
-function _left_sweep_var!(env::Environment, trans::Symbol=:n, args...)
+function _left_sweep_var!(env::Environment, trans::Symbol=:n, Dcut::Int=32, tolS::Real=1E-16, args...)
     for site ∈ reverse(env.bra.sites)
         update_env_right!(env, site, trans)
         A = project_ket_on_bra(env, site, trans)
         @cast B[x, (y, z)] := A[x, y, z]
-        _, Q = rq_fact(B, args...)
+        _, Q = rq_fact(B, Dcut, tolS, args...)
         @cast C[x, σ, y] := Q[x, (σ, y)] (σ ∈ 1:size(A, 2))
         env.bra[site] = C
         clear_env_containing_site!(env, site)
@@ -115,12 +133,12 @@ end
 """
 $(TYPEDSIGNATURES)
 """
-function _right_sweep_var!(env::Environment, trans::Symbol=:n, args...)
+function _right_sweep_var!(env::Environment, trans::Symbol=:n, Dcut::Int=32, tolS::Real=1E-16, args...)
     for site ∈ env.bra.sites
         update_env_left!(env, site, trans)
         A = project_ket_on_bra(env, site, trans)
         @cast B[(x, y), z] := A[x, y, z]
-        Q, _ = qr_fact(B, args...)
+        Q, _ = qr_fact(B, Dcut, tolS, args...)
         @cast C[x, σ, y] := Q[(x, σ), y] (σ ∈ 1:size(A, 2))
         env.bra[site] = C
         clear_env_containing_site!(env, site)

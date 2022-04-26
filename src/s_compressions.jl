@@ -68,9 +68,9 @@ function SpinGlassTensors.compress!(
         else
             overlap_before = overlap
         end
-        _left_sweep_var!(env, trans, Dcut *2, tolS/2, args... )
     end
-
+    #_left_sweep_var!(env, trans, Dcut, tolS, args... )
+    truncate!(bra, :left, Dcut)
     for sweep ∈ 1:max_sweeps
         _left_sweep_var!(env, trans, args...)
         _right_sweep_var!(env, trans, args...)

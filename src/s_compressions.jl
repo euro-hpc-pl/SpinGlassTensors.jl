@@ -47,30 +47,13 @@ function SpinGlassTensors.compress!(
     tol::Real=1E-10,
     max_sweeps::Int=4,
     trans::Symbol=:n,
-    graduate_truncation::Bool=true,
     tolS::Real=1E-16,
     args...
 )
     env = Environment(bra, mpo, ket, trans)
     overlap = Inf
     overlap_before = measure_env(env, last(env.bra.sites), trans)
-    _left_sweep_var!(env, trans, args...)
 
-    if graduate_truncation
-        _right_sweep_var!(env, trans, Dcut * 4, tolS/10, args...)
-        overlap = measure_env(env, last(env.bra.sites), trans)
-        Δ = abs(overlap_before - abs(overlap))
-        @info "Convergence" Δ
-
-        if Δ < tol
-            @info "Finished in $sweep sweeps of $(max_sweeps)."
-            return overlap
-        else
-            overlap_before = overlap
-        end
-    end
-    #_left_sweep_var!(env, trans, Dcut, tolS, args... )
-    truncate!(bra, :left, Dcut)
     for sweep ∈ 1:max_sweeps
         _left_sweep_var!(env, trans, args...)
         _right_sweep_var!(env, trans, args...)

@@ -47,7 +47,6 @@ function SpinGlassTensors.compress!(
     tol::Real=1E-10,
     max_sweeps::Int=4,
     trans::Symbol=:n,
-    tolS::Real=1E-16,
     args...
 )
     env = Environment(bra, mpo, ket, trans)
@@ -796,14 +795,14 @@ end
 """
 $(TYPEDSIGNATURES)
 """
-function truncate!(ψ::QMps, s::Symbol, Dcut::Int=typemax(Int), args...)
+function truncate!(ψ::QMps, s::Symbol, Dcut::Int=typemax(Int), tolS::Real=1E-16, args...)
     @assert s ∈ (:left, :right)
     if s == :right
         _right_sweep!(ψ, args...)
-        _left_sweep!(ψ, Dcut, args...)
+        _left_sweep!(ψ, Dcut, tolS, args...)
     else
         _left_sweep!(ψ, args...)
-        _right_sweep!(ψ, Dcut, args...)
+        _right_sweep!(ψ, Dcut, tolS, args...)
     end
 end
 
@@ -825,12 +824,12 @@ canonise!(ψ::QMps, ::Val{:left}) = _right_sweep!(ψ, typemax(Int))
 """
 $(TYPEDSIGNATURES)
 """
-function _right_sweep!(ψ::QMps, Dcut::Int=typemax(Int), args...)
+function _right_sweep!(ψ::QMps, Dcut::Int=typemax(Int), tolS::Real=1E-16, args...)
     R = ones(eltype(ψ[1]), 1, 1)
     for i ∈ ψ.sites
         A = ψ[i]
         @matmul M̃[(x, σ), y] := sum(α) R[x, α] * A[α, σ, y]
-        Q, R = qr_fact(M̃, Dcut, args...)
+        Q, R = qr_fact(M̃, Dcut, tolS, args...)
         R ./= maximum(abs.(R))
         @cast A[x, σ, y] := Q[(x, σ), y] (σ ∈ 1:size(A, 2))
         ψ[i] = A
@@ -840,12 +839,12 @@ end
 """
 $(TYPEDSIGNATURES)
 """
-function _left_sweep!(ψ::QMps, Dcut::Int=typemax(Int), args...)
+function _left_sweep!(ψ::QMps, Dcut::Int=typemax(Int), tolS::Real=1E-16, args...)
     R = ones(eltype(ψ[1]), 1, 1)
     for i ∈ reverse(ψ.sites)
         B = ψ[i]
         @matmul M̃[x, (σ, y)] := sum(α) B[x, σ, α] * R[α, y]
-        R, Q = rq_fact(M̃, Dcut, args...)
+        R, Q = rq_fact(M̃, Dcut, tolS, args...)
         R ./= maximum(abs.(R))
         @cast B[x, σ, y] := Q[x, (σ, y)] (σ ∈ 1:size(B, 2))
         ψ[i] = B

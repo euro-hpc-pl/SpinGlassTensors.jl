@@ -5,7 +5,7 @@ export
 """
 $(TYPEDSIGNATURES)
 """
-function qr_fact(M::AbstractMatrix, Dcut::Int=typemax(Int), tol::Float64=1E-15, args...)
+function qr_fact(M::AbstractMatrix, Dcut::Int=typemax(Int), tol::Float64=1E-16, args...)
     q, r = _qr_fix(qr(M, args...))
     if Dcut > size(q, 2) return q, r end
     U, Σ, V = svd(r, Dcut, tol)

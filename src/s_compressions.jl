@@ -3,6 +3,7 @@ export
     _left_nbrs_site,
     _right_nbrs_site,
     compress_twosite!,
+    canonise_truncate!,
     Environment,
     optimize_gauges_for_overlaps!!
 
@@ -806,6 +807,9 @@ function truncate!(ψ::QMps, s::Symbol, Dcut::Int=typemax(Int), tolS::Real=1E-16
     end
 end
 
+
+
+
 """
 $(TYPEDSIGNATURES)
 """
@@ -820,6 +824,17 @@ canonise!(ψ::QMps, ::Val{:right}) = _left_sweep!(ψ, typemax(Int))
 $(TYPEDSIGNATURES)
 """
 canonise!(ψ::QMps, ::Val{:left}) = _right_sweep!(ψ, typemax(Int))
+
+
+function canonise_truncate!(ψ::QMps, s::Symbol, Dcut::Int=typemax(Int), tolS::Real=1E-16, args...)
+    @assert s ∈ (:left, :right)
+    if s == :right
+        _left_sweep!(ψ, Dcut, tolS, args...)
+    else
+        _right_sweep!(ψ, Dcut, tolS, args...)
+    end
+end
+
 
 """
 $(TYPEDSIGNATURES)

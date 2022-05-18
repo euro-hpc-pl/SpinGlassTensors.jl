@@ -75,9 +75,7 @@ end
 """
 $(TYPEDSIGNATURES)
 """
-function _left_sweep_var!(
-    env::Environment, trans::Symbol=:n, args...
-)
+function _left_sweep_var!(env::Environment, trans::Symbol=:n, args...)
     for site ∈ reverse(env.bra.sites)
         update_env_right!(env, site, trans)
         A = project_ket_on_bra(env, site, trans)
@@ -92,9 +90,7 @@ end
 """
 $(TYPEDSIGNATURES)
 """
-function _right_sweep_var!(
-    env::Environment, trans::Symbol=:n, args...
-)
+function _right_sweep_var!(env::Environment, trans::Symbol=:n, args...)
     for site ∈ env.bra.sites
         update_env_left!(env, site, trans)
         A = project_ket_on_bra(env, site, trans)
@@ -229,7 +225,6 @@ function update_env_left(
     L
 end
 
-# TODO: Improve this function with brodcasting, if possible
 """
 $(TYPEDSIGNATURES)
 """
@@ -263,7 +258,6 @@ function update_env_left(
     L
 end
 
-# TODO: TikZ picture to be added
 """
 $(TYPEDSIGNATURES)
 """
@@ -286,7 +280,6 @@ function update_env_left(
     L
 end
 
-# TODO: TikZ picture to be added
 """
 $(TYPEDSIGNATURES)
 """
@@ -430,7 +423,6 @@ function update_env_right(
     R
 end
 
-# TODO: TikZ picture to be added
 """
 $(TYPEDSIGNATURES)
 """
@@ -452,7 +444,6 @@ function update_env_right(
     R
 end
 
-# TODO: TikZ picture to be added
 """
 $(TYPEDSIGNATURES)
 """
@@ -695,10 +686,9 @@ $(TYPEDSIGNATURES)
 function project_ket_on_bra(
     LE::S, B₀::S, M::T, RE::S, ::Val{:n}
 ) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
-    sites = sort(collect(keys(M)))
     C = sort(collect(M), by = x -> x[1])
     TT = B₀
-    for (t, v) ∈ reverse(C) TT = project_ket_on_bra(LE, TT, v, RE, Val(:n)) end
+    for (_, v) ∈ reverse(C) TT = project_ket_on_bra(LE, TT, v, RE, Val(:n)) end
     TT
 end
 
@@ -708,10 +698,9 @@ $(TYPEDSIGNATURES)
 function project_ket_on_bra(
     LE::S, B₀::S, M::T, RE::S, ::Val{:c}
 ) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
-    sites = sort(collect(keys(M)))
     C = sort(collect(M), by = x -> x[1])
     TT = B₀
-    for (t, v) ∈ C TT = project_ket_on_bra(LE, TT, v, RE, Val(:c)) end
+    for (_, v) ∈ C TT = project_ket_on_bra(LE, TT, v, RE, Val(:c)) end
     TT
 end
 
@@ -740,9 +729,6 @@ function truncate!(ψ::QMps, s::Symbol, Dcut::Int=typemax(Int), tolS::Real=1E-16
     end
 end
 
-
-
-
 """
 $(TYPEDSIGNATURES)
 """
@@ -758,14 +744,13 @@ $(TYPEDSIGNATURES)
 """
 canonise!(ψ::QMps, ::Val{:left}) = _right_sweep!(ψ, typemax(Int))
 
-
 """
 $(TYPEDSIGNATURES)
 """
 function variational_sweep!(
     bra::QMps,
     mpo::QMpo,
-    ket::QMps, 
+    ket::QMps,
     ::Val{:left},
     trans::Symbol=:n,
     args...
@@ -781,7 +766,7 @@ $(TYPEDSIGNATURES)
 function variational_sweep!(
     bra::QMps,
     mpo::QMpo,
-    ket::QMps, 
+    ket::QMps,
     ::Val{:right},
     trans::Symbol=:n,
     args...
@@ -798,7 +783,6 @@ function canonise_truncate!(ψ::QMps, s::Symbol, Dcut::Int=typemax(Int), tolS::R
         _right_sweep!(ψ, Dcut, tolS, args...)
     end
 end
-
 
 """
 $(TYPEDSIGNATURES)

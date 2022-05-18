@@ -4,6 +4,7 @@ export
     _right_nbrs_site,
     compress_twosite!,
     canonise_truncate!,
+    variational_sweep!,
     Environment,
     optimize_gauges_for_overlaps!!
 
@@ -44,7 +45,6 @@ function SpinGlassTensors.compress!(
     bra::QMps,
     mpo::QMpo,
     ket::QMps,
-    Dcut::Int,
     tol::Real=1E-10,
     max_sweeps::Int=4,
     trans::Symbol=:n,
@@ -55,7 +55,6 @@ function SpinGlassTensors.compress!(
     overlap_before = measure_env(env, last(env.bra.sites), trans)
 
     for sweep ∈ 1:max_sweeps
-        # TODO: why there is no Dcut here?
         _left_sweep_var!(env, trans, args...)
         _right_sweep_var!(env, trans, args...)
 
@@ -77,13 +76,13 @@ end
 $(TYPEDSIGNATURES)
 """
 function _left_sweep_var!(
-    env::Environment, trans::Symbol=:n, Dcut::Int=32, tolS::Real=1E-16, args...
+    env::Environment, trans::Symbol=:n, args...
 )
     for site ∈ reverse(env.bra.sites)
         update_env_right!(env, site, trans)
         A = project_ket_on_bra(env, site, trans)
         @cast B[x, (y, z)] := A[x, y, z]
-        _, Q = rq_fact(B, Dcut, tolS, args...)
+        _, Q = rq_fact(B, args...)
         @cast C[x, σ, y] := Q[x, (σ, y)] (σ ∈ 1:size(A, 2))
         env.bra[site] = C
         clear_env_containing_site!(env, site)
@@ -94,13 +93,13 @@ end
 $(TYPEDSIGNATURES)
 """
 function _right_sweep_var!(
-    env::Environment, trans::Symbol=:n, Dcut::Int=32, tolS::Real=1E-16, args...
+    env::Environment, trans::Symbol=:n, args...
 )
     for site ∈ env.bra.sites
         update_env_left!(env, site, trans)
         A = project_ket_on_bra(env, site, trans)
         @cast B[(x, y), z] := A[x, y, z]
-        Q, _ = qr_fact(B, Dcut, tolS, args...)
+        Q, _ = qr_fact(B, args...)
         @cast C[x, σ, y] := Q[(x, σ), y] (σ ∈ 1:size(A, 2))
         env.bra[site] = C
         clear_env_containing_site!(env, site)
@@ -759,6 +758,37 @@ $(TYPEDSIGNATURES)
 """
 canonise!(ψ::QMps, ::Val{:left}) = _right_sweep!(ψ, typemax(Int))
 
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function variational_sweep!(
+    bra::QMps,
+    mpo::QMpo,
+    ket::QMps, 
+    trans::Symbol=:n,
+    ::Val{:left},
+    args...
+    )
+    env = Environment(bra, mpo, ket, trans)
+    _right_sweep_var!(env, trans, args...)
+end
+
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function variational_sweep!(
+    bra::QMps,
+    mpo::QMpo,
+    ket::QMps, 
+    trans::Symbol=:n,
+    ::Val{:right},
+    args...
+    )
+    env = Environment(bra, mpo, ket, trans)
+    _left_sweep_var!(env, trans, args...)
+end
 
 function canonise_truncate!(ψ::QMps, s::Symbol, Dcut::Int=typemax(Int), tolS::Real=1E-16, args...)
     @assert s ∈ (:left, :right)

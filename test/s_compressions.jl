@@ -19,7 +19,7 @@ MPS(ket::QMps) = MPS([ket[i] for i ∈ ket.sites])
 
     @testset "Two mps representations are compressed to the same state" begin
         χ = W * ψ
-        @time overlap = compress!(χ, Dcut, tol, max_sweeps)
+        @time overlap = variational_compress!(χ, Dcut, tol, max_sweeps)
         @test is_left_normalized(χ)
         println(overlap)
 
@@ -27,7 +27,7 @@ MPS(ket::QMps) = MPS([ket[i] for i ∈ ket.sites])
         canonise!(ϕ, :left)
         bra = QMps(ϕ)
 
-        @time overlap = compress!(bra, mpo, ket, Dcut, tol, max_sweeps)
+        @time overlap = variational_compress!(bra, mpo, ket, Dcut, tol, max_sweeps)
         println(overlap)
 
         ϕ = MPS(bra)

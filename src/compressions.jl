@@ -1,13 +1,13 @@
-export canonise!, truncate!, compress!, compress
+export canonise!, truncate!, variational_compress!, compress
 
 # This is for backwards compatibility
 function compress(ϕ::AbstractMPS, Dcut::Int, tol::Number=1E-8, max_sweeps::Int=4, args...)
     ψ = copy(ϕ)
-    compress!(ψ, Dcut, tol, max_sweeps, args...)
+    variational_compress!(ψ, Dcut, tol, max_sweeps, args...)
     ψ
 end
 
-function compress!(ϕ::AbstractMPS, Dcut::Int, tol::Number=1E-8, max_sweeps::Int=4, args...)
+function variational_compress!(ϕ::AbstractMPS, Dcut::Int, tol::Number=1E-8, max_sweeps::Int=4, args...)
     # Right canonise ϕ
     _left_sweep!(ϕ, args...)
 

@@ -1,5 +1,5 @@
 export
-    compress!,
+    variational_compress!,
     _left_nbrs_site,
     _right_nbrs_site,
     compress_twosite!,
@@ -41,7 +41,7 @@ end
 """
 $(TYPEDSIGNATURES)
 """
-function SpinGlassTensors.compress!(
+function variational_compress!(
     bra::QMps,
     mpo::QMpo,
     ket::QMps,
@@ -766,10 +766,10 @@ function variational_sweep!(
     bra::QMps,
     mpo::QMpo,
     ket::QMps, 
-    trans::Symbol=:n,
     ::Val{:left},
+    trans::Symbol=:n,
     args...
-    )
+)
     env = Environment(bra, mpo, ket, trans)
     _right_sweep_var!(env, trans, args...)
 end
@@ -782,10 +782,10 @@ function variational_sweep!(
     bra::QMps,
     mpo::QMpo,
     ket::QMps, 
-    trans::Symbol=:n,
     ::Val{:right},
+    trans::Symbol=:n,
     args...
-    )
+)
     env = Environment(bra, mpo, ket, trans)
     _left_sweep_var!(env, trans, args...)
 end

@@ -88,7 +88,7 @@ end
     Ψ = copy(Φ)
     canonise!(Ψ, :left)
 
-    overlap = compress!(Φ, Dcut, var_tol, var_max_sweeps)
+    overlap = variational_compress!(Φ, Dcut, var_tol, var_max_sweeps)
     #println(overlap)
 
     @test norm(Φ) ≈ 1

@@ -16,7 +16,7 @@
 
     @testset "Two mps representations are compressed to the same state" begin 
         χ = W * ψ
-        @time overlap = variational_compress!(χ, Dcut, tol, max_sweeps)
+        @time overlap = compress!(χ, Dcut, tol, max_sweeps)
         @test is_left_normalized(χ)
         println(overlap)
 

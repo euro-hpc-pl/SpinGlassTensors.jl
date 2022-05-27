@@ -82,11 +82,15 @@ $(TYPEDSIGNATURES)
 """
 function IdentityQMps(loc_dims::Dict, Dmax::Int=1)
     id = Dict{Site, Tensor}(site => zeros(Dmax, ld, Dmax) for (site, ld) ∈ loc_dims)
-    site, ld = minimum(loc_dims)
-    id[site] = zeros(1, ld, Dmax)
-    site, ld = maximum(loc_dims)
-    id[site] = zeros(Dmax, ld, 1)
-    for (site, ld) ∈ loc_dims id[site][1, :, 1] .= 1 / sqrt(ld) end
+    site_min, ld_min = minimum(loc_dims)
+    site_max, ld_max = maximum(loc_dims)
+    if site_min == site_max
+        id[site_min] = zeros(1, ld_min, 1)
+    else
+        id[site_min] = zeros(1, ld_min, Dmax)
+        id[site_max] = zeros(Dmax, ld_max, 1)
+    end
+        for (site, ld) ∈ loc_dims id[site][1, :, 1] .= 1 / sqrt(ld) end
     QMps(id)
 end
 

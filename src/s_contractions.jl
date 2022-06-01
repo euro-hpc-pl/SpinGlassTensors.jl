@@ -146,11 +146,11 @@ function contract_up(A::AbstractArray{T, 3}, B::SparseSiteTensor) where T
 end
 
 
-function contract_up(A::AbstractArray{T, 3}, B::SparsePegasusSquareTensor) where T
-    contract_up(A, B.M)
-    # THIS IS ONLY FOR TESTING SVDTruncate
-    # TO BE REMOVED AT SOME POINT
-end
+# function contract_up(A::AbstractArray{T, 3}, B::SparsePegasusSquareTensor) where T
+#     contract_up(A, B.M)
+#     # THIS IS ONLY FOR TESTING SVDTruncate
+#     # TO BE REMOVED AT SOME POINT
+# end
 
 # TODO: improve performance
 """
@@ -169,11 +169,11 @@ function contract_down(A::SparseSiteTensor, B::AbstractArray{T, 3}) where T
     CC
 end
 
-function contract_down(A::SparsePegasusSquareTensor, B::AbstractArray{T, 3}) where T
-    contrace_down(A.M, B)
-    # THIS IS ONLY FOR TESTING SVDTruncate
-    # TO BE REMOVED AT SOME POINT
-end
+# function contract_down(A::SparsePegasusSquareTensor, B::AbstractArray{T, 3}) where T
+#     contrace_down(A.M, B)
+#     # THIS IS ONLY FOR TESTING SVDTruncate
+#     # TO BE REMOVED AT SOME POINT
+# end
 
 # TODO: improve performance
 """

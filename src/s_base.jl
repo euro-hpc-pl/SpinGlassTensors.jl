@@ -36,8 +36,10 @@ $(TYPEDSIGNATURES)
 struct SparsePegasusSquareTensor <: AbstractSparseTensor
     M
     projs
-    # loc_exp::Vector{<:Real}
-    # projs::NTuple{N, Vector{Int}} where N
+    loc_exp
+    bnd_exp
+    bnd_projs
+    loc_en
 end
 
 """

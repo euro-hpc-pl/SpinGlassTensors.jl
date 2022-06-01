@@ -245,10 +245,20 @@ end
 $(TYPEDSIGNATURES)
 """
 function update_env_left(
+    LE::S, A::S, M::T, B::S, ::Val{:n}
+) where {S <: AbstractArray{Float64, 3}, T <: SparsePegasusSquareTensor}
+    # TODO
+    update_env_left(LE, A, M.M, B, Val(:n))
+end
+
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function update_env_left(
     LE::S, A::S, M::T, B::S, ::Val{:c}
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
     L = zeros(size(B, 3), maximum(M.projs[3]), size(A, 3))
-
     for (σ, lexp) ∈ enumerate(M.loc_exp)
         AA = @inbounds @view A[:, M.projs[4][σ], :]
         LL = @inbounds @view LE[:, M.projs[1][σ], :]
@@ -257,6 +267,15 @@ function update_env_left(
     end
     L
 end
+
+
+function update_env_left(
+    LE::S, A::S, M::T, B::S, ::Val{:c}
+) where {S <: AbstractArray{Float64, 3}, T <: SparsePegasusSquareTensor}
+    # TODO
+    update_env_left(LE, A, M.M, B, Val(:c))
+end
+
 
 """
 $(TYPEDSIGNATURES)
@@ -406,6 +425,17 @@ function update_env_right(
     R
 end
 
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function update_env_right(
+    RE::S, A::S, M::T, B::S, ::Val{:n}
+) where {T <: SparsePegasusSquareTensor, S <: AbstractArray{Float64, 3}}
+    # TODO
+    update_env_right(RE, A, M.M, B, Val(:n))
+end
+
 """
 $(TYPEDSIGNATURES)
 """
@@ -422,6 +452,18 @@ function update_env_right(
     end
     R
 end
+
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function update_env_right(
+    RE::S, A::S, M::T, B::S, ::Val{:c}
+) where {T <: SparsePegasusSquareTensor, S <: AbstractArray{Float64, 3}}
+    # TODO
+    update_env_right(RE, A, M.M, B, Val(:c))
+end
+
 
 """
 $(TYPEDSIGNATURES)
@@ -597,6 +639,15 @@ function project_ket_on_bra(
     A
 end
 
+
+function project_ket_on_bra(
+    LE::S, B::S, M::T, RE::S, ::Val{:n}
+) where {S <: AbstractArray{Float64, 3}, T <: SparsePegasusSquareTensor}
+    # TODO
+    project_ket_on_bra(LE, B, M.M, RE, Val(:n))
+end
+
+
 """
 $(TYPEDSIGNATURES)
 """
@@ -658,6 +709,18 @@ function project_ket_on_bra(
     end
     A
 end
+
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function project_ket_on_bra(
+    LE::S, B::S, M::T, RE::S, ::Val{:c}
+) where {S <: AbstractArray{Float64, 3}, T <: SparsePegasusSquareTensor}
+    # TODO
+    project_ket_on_bra(LE, B, M.M, RE, Val(:c))
+end
+
 
 """
 $(TYPEDSIGNATURES)

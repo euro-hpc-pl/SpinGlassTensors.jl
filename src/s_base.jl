@@ -7,6 +7,7 @@ export
     Tensor,
     SparseSiteTensor,
     SparseVirtualTensor,
+    SparsePegasusSquareTensor,
     IdentityQMps
 
 abstract type AbstractEnvironment end
@@ -32,7 +33,17 @@ end
 """
 $(TYPEDSIGNATURES)
 """
-const Tensor = Union{AbstractArray{Float64}, SparseSiteTensor, SparseVirtualTensor}
+struct SparsePegasusSquareTensor <: AbstractSparseTensor
+    M
+    projs
+    # loc_exp::Vector{<:Real}
+    # projs::NTuple{N, Vector{Int}} where N
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+const Tensor = Union{AbstractArray{Float64}, SparseSiteTensor, SparseVirtualTensor, SparsePegasusSquareTensor}
 
 #TODO: type of sites
 """

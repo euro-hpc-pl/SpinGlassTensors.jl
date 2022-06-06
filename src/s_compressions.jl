@@ -260,7 +260,7 @@ function update_env_left(
         BB = @view B[:, pd[s1], :]
         L[:, pr[s2], :] += M.loc_exp[s2, s1] .* (BB' * LL * AA)
     end
-    L
+    L ./ maximum(abs.(L))
 end
 
 
@@ -518,8 +518,6 @@ function update_env_right(
         R[:, :, :] += M.loc_exp[s2, s1] .* (Rpart .* ll)
     end
     R ./ maximum(abs.(R))
-
-    #update_env_right(RE, A, M.M, B, Val(:c))
 end
 
 
@@ -706,16 +704,17 @@ function project_ket_on_bra(
     p1l, p2l, p1u, p2u = M.bnd_projs
     en1, en2 = M.loc_en
     L = zeros(size(LE, 3), maximum(pu), size(RE, 1))
-
     for s1 ∈ 1:length(en1), s2 ∈ 1:length(en2)
         ll = le1l[p1l[s1], :] .* le2l[p2l[s2], :]
         @tensor LL[x, y] := LE[x, z, y] * ll[z]
         BB = @view B[:, pd[s1], :]
         RR = @view RE[:, pr[s2], :]
-        L[:, pu[s2], :] += M.loc_exp[s2, s1] .* (LL' * BB * RR')
+        XX = reshape(LL' * BB * RR', size(LL, 2), 1, size(RR, 1))
+        lu = reshape(le1u[p1u[s1], :] .* le2u[p2u[s2], :], 1, :, 1)
+        L[:, :, :] += M.loc_exp[s2, s1] .* (XX .* lu)
     end
-    L
-    #project_ket_on_bra(LE, B, M.M, RE, Val(:n))
+    L ./ maximum(abs.(L))
+    # project_ket_on_bra(LE, B, M.M, RE, Val(:n))
 end
 
 
@@ -792,17 +791,17 @@ function project_ket_on_bra(
     le1l, le2l, le1u, le2u = M.bnd_exp
     p1l, p2l, p1u, p2u = M.bnd_projs
     en1, en2 = M.loc_en
-    L = zeros(size(LE, 3), maximum(pu), size(RE, 1))
-
+    L = zeros(size(LE, 3), maximum(pd), size(RE, 1))
     for s1 ∈ 1:length(en1), s2 ∈ 1:length(en2)
         ll = le1l[p1l[s1], :] .* le2l[p2l[s2], :]
+        lu = le1u[p1u[s1], :] .* le2u[p2u[s2], :]
         @tensor LL[x, y] := LE[x, z, y] * ll[z]
-        BB = @view B[:, pu[s2], :]
+        @tensor BB[x, y] := B[x, z, y] * lu[z]
         RR = @view RE[:, pr[s2], :]
         L[:, pd[s1], :] += M.loc_exp[s2, s1] .* (LL' * BB * RR')
     end
-    L
-    #project_ket_on_bra(LE, B, M.M, RE, Val(:c))
+    L ./ maximum(abs.(L))
+    # project_ket_on_bra(LE, B, M.M, RE, Val(:c))
 end
 
 

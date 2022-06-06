@@ -288,7 +288,7 @@ function update_env_left(
     le1l, le2l, le1u, le2u = M.bnd_exp
     p1l, p2l, p1u, p2u = M.bnd_projs
     en1, en2 = M.loc_en
-    L = zeros(size(B, 3), maximum(M.projs[3]), size(A, 3))
+    L = zeros(size(B, 3), maximum(pr), size(A, 3))
     for s1 ∈ 1:length(en1), s2 ∈ 1:length(en2)
         ll = le1l[p1l[s1], :] .* le2l[p2l[s2], :]
         lu = le1u[p1u[s1], :] .* le2u[p2u[s2], :]
@@ -500,8 +500,26 @@ $(TYPEDSIGNATURES)
 function update_env_right(
     RE::S, A::S, M::T, B::S, ::Val{:c}
 ) where {T <: SparsePegasusSquareTensor, S <: AbstractArray{Float64, 3}}
-    # TODO
-    update_env_right(RE, A, M.M, B, Val(:c))
+    pl, pu, pr, pd = M.projs
+    le1l, le2l, le1u, le2u = M.bnd_exp
+    p1l, p2l, p1u, p2u = M.bnd_projs
+    en1, en2 = M.loc_en
+    R = zeros(size(A, 1), maximum(pl), size(B, 1))
+
+    for s1 ∈ 1:length(en1), s2 ∈ 1:length(en2)
+        lu = le1u[p1u[s1], :] .* le2u[p2u[s2], :]
+        @tensor BB[x, y] := B[x, z, y] * lu[z]
+        RR = @view RE[:, pr[s2], :]
+        AA = @view A[:, pd[s1], :]
+        ll = reshape(le1l[p1l[s1], :] .* le2l[p2l[s2], :], 1, :, 1)
+        sA = size(AA, 1)
+        sB = size(BB, 1)
+        Rpart = reshape(AA * RR * BB', sA, 1, sB)
+        R[:, :, :] += M.loc_exp[s2, s1] .* (Rpart .* ll)
+    end
+    R ./ maximum(abs.(R))
+
+    #update_env_right(RE, A, M.M, B, Val(:c))
 end
 
 
@@ -683,8 +701,21 @@ end
 function project_ket_on_bra(
     LE::S, B::S, M::T, RE::S, ::Val{:n}
 ) where {S <: AbstractArray{Float64, 3}, T <: SparsePegasusSquareTensor}
-    # TODO
-    project_ket_on_bra(LE, B, M.M, RE, Val(:n))
+    pl, pu, pr, pd = M.projs
+    le1l, le2l, le1u, le2u = M.bnd_exp
+    p1l, p2l, p1u, p2u = M.bnd_projs
+    en1, en2 = M.loc_en
+    L = zeros(size(LE, 3), maximum(pu), size(RE, 1))
+
+    for s1 ∈ 1:length(en1), s2 ∈ 1:length(en2)
+        ll = le1l[p1l[s1], :] .* le2l[p2l[s2], :]
+        @tensor LL[x, y] := LE[x, z, y] * ll[z]
+        BB = @view B[:, pd[s1], :]
+        RR = @view RE[:, pr[s2], :]
+        L[:, pu[s2], :] += M.loc_exp[s2, s1] .* (LL' * BB * RR')
+    end
+    L
+    #project_ket_on_bra(LE, B, M.M, RE, Val(:n))
 end
 
 
@@ -757,8 +788,21 @@ $(TYPEDSIGNATURES)
 function project_ket_on_bra(
     LE::S, B::S, M::T, RE::S, ::Val{:c}
 ) where {S <: AbstractArray{Float64, 3}, T <: SparsePegasusSquareTensor}
-    # TODO
-    project_ket_on_bra(LE, B, M.M, RE, Val(:c))
+    pl, pu, pr, pd = M.projs
+    le1l, le2l, le1u, le2u = M.bnd_exp
+    p1l, p2l, p1u, p2u = M.bnd_projs
+    en1, en2 = M.loc_en
+    L = zeros(size(LE, 3), maximum(pu), size(RE, 1))
+
+    for s1 ∈ 1:length(en1), s2 ∈ 1:length(en2)
+        ll = le1l[p1l[s1], :] .* le2l[p2l[s2], :]
+        @tensor LL[x, y] := LE[x, z, y] * ll[z]
+        BB = @view B[:, pu[s2], :]
+        RR = @view RE[:, pr[s2], :]
+        L[:, pd[s1], :] += M.loc_exp[s2, s1] .* (LL' * BB * RR')
+    end
+    L
+    #project_ket_on_bra(LE, B, M.M, RE, Val(:c))
 end
 
 

@@ -225,7 +225,8 @@ function update_env_left(
     L
 end
 
-#TODO: experimental function
+#=
+#TODO: experimental function (most likely to be removed)
 """
 $(TYPEDSIGNATURES)
 """
@@ -255,19 +256,20 @@ function update_env_left(
     end
     L
 end
+=#
 
-#function update_env_left(
-#     LE::S, A::S, M::T, B::S, ::Val{:n}
-# ) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
-#     L = zeros(size(B, 3), maximum(M.projs[3]), size(A, 3))
-#     for (σ, lexp) ∈ enumerate(M.loc_exp)
-#         AA = @inbounds @view A[:, M.projs[2][σ], :]
-#         LL = @inbounds @view LE[:, M.projs[1][σ], :]
-#         BB = @inbounds @view B[:, M.projs[4][σ], :]
-#         @inbounds L[:, M.projs[3][σ], :] += lexp .* (BB' * LL * AA)
-#     end
-#     L
-#end
+function update_env_left(
+     LE::S, A::S, M::T, B::S, ::Val{:n}
+) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
+     L = zeros(size(B, 3), maximum(M.projs[3]), size(A, 3))
+     for (σ, lexp) ∈ enumerate(M.loc_exp)
+         AA = @inbounds @view A[:, M.projs[2][σ], :]
+         LL = @inbounds @view LE[:, M.projs[1][σ], :]
+         BB = @inbounds @view B[:, M.projs[4][σ], :]
+         @inbounds L[:, M.projs[3][σ], :] += lexp .* (BB' * LL * AA)
+     end
+     L
+end
 
 """
 $(TYPEDSIGNATURES)

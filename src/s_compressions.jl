@@ -232,14 +232,45 @@ function update_env_left(
     LE::S, A::S, M::T, B::S, ::Val{:n}
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
     L = zeros(size(B, 3), maximum(M.projs[3]), size(A, 3))
-    for (σ, lexp) ∈ enumerate(M.loc_exp)
-        AA = @inbounds @view A[:, M.projs[2][σ], :]
-        LL = @inbounds @view LE[:, M.projs[1][σ], :]
-        BB = @inbounds @view B[:, M.projs[4][σ], :]
-        @inbounds L[:, M.projs[3][σ], :] += lexp .* (BB' * LL * AA)
+    AA = A[:, M.projs[2], :]
+    LL = LE[:, M.projs[1], :]
+
+    Bt = permutedims(B, (3, 2, 1))
+    BB = Bt[:, M.projs[4], :]
+    # @time @cast Lr[x, c, y] := sum(m, n) BB[m, c, x] * LL[m, c ,n] * AA[n, c, y]
+    # Lr = dropdims(Lr, dims=(4, 5))
+    Lr = zeros(size(B, 3), size(M.loc_exp, 1), size(A, 3))
+    @time begin
+        for i = 1 : size(B, 1), j = 1 : size(A, 1)
+            BBv =  @inbounds @view BB[:, :, [i]]
+            LLv =  @inbounds @view LL[[i], : ,[j]]
+            AAv =  @inbounds @view AA[[j], :, :]
+            Lr[:, :, :] += BBv .* LLv .* AAv
+        end
+    end
+    lexp = reshape(M.loc_exp, 1, :, 1)
+    Lr = lexp .* Lr
+    for r = 1 : maximum(M.projs[3])
+        σs = findall(M.projs[3] .== r)
+        Lrr = Lr[:, σs, :]
+        Lrr = sum(Lrr, dims=2)
+        L[:, r, :] = Lrr
     end
     L
 end
+
+# function update_env_left(
+#     LE::S, A::S, M::T, B::S, ::Val{:n}
+# ) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
+#     L = zeros(size(B, 3), maximum(M.projs[3]), size(A, 3))
+#     for (σ, lexp) ∈ enumerate(M.loc_exp)
+#         AA = @inbounds @view A[:, M.projs[2][σ], :]
+#         LL = @inbounds @view LE[:, M.projs[1][σ], :]
+#         BB = @inbounds @view B[:, M.projs[4][σ], :]
+#         @inbounds L[:, M.projs[3][σ], :] += lexp .* (BB' * LL * AA)
+#     end
+#     L
+# end
 
 """
 $(TYPEDSIGNATURES)
@@ -279,6 +310,7 @@ function update_env_left(
     end
     L ./ maximum(abs.(L))
 end
+
 
 
 function update_env_left(

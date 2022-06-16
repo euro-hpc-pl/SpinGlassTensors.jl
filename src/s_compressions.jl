@@ -233,25 +233,15 @@ function update_env_left(
     LE::S, A::S, M::T, B::S, ::Val{:n}
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
     L = zeros(size(B, 3), maximum(M.projs[3]), size(A, 3))
-    AA = A[:, M.projs[2], :]
-    LL = LE[:, M.projs[1], :]
-
+    AA = @inbounds @view A[:, M.projs[2], :]
+    LL = @inbounds @view LE[:, M.projs[1], :]
     Bt = permutedims(B, (3, 2, 1))
     BB = @inbounds @view Bt[:, M.projs[4], :]
-
-    Lr = zeros(size(B, 3), size(M.loc_exp, 1), size(A, 3))
-    for c ∈ 1:size(M.loc_exp, 1)
-        BBv = @inbounds @view BB[:, c, :]
-        LLv = @inbounds @view LL[:, c, :]
-        AAv = @inbounds @view AA[:, c, :]
-        @inbounds Lr[:, c, :] = BBv * LLv * AAv
-    end
-
-    @cast lexp[_, i, _] := M.loc_exp[i]
-    Lr = lexp .* Lr
-    for r ∈ 1:maximum(M.projs[3])
-        σs = findall(M.projs[3] .== r)
-        L[:, r, :] = sum(Lr[:, σs, :], dims=2)
+    for (σ, lexp) ∈ enumerate(M.loc_exp)
+        BBv = @inbounds @view BB[:, σ, :]
+        LLv = @inbounds @view LL[:, σ, :]
+        AAv = @inbounds @view AA[:, σ, :]
+        @inbounds L[:, M.projs[3][σ], :] += lexp * (BBv * LLv * AAv)
     end
     L
 end

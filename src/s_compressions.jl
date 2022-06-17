@@ -238,9 +238,18 @@ function update_env_left(
     BB = permutedims(B[:, M.projs[4], :], (3, 1, 2))
 
     Lr = BB ⊠ LL ⊠ AA # batched_multiply from NNlib
-    for (σ, lexp) ∈ enumerate(M.loc_exp)
-        @inbounds L[:, M.projs[3][σ], :] += lexp * Lr[:, :, σ]
+    Lr .*= reshape(M.loc_exp, 1, 1, :)
+
+    for r ∈ 1:maximum(M.projs[3])
+        σs = findall(M.projs[3] .== r)
+        L[:, r, :] = sum(Lr[:, :, σs], dims=3)
     end
+
+#=
+    for (σ, lexp) ∈ enumerate(M.loc_exp)
+        @inbounds L[:, M.projs[3][σ], :] += lexp .* Lr[:, :, σ]
+    end
+=#
     L
 end
 

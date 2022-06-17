@@ -225,8 +225,7 @@ function update_env_left(
     L
 end
 
-#=
-#TODO: experimental function (most likely to be removed)
+#TODO: experimental (uses ⊠ operator - batched_multiply, which should be fast (but it is not))
 """
 $(TYPEDSIGNATURES)
 """
@@ -234,20 +233,18 @@ function update_env_left(
     LE::S, A::S, M::T, B::S, ::Val{:n}
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
     L = zeros(size(B, 3), maximum(M.projs[3]), size(A, 3))
-    AA = @inbounds @view A[:, M.projs[2], :]
-    LL = @inbounds @view LE[:, M.projs[1], :]
-    Bt = permutedims(B, (3, 2, 1))
-    BB = @inbounds @view Bt[:, M.projs[4], :]
+    AA = permutedims(A[:, M.projs[2], :], (1, 3, 2))
+    LL = permutedims(LE[:, M.projs[1], :], (1, 3, 2))
+    BB = permutedims(B[:, M.projs[4], :], (3, 1, 2))
+
+    Lr = BB ⊠ LL ⊠ AA
     for (σ, lexp) ∈ enumerate(M.loc_exp)
-        BBv = @inbounds @view BB[:, σ, :]
-        LLv = @inbounds @view LL[:, σ, :]
-        AAv = @inbounds @view AA[:, σ, :]
-        @inbounds L[:, M.projs[3][σ], :] += lexp * (BBv * LLv * AAv)
+        @inbounds L[:, M.projs[3][σ], :] += lexp * Lr[:, :, σ]
     end
     L
 end
-=#
 
+#=
 function update_env_left(
      LE::S, A::S, M::T, B::S, ::Val{:n}
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
@@ -260,6 +257,7 @@ function update_env_left(
      end
      L
 end
+=#
 
 """
 $(TYPEDSIGNATURES)
@@ -272,6 +270,7 @@ function update_env_left(
     p1l, p2l, p1u, p2u = M.bnd_projs
     en1, en2 = M.loc_en
     L = zeros(size(B, 3), maximum(pr), size(A, 3))
+    println(length(en1), " ", length(en2))
     for s1 ∈ 1:length(en1), s2 ∈ 1:length(en2)
         ll = le1l[p1l[s1], :] .* le2l[p2l[s2], :]
         lu = le1u[p1u[s1], :] .* le2u[p2u[s2], :]

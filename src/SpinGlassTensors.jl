@@ -2,6 +2,7 @@ module SpinGlassTensors
     using LinearAlgebra, MKL
     using TensorOperations, TensorCast
     #using LowRankApprox
+    using NNlib # This to test batched_multiply
     using Memoize
 
     using DocStringExtensions

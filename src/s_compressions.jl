@@ -237,7 +237,7 @@ function update_env_left(
     LL = permutedims(LE[:, M.projs[1], :], (1, 3, 2))
     BB = permutedims(B[:, M.projs[4], :], (3, 1, 2))
 
-    Lr = BB ⊠ LL ⊠ AA
+    Lr = BB ⊠ LL ⊠ AA # batched_multiply from NNlib
     for (σ, lexp) ∈ enumerate(M.loc_exp)
         @inbounds L[:, M.projs[3][σ], :] += lexp * Lr[:, :, σ]
     end
@@ -245,6 +245,10 @@ function update_env_left(
 end
 
 #=
+#TODO: This implementation is not optimal as is not batching matrix multiplication.
+"""
+$(TYPEDSIGNATURES)
+"""
 function update_env_left(
      LE::S, A::S, M::T, B::S, ::Val{:n}
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
@@ -270,7 +274,6 @@ function update_env_left(
     p1l, p2l, p1u, p2u = M.bnd_projs
     en1, en2 = M.loc_en
     L = zeros(size(B, 3), maximum(pr), size(A, 3))
-    println(length(en1), " ", length(en2))
     for s1 ∈ 1:length(en1), s2 ∈ 1:length(en2)
         ll = le1l[p1l[s1], :] .* le2l[p2l[s2], :]
         lu = le1u[p1u[s1], :] .* le2u[p2u[s2], :]

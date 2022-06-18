@@ -225,7 +225,6 @@ function update_env_left(
     L
 end
 
-#=
 #TODO: experimental (uses ⊠ operator - batched_multiply, which should be fast (but it is not))
 """
 $(TYPEDSIGNATURES)
@@ -247,8 +246,8 @@ function update_env_left(
     end
     L
 end
-=#
 
+#=
 #TODO: This implementation may not be optimal as is not batching matrix multiplication.
 """
 $(TYPEDSIGNATURES)
@@ -265,7 +264,7 @@ function update_env_left(
      end
      L
 end
-
+=#
 """
 $(TYPEDSIGNATURES)
 """

@@ -225,6 +225,7 @@ function update_env_left(
     L
 end
 
+#=
 #TODO: experimental (uses ⊠ operator - batched_multiply, which should be fast (but it is not))
 """
 $(TYPEDSIGNATURES)
@@ -237,28 +238,18 @@ function update_env_left(
     LL = permutedims(LE[:, M.projs[1], :], (1, 3, 2))
     BB = permutedims(B[:, M.projs[4], :], (3, 1, 2))
 
-    Lr = BB ⊠ LL ⊠ AA # batched_multiply from NNlib
-
+    Lr = BB ⊠ LL ⊠ AA # batched_multiply from NNlib (does it call MKL?)
     Lr .*= reshape(M.loc_exp, 1, 1, :)
-    @time begin
 
-    #Threads.@threads
-    for r ∈ 1:maximum(M.projs[3])
-        σs = findall(M.projs[3] .== r)
-        L[:, r, :] = sum(Lr[:, :, σs], dims=3)
+    Threads.@threads for r ∈ 1:maximum(M.projs[3])
+        σ = findall(M.projs[3] .== r)
+        L[:, r, :] = sum(Lr[:, :, σ], dims=3)
     end
-
-    end
-#=
-    for (σ, lexp) ∈ enumerate(M.loc_exp)
-        @inbounds L[:, M.projs[3][σ], :] += lexp .* Lr[:, :, σ]
-    end
-=#
     L
 end
+=#
 
-#=
-#TODO: This implementation is not optimal as is not batching matrix multiplication.
+#TODO: This implementation may not be optimal as is not batching matrix multiplication.
 """
 $(TYPEDSIGNATURES)
 """
@@ -274,7 +265,6 @@ function update_env_left(
      end
      L
 end
-=#
 
 """
 $(TYPEDSIGNATURES)

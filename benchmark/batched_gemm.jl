@@ -22,8 +22,7 @@ b = rand(σ, σ, η)
 
 @time begin
     c = zeros(σ, σ, η)
-    #Threads.@threads
-    for σ ∈ 1:size(a, 3)
+    Threads.@threads for σ ∈ 1:size(a, 3)
         c[:, :, σ] = a[:, :, σ] * b[:, :, σ]
     end
 end

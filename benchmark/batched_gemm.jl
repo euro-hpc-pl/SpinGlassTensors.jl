@@ -1,4 +1,16 @@
 using NNlib
+using LoopVectorization
+
+
+function batched_gemm!(C, A, B)
+    @turbo for m ∈ axes(A, 1), n ∈ axes(B, 2), i ∈ axes(B, 3)
+        Cmni = zero(eltype(C))
+        for k ∈ axes(A, 2)
+            Cmni += A[m, k, i] * B[k, n, i]
+        end
+        C[m, n, i] = Cmni
+    end
+end
 
 σ = 32
 η = 256
@@ -16,4 +28,7 @@ b = rand(σ, σ, η)
     end
 end
 
-@assert c ≈ d
+e = zeros(σ, σ, η)
+@time batched_gemm!(e, a, b)
+
+@assert c ≈ d ≈ e

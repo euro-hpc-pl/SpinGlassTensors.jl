@@ -3,6 +3,7 @@ module SpinGlassTensors
     using TensorOperations, TensorCast
     #using LowRankApprox
     using NNlib # This to test batched_multiply
+    #using LoopVectorization # This is to test sparse tensors
     using Memoize
 
     using DocStringExtensions

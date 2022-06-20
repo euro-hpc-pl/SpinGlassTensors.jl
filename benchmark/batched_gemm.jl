@@ -1,6 +1,6 @@
 using NNlib
 using LoopVectorization
-
+using BatchedRoutines
 
 function batched_gemm!(C, A, B)
     @turbo for m ∈ axes(A, 1), n ∈ axes(B, 2), i ∈ axes(B, 3)
@@ -12,7 +12,7 @@ function batched_gemm!(C, A, B)
     end
 end
 
-σ = 32
+σ = 256
 η = 256
 
 a = rand(σ, σ, η)
@@ -31,4 +31,9 @@ end
 e = zeros(σ, σ, η)
 @time batched_gemm!(e, a, b)
 
-@assert c ≈ d ≈ e
+f = zeros(σ, σ, η)
+α = 1.0
+β = 0.0
+@time BatchedRoutines.batched_gemm!('N', 'N', α, a, b, β, f)
+
+@assert c ≈ d ≈ e ≈ f

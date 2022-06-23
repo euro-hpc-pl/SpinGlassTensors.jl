@@ -2,7 +2,9 @@ module SpinGlassTensors
     using LinearAlgebra, MKL
     using TensorOperations, TensorCast
     #using LowRankApprox
+    using CUDA
     using NNlib # This to test batched_multiply
+    using NNlibCUDA
     #using LoopVectorization # This is to test sparse tensors
     using Memoize
 

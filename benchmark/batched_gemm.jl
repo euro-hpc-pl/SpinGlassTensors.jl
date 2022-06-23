@@ -40,7 +40,6 @@ f = zeros(σ, σ, η)
 # GPU
 a_d = CUDA.CuArray(a)
 b_d = CUDA.CuArray(b)
-c_d = CUDA.zeros(σ, σ, η)
 
 @time d_d = batched_mul(a_d, b_d)
 

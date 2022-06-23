@@ -225,7 +225,8 @@ function update_env_left(
     L
 end
 
-#TODO: experimental (uses GPU to perform batched_multiply)
+#TODO: experimental ((uses ⊠ operator - batched_multiply - from NNlib / NNlibCUDA)
+# Remove CUDA.CuArray to use CPU
 """
 $(TYPEDSIGNATURES)
 """
@@ -234,46 +235,21 @@ function update_env_left(
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
     L = zeros(size(B, 3), maximum(M.projs[3]), size(A, 3))
 
-    AA = CUDA.CuArray(permutedims(A[:, M.projs[2], :], (1, 3, 2)))
-    LL = CUDA.CuArray(permutedims(LE[:, M.projs[1], :], (1, 3, 2)))
-    BB = CUDA.CuArray(permutedims(B[:, M.projs[4], :], (3, 1, 2)))
+    A_d = permutedims(CUDA.CuArray(A[:, M.projs[2], :]), (1, 3, 2))
+    L_d = permutedims(CUDA.CuArray(LE[:, M.projs[1], :]), (1, 3, 2))
+    B_d = permutedims(CUDA.CuArray(B[:, M.projs[4], :]), (3, 1, 2))
 
-    Lr = batched_mul(BB, batched_mul(LL, AA))
+    Lr_d = B_d ⊠ L_d ⊠ A_d
+    Lr_d .*= reshape(CUDA.CuArray(M.loc_exp), 1, 1, :)
 
-    Lr .*= CUDA.CuArray(reshape(M.loc_exp, 1, 1, :))
-
-    Lrr = Array(Lr)
-    for r ∈ 1:maximum(M.projs[3])
-        σ = findall(M.projs[3] .== r)
-        L[:, r, :] = sum(Lrr[:, :, σ], dims=3)
-    end
-
-    L
-end
-
-#=
-#TODO: experimental (uses ⊠ operator - batched_multiply, which should be fast (but it is not))
-"""
-$(TYPEDSIGNATURES)
-"""
-function update_env_left(
-    LE::S, A::S, M::T, B::S, ::Val{:n}
-) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
-    L = zeros(size(B, 3), maximum(M.projs[3]), size(A, 3))
-    AA = permutedims(A[:, M.projs[2], :], (1, 3, 2))
-    LL = permutedims(LE[:, M.projs[1], :], (1, 3, 2))
-    BB = permutedims(B[:, M.projs[4], :], (3, 1, 2))
-
-    Lr = BB ⊠ LL ⊠ AA # batched_multiply from NNlib (does it call MKL?)
-    Lr .*= reshape(M.loc_exp, 1, 1, :)
-
+    Lr = Array(Lr_d)
     Threads.@threads for r ∈ 1:maximum(M.projs[3])
         σ = findall(M.projs[3] .== r)
         L[:, r, :] = sum(Lr[:, :, σ], dims=3)
     end
     L
 end
-=#
+
 #=
 #TODO: This implementation may not be optimal as is not batching matrix multiplication.
 """

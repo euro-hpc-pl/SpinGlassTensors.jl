@@ -225,6 +225,7 @@ function update_env_left(
     L
 end
 
+
 #TODO: experimental ((uses ⊠ operator - batched_multiply - from NNlib / NNlibCUDA)
 # Remove CUDA.CuArray to use CPU
 """
@@ -268,6 +269,7 @@ function update_env_left(
      L
 end
 =#
+
 """
 $(TYPEDSIGNATURES)
 """

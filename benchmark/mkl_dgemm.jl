@@ -4,12 +4,10 @@ const libMKL = Libdl.dlopen(MKL_jll.libmkl_rt)
 const DGEMM = Libdl.dlsym(libMKL, :dgemm)
 
 function mkl_dgemm()
-    M, N, K = 32, 32, 32
+    M, N, K = 32, 64, 128
     a_array = rand(M, K)
     b_array = rand(K, N)
     c_array = zeros(M, N)
-
-    @time d = a_array * b_array
 
     @time ccall(
         DGEMM, Cvoid,
@@ -30,7 +28,7 @@ function mkl_dgemm()
         0.0,
         c_array, M
     )
-
+    @time d = a_array * b_array
     @assert c_array ≈ d
 end
 

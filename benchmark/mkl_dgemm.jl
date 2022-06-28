@@ -1,10 +1,10 @@
-using MKL_jll, OpenBLAS_jll, Libdl, LinearAlgebra
+using MKL_jll, Libdl
 
 const libMKL = Libdl.dlopen(MKL_jll.libmkl_rt)
 const DGEMM = Libdl.dlsym(libMKL, :dgemm)
 
 function mkl_dgemm()
-    M, N, K = 32, 32, 32
+    M, N, K = Int32(32), Int32(32), Int32(32)
     a_array = rand(M, K)
     b_array = rand(K, N)
     c_array = zeros(M, N)
@@ -16,11 +16,11 @@ function mkl_dgemm()
         (
             Cchar, Cchar,
             Cint, Cint, Cint,
-            Float64,
-            Ptr{Float64}, Cint,
-            Ptr{Float64}, Cint,
-            Float64,
-            Ptr{Float64}, Cint,
+            Cdouble,
+            Ptr{Cdouble}, Cint,
+            Ptr{Cdouble}, Cint,
+            Cdouble,
+            Ptr{Cdouble}, Cint,
         ),
         'N', 'N',
         M, N, K,

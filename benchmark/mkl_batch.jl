@@ -20,7 +20,6 @@ function dgemm_batch()
     k_array = fill(K, group_count)
 
     transa_array = fill('N', group_count)
-    # transa_array = fill(UCint8(78), group_count)
     transb_array = fill('N', group_count)
 
     alpha_array = fill(one(Float64), group_count)

@@ -299,11 +299,13 @@ function update_env_left(
         for s2 ∈ 1:length(en2)
             ll = le1l[:, p1l[s1]] .* le2l[:, p2l[s2]]
             lu = le1u[:, p1u[s1]] .* le2u[:, p2u[s2]]
+            AA = reshape(view(lu, :, 1) * A_d, size(A, 1), :)
+            LL = reshape(view(ll, :, 1) * LE_d, size(LE, 1), :)
 
-            @matmul AA[d, y] := sum(x) lu[x] * A_d[x, (d, y)] (d ∈ 1:size(A, 1))
-            @matmul LL[d, y] := sum(x) ll[x] * LE_d[x, (d, y)] (d ∈ 1:size(LE, 1))
+            #@matmul AA[d, y] := sum(x) lu[x] * A_d[x, (d, y)] (d ∈ 1:size(A, 1))
+            #@matmul LL[d, y] := sum(x) ll[x] * LE_d[x, (d, y)] (d ∈ 1:size(LE, 1))
+
             BB = @view B_d[:, :, pd[s1]]
-            
             L[:, :, pr[s2]] += M.loc_exp[s2, s1] .* (BB * LL * AA)
         end
 

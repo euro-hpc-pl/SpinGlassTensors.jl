@@ -294,22 +294,25 @@ function update_env_left(
 
     sA1, sA2, sA3 = size(A)
     sL1, sL2, sL3 = size(LE)
-    L = zeros(size(B, 3), size(A, 3), maximum(pr))
+    L = CUDA.zeros(size(B, 3), size(A, 3), maximum(pr))
     A_d = reshape(permutedims(A, (2, 1, 3)), sA2, sA1 * sA3)
     LE_d = reshape(permutedims(LE, (2, 1, 3)), sL2, sL1 * sL3)
     B_d = permutedims(B, (3, 1, 2))
+
+    M_loc_exp = CUDA.CuArray(M.loc_exp)
+
     println(" BEFORE ")
     for s1 ∈ 1:length(en1)
-        @time begin
+        #@time begin
             for s2 ∈ 1:length(en2)
                 ll = le1l[p1l[s1], :] .* le2l[p2l[s2], :]
                 lu = le1u[p1u[s1], :] .* le2u[p2u[s2], :]
                 AA = reshape(lu' * A_d, sA1, sA3)
                 LL = reshape(ll' * LE_d, sL1, sL3)
                 BB = @view B_d[:, :, pd[s1]]
-                L[:, :, pr[s2]] += M.loc_exp[s2, s1] .* (BB * LL * AA)
-            end 
-        end
+                L[:, :, pr[s2]] += M_loc_exp[s2, s1] .* (BB * LL * AA)
+            end
+        #end
     end
     println("  AFTER  ")
     L = permutedims(L, (1, 3, 2)) ./ maximum(abs.(L))
@@ -340,11 +343,11 @@ end
 #                 LL = reshape(ll' * LE_d, sL1, sL3)
 #                 BB = @view B_d[:, :, pd[s1]]
 #                 L[:, :, pr[s2]] += M.loc_exp[s2, s1] .* (BB * LL * AA)
-#             end 
+#             end
 #         end
 #     end
 #     println("  AFTER  ")
-    
+
 #     permutedims(L, (1, 3, 2)) ./ maximum(abs.(L))
 # end
 """

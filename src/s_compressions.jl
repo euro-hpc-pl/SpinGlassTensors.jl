@@ -298,8 +298,8 @@ function update_env_left(
        @time begin
 
         for s2 ∈ 1:length(en2)
-            ll = le1l[:, p1l[s1]] .* le2l[:, p2l[s2]]
-            lu = le1u[:, p1u[s1]] .* le2u[:, p2u[s2]]
+            ll = view(le1l, :, p1l[s1]) .* view(le2l, :, p2l[s2])
+            lu = view(le1u, :, p1u[s1]) .* view(le2u, :, p2u[s2])
 
             @matmul AA[d, y] := sum(x) lu[x] * A_d[x, (d, y)] (d ∈ 1:size(A, 1))
             @matmul LL[d, y] := sum(x) ll[x] * LE_d[x, (d, y)] (d ∈ 1:size(LE, 1))

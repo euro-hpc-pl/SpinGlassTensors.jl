@@ -288,33 +288,28 @@ function update_env_left(
 
     en1, en2 = M.loc_en
 
-    sA1, sA2, sA3 = size(A)
-    sL1, sL2, sL3 = size(LE)
-
-    L = CUDA.zeros(size(B, 3), size(A, 3), maximum(pr))
-
-    A_d = reshape(permutedims(CUDA.CuArray(A), (2, 1, 3)), sA2, sA1 * sA3)
-    LE_d = reshape(permutedims(CUDA.CuArray(LE), (2, 1, 3)), sL2, sL1 * sL3)
+    A_d = reshape(permutedims(CUDA.CuArray(A), (2, 1, 3)), size(A, 2), :)
+    LE_d = reshape(permutedims(CUDA.CuArray(LE), (2, 1, 3)), size(LE, 2), :)
     B_d = permutedims(CUDA.CuArray(B), (3, 1, 2))
 
-    println(" BEFORE ")
+    L = CUDA.zeros(size(B, 3), size(A, 3), maximum(pr))
     for s1 ∈ 1:length(en1)
-        @time begin
+       @time begin
 
         for s2 ∈ 1:length(en2)
             ll = le1l[:, p1l[s1]] .* le2l[:, p2l[s2]]
             lu = le1u[:, p1u[s1]] .* le2u[:, p2u[s2]]
-            AA = reshape(CUDA.CuArray(lu') * A_d, sA1, sA3)
-            LL = reshape(CUDA.CuArray(ll') * LE_d, sL1, sL3)
+
+            @matmul AA[d, y] := sum(x) lu[x] * A_d[x, (d, y)] (d ∈ 1:size(A, 1))
+            @matmul LL[d, y] := sum(x) ll[x] * LE_d[x, (d, y)] (d ∈ 1:size(LE, 1))
             BB = @view B_d[:, :, pd[s1]]
+            
             L[:, :, pr[s2]] += M.loc_exp[s2, s1] .* (BB * LL * AA)
         end
 
         end
     end
-    println("  AFTER  ")
-    L = permutedims(L, (1, 3, 2)) ./ maximum(abs.(L))
-    Array(L)
+    Array(permutedims(L, (1, 3, 2)) ./ maximum(abs.(L)))
 end
 
 

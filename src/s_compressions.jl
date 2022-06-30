@@ -280,16 +280,21 @@ function update_env_left(
     le1l, le2l, le1u, le2u = M.bnd_exp
     p1l, p2l, p1u, p2u = M.bnd_projs
     en1, en2 = M.loc_en
-    L = zeros(size(B, 3), maximum(pr), size(A, 3))
+    sA1, sA2, sA3 = size(A)
+    sL1, sL2, sL3 = size(LE)
+    L = zeros(size(B, 3), size(A, 3), maximum(pr))
+    A_d = reshape(permutedims(A, (2, 1, 3)), sA2, sA1 * sA3)
+    LE_d = reshape(permutedims(LE, (2, 1, 3)), sL2, sL1 * sL3)
+    B_d = permutedims(B, (3, 1, 2))
     for s1 ∈ 1:length(en1), s2 ∈ 1:length(en2)
         ll = le1l[p1l[s1], :] .* le2l[p2l[s2], :]
         lu = le1u[p1u[s1], :] .* le2u[p2u[s2], :]
-        @tensor AA[x, y] := A[x, z, y] * lu[z]
-        @tensor LL[x, y] := LE[x, z, y] * ll[z]
-        BB = @view B[:, pd[s1], :]
-        L[:, pr[s2], :] += M.loc_exp[s2, s1] .* (BB' * LL * AA)
+        AA = reshape(lu' * A_d, sA1, sA3)
+        LL = reshape(ll' * LE_d, sL1, sL3)
+        BB = @view B_d[:, :, pd[s1]]
+        L[:, :, pr[s2]] += M.loc_exp[s2, s1] .* (BB * LL * AA)
     end
-    L ./ maximum(abs.(L))
+    permutedims(L, (1, 3, 2)) ./ maximum(abs.(L))
 end
 
 

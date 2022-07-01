@@ -286,7 +286,7 @@ function update_env_left(
     le1u = CUDA.CuArray(le1u')
     le2u = CUDA.CuArray(le2u')
 
-    loc_exp = CUDA.CuArray(M.loc_exp)
+    loc_exp = CUDA.CuArray(M.loc_exp')
 
     en1, en2 = M.loc_en
 
@@ -307,7 +307,7 @@ function update_env_left(
             @matmul AA[d, y, b] := sum(x) A_d[x, (d, y)] * lu[x, b] (d ∈ 1:size(A, 1))
             @matmul LL[d, y, b] := sum(x) L_d[x, (d, y)] * ll[x, b] (d ∈ 1:size(LE, 1))
             LnoMloc = BB ⊠ LL ⊠ AA  # broadcast over dims = 3
-            Mloc = reshape(view(loc_exp, s2, :), 1, 1, length(en1))   # (1, 1, b)
+            Mloc = reshape(view(loc_exp, :, s2), 1, 1, length(en1))   # (1, 1, b)
             L[:, :, pr[s2]] += sum(Mloc .* LnoMloc, dims=3)
         end
     end

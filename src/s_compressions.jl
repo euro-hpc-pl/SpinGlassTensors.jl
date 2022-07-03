@@ -275,43 +275,44 @@ $(TYPEDSIGNATURES)
 """
 
 function update_env_left(
-    LE::S, A::S, M::T, B::S, ::Val{:n}
+    L::S, A::S, M::T, B::S, ::Val{:n}
 ) where {S <: AbstractArray{Float64, 3}, T <: SparsePegasusSquareTensor}
     _, _, pr, pd = M.projs
     p1l, p2l, p1u, p2u = M.bnd_projs
 
     le1l, le2l, le1u, le2u = M.bnd_exp
-    le1l = CUDA.CuArray(le1l')
-    le2l = CUDA.CuArray(le2l')
-    le1u = CUDA.CuArray(le1u')
-    le2u = CUDA.CuArray(le2u')
+    lel1 = CUDA.CuArray(le1l')
+    lel2 = CUDA.CuArray(le2l')
+    leu1 = CUDA.CuArray(le1u')
+    leu2 = CUDA.CuArray(le2u')
 
     loc_exp = CUDA.CuArray(M.loc_exp')
 
     en1, en2 = M.loc_en
 
-    A_d = reshape(permutedims(CUDA.CuArray(A), (2, 1, 3)), size(A, 2), :)
-    L_d = reshape(permutedims(CUDA.CuArray(LE), (2, 1, 3)), size(LE, 2), :)
+    A_d = permutedims(CUDA.CuArray(A), (1, 3, 2))
+    L_d = permutedims(CUDA.CuArray(L), (1, 3, 2))
     B_d = permutedims(CUDA.CuArray(B), (3, 1, 2))
 
-    L = CUDA.zeros(size(B, 3), size(A, 3), maximum(pr))
+    newL = CUDA.zeros(size(B, 3), size(A, 3), maximum(pr))
 
-    le1l = le1l[:, p1l]
-    le1u = le1u[:, p1u]
+    lel1 = lel1[:, p1l]
+    leu1 = leu1[:, p1u]
     BB = B_d[:, :, pd]
 
     for s2 ∈ 1:length(en2)
-        @time begin
-            ll = le1l .* view(le2l, :, p2l[s2])
-            lu = le1u .* view(le2u, :, p2u[s2])
-            @matmul AA[d, y, b] := sum(x) A_d[x, (d, y)] * lu[x, b] (d ∈ 1:size(A, 1))
-            @matmul LL[d, y, b] := sum(x) L_d[x, (d, y)] * ll[x, b] (d ∈ 1:size(LE, 1))
-            LnoMloc = BB ⊠ LL ⊠ AA  # broadcast over dims = 3
-            Mloc = reshape(view(loc_exp, :, s2), 1, 1, length(en1))   # (1, 1, b)
-            L[:, :, pr[s2]] += sum(Mloc .* LnoMloc, dims=3)
-        end
+        #@time begin
+        ll = lel1 .* view(lel2, :, p2l[s2])
+        lu = leu1 .* view(leu2, :, p2u[s2])
+        @matmul AA[x, y, s1] := sum(z) A_d[x, y, z] * lu[z, s1]
+        @matmul LL[x, y, s1] := sum(z) L_d[x, y, z] * ll[z, s1]
+        L_no_le = BB ⊠ LL ⊠ AA  # broadcast over dims = 3
+        le_s = view(loc_exp, :, s2)
+        @matmul LL_s2[x, y] := sum(s1) L_no_le[x, y, s1] * le_s[s1]
+        newL[:, :, pr[s2]] += LL_s2
+        #end
     end
-    Array(permutedims(L, (1, 3, 2)) ./ maximum(abs.(L)))
+    Array(permutedims(newL, (1, 3, 2)) ./ maximum(abs.(newL)))
 end
 
 
@@ -453,28 +454,68 @@ end
 
 
 function update_env_left(
-    LE::S, A::S, M::T, B::S, ::Val{:c}
+    L::S, A::S, M::T, B::S, ::Val{:c}
 ) where {S <: AbstractArray{Float64, 3}, T <: SparsePegasusSquareTensor}
-    pl, pu, pr, pd = M.projs
-    le1l, le2l, le1u, le2u = M.bnd_exp
+    _, _, pr, pd = M.projs
     p1l, p2l, p1u, p2u = M.bnd_projs
+
+    le1l, le2l, le1u, le2u = M.bnd_exp
+    lel1 = CUDA.CuArray(le1l')
+    lel2 = CUDA.CuArray(le2l')
+    leu1 = CUDA.CuArray(le1u')
+    leu2 = CUDA.CuArray(le2u')
+
+    loc_exp = CUDA.CuArray(M.loc_exp')
+
     en1, en2 = M.loc_en
-    sB1, sB2, sB3 = size(B)
-    sL1, sL2, sL3 = size(LE)
-    L = zeros(size(B, 3), size(A, 3), maximum(pr))
-    B_d = reshape(permutedims(B, (2, 3, 1)), sB2, sB3 * sB1)
-    LE_d = reshape(permutedims(LE, (2, 1, 3)), sL2, sL1 * sL3)
-    A_d = permutedims(A, (1, 3, 2))
-    for s1 ∈ 1:length(en1), s2 ∈ 1:length(en2)
-        ll = le1l[p1l[s1], :] .* le2l[p2l[s2], :]
-        lu = le1u[p1u[s1], :] .* le2u[p2u[s2], :]
-        BB = reshape(lu' * B_d, sB3, sB1)
-        LL = reshape(ll' * LE_d, sL1, sL3)
-        AA = @view A_d[:, :, pd[s1]]
-        L[:, :, pr[s2]] += M.loc_exp[s2, s1] .* (BB * LL * AA)
+
+    A_d = permutedims(CUDA.CuArray(A), (1, 3, 2))
+    L_d = permutedims(CUDA.CuArray(L), (1, 3, 2))
+    B_d = permutedims(CUDA.CuArray(B), (3, 1, 2))
+
+    newL = CUDA.zeros(size(B, 3), size(A, 3), maximum(pr))
+
+    lel1 = lel1[:, p1l]
+    leu1 = leu1[:, p1u]
+    AA = A_d[:, :, pd]
+
+    for s2 ∈ 1:length(en2)
+        ll = lel1 .* view(lel2, :, p2l[s2])
+        lu = leu1 .* view(leu2, :, p2u[s2])
+        @matmul BB[x, y, s1] := sum(z) B_d[x, y, z] * lu[z, s1]
+        @matmul LL[x, y, s1] := sum(z) L_d[x, y, z] * ll[z, s1]
+        L_no_le = BB ⊠ LL ⊠ AA  # broadcast over dims = 3
+        le_s = view(loc_exp, :, s2)
+        @matmul LL_s2[x, y] := sum(s1) L_no_le[x, y, s1] * le_s[s1]
+        newL[:, :, pr[s2]] += LL_s2
     end
-    permutedims(L, (1, 3, 2)) ./ maximum(abs.(L))
+    Array(permutedims(newL, (1, 3, 2)) ./ maximum(abs.(newL)))
 end
+
+
+# function update_env_left(
+#     LE::S, A::S, M::T, B::S, ::Val{:c}
+# ) where {S <: AbstractArray{Float64, 3}, T <: SparsePegasusSquareTensor}
+#     pl, pu, pr, pd = M.projs
+#     le1l, le2l, le1u, le2u = M.bnd_exp
+#     p1l, p2l, p1u, p2u = M.bnd_projs
+#     en1, en2 = M.loc_en
+#     sB1, sB2, sB3 = size(B)
+#     sL1, sL2, sL3 = size(LE)
+#     L = zeros(size(B, 3), size(A, 3), maximum(pr))
+#     B_d = reshape(permutedims(B, (2, 3, 1)), sB2, sB3 * sB1)
+#     LE_d = reshape(permutedims(LE, (2, 1, 3)), sL2, sL1 * sL3)
+#     A_d = permutedims(A, (1, 3, 2))
+#     for s1 ∈ 1:length(en1), s2 ∈ 1:length(en2)
+#         ll = le1l[p1l[s1], :] .* le2l[p2l[s2], :]
+#         lu = le1u[p1u[s1], :] .* le2u[p2u[s2], :]
+#         BB = reshape(lu' * B_d, sB3, sB1)
+#         LL = reshape(ll' * LE_d, sL1, sL3)
+#         AA = @view A_d[:, :, pd[s1]]
+#         L[:, :, pr[s2]] += M.loc_exp[s2, s1] .* (BB * LL * AA)
+#     end
+#     permutedims(L, (1, 3, 2)) ./ maximum(abs.(L))
+# end
 
 
 """
@@ -630,27 +671,72 @@ end
 $(TYPEDSIGNATURES)
 """
 function update_env_right(
-    RE::S, A::S, M::T, B::S, ::Val{:n}
+    R::S, A::S, M::T, B::S, ::Val{:n}
 ) where {T <: SparsePegasusSquareTensor, S <: AbstractArray{Float64, 3}}
     pl, pu, pr, pd = M.projs
-    le1l, le2l, le1u, le2u = M.bnd_exp
     p1l, p2l, p1u, p2u = M.bnd_projs
-    en1, en2 = M.loc_en
-    R = zeros(size(A, 1), maximum(pl), size(B, 1))
 
-    for s1 ∈ 1:length(en1), s2 ∈ 1:length(en2)
-        lu = le1u[p1u[s1], :] .* le2u[p2u[s2], :]
-        @tensor AA[x, y] := A[x, z, y] * lu[z]
-        RR = @view RE[:, pr[s2], :]
-        BB = @view B[:, pd[s1], :]
-        ll = reshape(le1l[p1l[s1], :] .* le2l[p2l[s2], :], 1, :, 1)
-        sA = size(AA, 1)
-        sB = size(BB, 1)
-        Rpart = reshape(AA * RR * BB', sA, 1, sB)
-        R[:, :, :] += M.loc_exp[s2, s1] .* (Rpart .* ll)
+    le1l, le2l, le1u, le2u = M.bnd_exp
+    lel1 = CUDA.CuArray(le1l')
+    lel2 = CUDA.CuArray(le2l')
+    leu1 = CUDA.CuArray(le1u')
+    leu2 = CUDA.CuArray(le2u')
+
+    loc_exp = CUDA.CuArray(M.loc_exp')  # [s1 s2]
+
+    en1, en2 = M.loc_en
+
+    A_d = permutedims(CUDA.CuArray(A), (1, 3, 2))
+    R_d = permutedims(CUDA.CuArray(R), (1, 3, 2))
+    B_d = permutedims(CUDA.CuArray(B), (3, 1, 2))
+
+    newR = CUDA.zeros(size(A, 1), size(B, 1), maximum(pl))
+
+    lel1 = lel1[:, p1l]
+    leu1 = leu1[:, p1u]
+    BB = B_d[:, :, pd]
+
+    for s2 ∈ 1:length(en2)
+        ll = lel1 .* view(lel2, :, p2l[s2])
+        lu = leu1 .* view(leu2, :, p2u[s2])
+        @matmul AA[x, y, s1] := sum(z) A_d[x, y, z] * lu[z, s1]
+        RR = view(R_d, :, :, pr[s2])
+        R_no_le = AA ⊠ RR ⊠ BB  # broadcast over dims = 3
+        le_s = view(loc_exp, :, s2)
+        R_no_le = R_no_le .* reshape(le_s, 1, 1, :)
+        @matmul RR_s2[x, y, z] := sum(s1) R_no_le[x, y, s1] * ll[z, s1]
+        newR[:, :, :] += RR_s2
     end
-    R ./ maximum(abs.(R))
+    Array(permutedims(newR, (1, 3, 2)) ./ maximum(abs.(newR)))
 end
+
+
+
+# """
+# $(TYPEDSIGNATURES)
+# """
+# function update_env_right(
+#     RE::S, A::S, M::T, B::S, ::Val{:n}
+# ) where {T <: SparsePegasusSquareTensor, S <: AbstractArray{Float64, 3}}
+#     pl, pu, pr, pd = M.projs
+#     le1l, le2l, le1u, le2u = M.bnd_exp
+#     p1l, p2l, p1u, p2u = M.bnd_projs
+#     en1, en2 = M.loc_en
+#     R = zeros(size(A, 1), maximum(pl), size(B, 1))
+
+#     for s1 ∈ 1:length(en1), s2 ∈ 1:length(en2)
+#         lu = le1u[p1u[s1], :] .* le2u[p2u[s2], :]
+#         @tensor AA[x, y] := A[x, z, y] * lu[z]
+#         RR = @view RE[:, pr[s2], :]
+#         BB = @view B[:, pd[s1], :]
+#         ll = reshape(le1l[p1l[s1], :] .* le2l[p2l[s2], :], 1, :, 1)
+#         sA = size(AA, 1)
+#         sB = size(BB, 1)
+#         Rpart = reshape(AA * RR * BB', sA, 1, sB)
+#         R[:, :, :] += M.loc_exp[s2, s1] .* (Rpart .* ll)
+#     end
+#     R ./ maximum(abs.(R))
+# end
 
 """
 $(TYPEDSIGNATURES)
@@ -674,27 +760,71 @@ end
 $(TYPEDSIGNATURES)
 """
 function update_env_right(
-    RE::S, A::S, M::T, B::S, ::Val{:c}
+    R::S, A::S, M::T, B::S, ::Val{:c}
 ) where {T <: SparsePegasusSquareTensor, S <: AbstractArray{Float64, 3}}
     pl, pu, pr, pd = M.projs
-    le1l, le2l, le1u, le2u = M.bnd_exp
     p1l, p2l, p1u, p2u = M.bnd_projs
-    en1, en2 = M.loc_en
-    R = zeros(size(A, 1), maximum(pl), size(B, 1))
 
-    for s1 ∈ 1:length(en1), s2 ∈ 1:length(en2)
-        lu = le1u[p1u[s1], :] .* le2u[p2u[s2], :]
-        @tensor BB[x, y] := B[x, z, y] * lu[z]
-        RR = @view RE[:, pr[s2], :]
-        AA = @view A[:, pd[s1], :]
-        ll = reshape(le1l[p1l[s1], :] .* le2l[p2l[s2], :], 1, :, 1)
-        sA = size(AA, 1)
-        sB = size(BB, 1)
-        Rpart = reshape(AA * RR * BB', sA, 1, sB)
-        R[:, :, :] += M.loc_exp[s2, s1] .* (Rpart .* ll)
+    le1l, le2l, le1u, le2u = M.bnd_exp
+    lel1 = CUDA.CuArray(le1l')
+    lel2 = CUDA.CuArray(le2l')
+    leu1 = CUDA.CuArray(le1u')
+    leu2 = CUDA.CuArray(le2u')
+
+    loc_exp = CUDA.CuArray(M.loc_exp')  # [s1 s2]
+
+    en1, en2 = M.loc_en
+
+    A_d = permutedims(CUDA.CuArray(A), (1, 3, 2))
+    R_d = permutedims(CUDA.CuArray(R), (1, 3, 2))
+    B_d = permutedims(CUDA.CuArray(B), (3, 1, 2))
+
+    newR = CUDA.zeros(size(A, 1), size(B, 1), maximum(pl))
+
+    lel1 = lel1[:, p1l]
+    leu1 = leu1[:, p1u]
+    AA = A_d[:, :, pd]
+
+    for s2 ∈ 1:length(en2)
+        ll = lel1 .* view(lel2, :, p2l[s2])
+        lu = leu1 .* view(leu2, :, p2u[s2])
+        @matmul BB[x, y, s1] := sum(z) B_d[x, y, z] * lu[z, s1]
+        RR = view(R_d, :, :, pr[s2])
+        R_no_le = AA ⊠ RR ⊠ BB  # broadcast over dims = 3
+        le_s = view(loc_exp, :, s2)
+        R_no_le = R_no_le .* reshape(le_s, 1, 1, :)
+        @matmul RR_s2[x, y, z] := sum(s1) R_no_le[x, y, s1] * ll[z, s1]
+        newR[:, :, :] += RR_s2
     end
-    R ./ maximum(abs.(R))
+    Array(permutedims(newR, (1, 3, 2)) ./ maximum(abs.(newR)))
 end
+
+
+# """
+# $(TYPEDSIGNATURES)
+# """
+# function update_env_right(
+#     RE::S, A::S, M::T, B::S, ::Val{:c}
+# ) where {T <: SparsePegasusSquareTensor, S <: AbstractArray{Float64, 3}}
+#     pl, pu, pr, pd = M.projs
+#     le1l, le2l, le1u, le2u = M.bnd_exp
+#     p1l, p2l, p1u, p2u = M.bnd_projs
+#     en1, en2 = M.loc_en
+#     R = zeros(size(A, 1), maximum(pl), size(B, 1))
+
+#     for s1 ∈ 1:length(en1), s2 ∈ 1:length(en2)
+#         lu = le1u[p1u[s1], :] .* le2u[p2u[s2], :]
+#         @tensor BB[x, y] := B[x, z, y] * lu[z]
+#         RR = @view RE[:, pr[s2], :]
+#         AA = @view A[:, pd[s1], :]
+#         ll = reshape(le1l[p1l[s1], :] .* le2l[p2l[s2], :], 1, :, 1)
+#         sA = size(AA, 1)
+#         sB = size(BB, 1)
+#         Rpart = reshape(AA * RR * BB', sA, 1, sB)
+#         R[:, :, :] += M.loc_exp[s2, s1] .* (Rpart .* ll)
+#     end
+#     R ./ maximum(abs.(R))
+# end
 
 
 """

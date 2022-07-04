@@ -302,28 +302,29 @@ function update_env_left(
 
     newL = CUDA.zeros(Float64, size(B, 3), size(A, 3), maximum(pr))
 
-    le1l = view(le1l, :, p1l)
-    le1u = view(le1u, :, p1u)
-    BB = view(B_d, :, :, pd)
+    # This needs to be cleand-up
+    le1l = CUDA.CuArray(view(le1l, :, p1l))
+    le1u = CUDA.CuArray(view(le1u, :, p1u))
+    BB = CUDA.CuArray(view(B_d, :, :, pd))
+
 end
 
 println("Starting contraction ...")
-@time begin
-
     for s2 ∈ 1:length(en2)
+    @time begin
         ll = le1l .* view(le2l, :, p2l[s2])
         lu = le1u .* view(le2u, :, p2u[s2])
+
         @matmul AA[x, y, s1] := sum(z) A_d[x, y, z] * lu[z, s1]
         @matmul LL[x, y, s1] := sum(z) L_d[x, y, z] * ll[z, s1]
 
-        L_no_le = BB ⊠ LL ⊠ AA  # broadcast over dims = 3
+        L_no_le = BB ⊠ (LL ⊠ AA)  # broadcast over dims = 3
 
         le_s = view(loc_exp, :, s2)
         @matmul LL_s2[x, y] := sum(s1) L_no_le[x, y, s1] * le_s[s1]
         newL[:, :, pr[s2]] += LL_s2
     end
-
-end
+    end
     Array(permutedims(newL, (1, 3, 2)) ./ maximum(abs.(newL)))
 end
 

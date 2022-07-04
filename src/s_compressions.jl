@@ -305,43 +305,25 @@ function update_env_left(
     le1l = view(le1l, :, p1l)
     le1u = view(le1u, :, p1u)
     BB = view(B_d, :, :, pd)
-
 end
-#=
+
 println("Starting contraction ...")
 @time begin
+
     for s2 ∈ 1:length(en2)
         ll = le1l .* view(le2l, :, p2l[s2])
         lu = le1u .* view(le2u, :, p2u[s2])
-println("a")
-        @matmul AA[d, y, b] := sum(x) A_d[x, (d, y)] * lu[x, b] (d ∈ 1:size(A, 1))
-println("b")
-        @matmul LL[d, y, b] := sum(x) L_d[x, (d, y)] * ll[x, b] (d ∈ 1:size(LE, 1))
-println("c")
-        #LnoMloc = BB ⊠ LL ⊠ AA
-        LnoMloc = CUDA.zeros(size(BB, 1), size(AA, 2), size(le1u, 1))
-        for k ∈ 1:size(AA, 3)
-            LnoMloc[:, :, k] = view(BB, :, :, k) * view(LL, :, :, k) * view(AA, :, :, k)
-        end
-println("d")
-        Mloc = reshape(view(loc_exp, :, s2), 1, 1, length(en1))
-println("e")
-        L[:, :, pr[s2]] += reduce(+, Mloc .* LnoMloc; dims=3)
-    end
-end
-    Array(permutedims(L, (1, 3, 2)) ./ maximum(abs.(L)))
-=#
-        #@time begin
-        ll = lel1 .* view(lel2, :, p2l[s2])
-        lu = leu1 .* view(leu2, :, p2u[s2])
         @matmul AA[x, y, s1] := sum(z) A_d[x, y, z] * lu[z, s1]
         @matmul LL[x, y, s1] := sum(z) L_d[x, y, z] * ll[z, s1]
+
         L_no_le = BB ⊠ LL ⊠ AA  # broadcast over dims = 3
+
         le_s = view(loc_exp, :, s2)
         @matmul LL_s2[x, y] := sum(s1) L_no_le[x, y, s1] * le_s[s1]
         newL[:, :, pr[s2]] += LL_s2
-        #end
     end
+
+end
     Array(permutedims(newL, (1, 3, 2)) ./ maximum(abs.(newL)))
 end
 
@@ -404,9 +386,9 @@ function update_env_left(
     B_d = CUDA.CuArray(permutedims(B, (3, 1, 2)))
     loc_exp = CUDA.CuArray(M.loc_exp)
 
-    AA = CUDA.zeros(size(A, 2), size(A, 3))
-    LL = CUDA.zeros(size(LE, 2), size(LE, 3))
-    L = CUDA.zeros(size(B, 3), size(A, 3), maximum(pr))
+    AA = CUDA.zeros(Float64, size(A, 2), size(A, 3))
+    LL = CUDA.zeros(Float64, size(LE, 2), size(LE, 3))
+    L = CUDA.zeros(Float64, size(B, 3), size(A, 3), maximum(pr))
 
     M, N = length(en1), length(en2)
     th = (16, 16)

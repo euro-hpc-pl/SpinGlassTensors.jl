@@ -300,7 +300,7 @@ function update_env_left(
     L_d = permutedims(CUDA.CuArray(L), (1, 3, 2))
     B_d = permutedims(CUDA.CuArray(B), (3, 1, 2))
 
-    newL = CUDA.zeros(size(B, 3), size(A, 3), maximum(pr))
+    newL = CUDA.zeros(Float64, size(B, 3), size(A, 3), maximum(pr))
 
     le1l = view(le1l, :, p1l)
     le1u = view(le1u, :, p1u)
@@ -452,7 +452,7 @@ function update_env_left(
     L_d = permutedims(CUDA.CuArray(L), (1, 3, 2))
     B_d = permutedims(CUDA.CuArray(B), (3, 1, 2))
 
-    newL = CUDA.zeros(size(B, 3), size(A, 3), maximum(pr))
+    newL = CUDA.zeros(Float64, size(B, 3), size(A, 3), maximum(pr))
 
     lel1 = lel1[:, p1l]
     leu1 = leu1[:, p1u]
@@ -669,7 +669,7 @@ function update_env_right(
     R_d = permutedims(CUDA.CuArray(R), (1, 3, 2))
     B_d = permutedims(CUDA.CuArray(B), (3, 1, 2))
 
-    newR = CUDA.zeros(size(A, 1), size(B, 1), maximum(pl))
+    newR = CUDA.zeros(Float64, size(A, 1), size(B, 1), maximum(pl))
 
     lel1 = lel1[:, p1l]
     leu1 = leu1[:, p1u]
@@ -758,7 +758,7 @@ function update_env_right(
     R_d = permutedims(CUDA.CuArray(R), (1, 3, 2))
     B_d = permutedims(CUDA.CuArray(B), (3, 1, 2))
 
-    newR = CUDA.zeros(size(A, 1), size(B, 1), maximum(pl))
+    newR = CUDA.zeros(Float64, size(A, 1), size(B, 1), maximum(pl))
 
     lel1 = lel1[:, p1l]
     leu1 = leu1[:, p1u]
@@ -993,25 +993,16 @@ function project_ket_on_bra(
     lel2 = CUDA.CuArray(le2l')
     leu1 = CUDA.CuArray(le1u')
     leu2 = CUDA.CuArray(le2u')
-    # lel1 = le1l'
-    # lel2 = le2l'
-    # leu1 = le1u'
-    # leu2 = le2u'
 
     loc_exp = CUDA.CuArray(M.loc_exp')  # [s1 s2]
-    # loc_exp = M.loc_exp'  # [s1 s2]
 
     en1, en2 = M.loc_en
 
     L_d = permutedims(CUDA.CuArray(LE), (3, 1, 2))
     R_d = permutedims(CUDA.CuArray(RE), (3, 1, 2))
     B_d = permutedims(CUDA.CuArray(B), (1, 3, 2))
-    # L_d = permutedims(LE, (3, 1, 2))
-    # R_d = permutedims(RE, (3, 1, 2))
-    # B_d = permutedims(B, (1, 3, 2))
 
-    newA = CUDA.zeros(size(LE, 3), size(RE, 1), maximum(pu))
-    # newA = zeros(size(LE, 3), size(RE, 1), maximum(pu))
+    newA = CUDA.zeros(Float64, size(LE, 3), size(RE, 1), maximum(pu))
 
     lel1 = lel1[:, p1l]
     leu1 = leu1[:, p1u]
@@ -1028,8 +1019,7 @@ function project_ket_on_bra(
         @matmul AA_s2[x, y, z] := sum(s1) A_no_le[x, y, s1] * lu[z, s1]
         newA[:, :, :] += AA_s2
     end
-    # permutedims(newA, (1, 3, 2)) ./ maximum(abs.(newA))
-    Array{Float64}(permutedims(newA, (1, 3, 2)) ./ maximum(abs.(newA)))
+    Array(permutedims(newA, (1, 3, 2)) ./ maximum(abs.(newA)))
 end
 
 

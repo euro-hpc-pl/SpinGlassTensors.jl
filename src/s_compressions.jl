@@ -1002,26 +1002,80 @@ function project_ket_on_bra(
 end
 
 
+
 function project_ket_on_bra(
     LE::S, B::S, M::T, RE::S, ::Val{:n}
 ) where {S <: AbstractArray{Float64, 3}, T <: SparsePegasusSquareTensor}
     pl, pu, pr, pd = M.projs
-    le1l, le2l, le1u, le2u = M.bnd_exp
     p1l, p2l, p1u, p2u = M.bnd_projs
+
+    le1l, le2l, le1u, le2u = M.bnd_exp
+    lel1 = CUDA.CuArray(le1l')
+    lel2 = CUDA.CuArray(le2l')
+    leu1 = CUDA.CuArray(le1u')
+    leu2 = CUDA.CuArray(le2u')
+    # lel1 = le1l'
+    # lel2 = le2l'
+    # leu1 = le1u'
+    # leu2 = le2u'
+
+    loc_exp = CUDA.CuArray(M.loc_exp')  # [s1 s2]
+    # loc_exp = M.loc_exp'  # [s1 s2]
+
     en1, en2 = M.loc_en
-    L = zeros(size(LE, 3), maximum(pu), size(RE, 1))
-    for s1 ∈ 1:length(en1), s2 ∈ 1:length(en2)
-        ll = le1l[p1l[s1], :] .* le2l[p2l[s2], :]
-        @tensor LL[x, y] := LE[x, z, y] * ll[z]
-        BB = @view B[:, pd[s1], :]
-        RR = @view RE[:, pr[s2], :]
-        XX = reshape(LL' * BB * RR', size(LL, 2), 1, size(RR, 1))
-        lu = reshape(le1u[p1u[s1], :] .* le2u[p2u[s2], :], 1, :, 1)
-        L[:, :, :] += M.loc_exp[s2, s1] .* (XX .* lu)
+
+    L_d = permutedims(CUDA.CuArray(LE), (3, 1, 2))
+    R_d = permutedims(CUDA.CuArray(RE), (3, 1, 2))
+    B_d = permutedims(CUDA.CuArray(B), (1, 3, 2))
+    # L_d = permutedims(LE, (3, 1, 2))
+    # R_d = permutedims(RE, (3, 1, 2))
+    # B_d = permutedims(B, (1, 3, 2))
+
+    newA = CUDA.zeros(size(LE, 3), size(RE, 1), maximum(pu))
+    # newA = zeros(size(LE, 3), size(RE, 1), maximum(pu))
+
+    lel1 = lel1[:, p1l]
+    leu1 = leu1[:, p1u]
+    BB = B_d[:, :, pd]
+
+    for s2 ∈ 1:length(en2)
+        ll = lel1 .* view(lel2, :, p2l[s2])
+        lu = leu1 .* view(leu2, :, p2u[s2])
+        @matmul LL[x, y, s1] := sum(z) L_d[x, y, z] * ll[z, s1]
+        RR = view(R_d, :, :, pr[s2])
+        A_no_le = LL ⊠ BB ⊠ RR  # broadcast over dims = 3
+        le_s = view(loc_exp, :, s2)
+        A_no_le = A_no_le .* reshape(le_s, 1, 1, :)
+        @matmul AA_s2[x, y, z] := sum(s1) A_no_le[x, y, s1] * lu[z, s1]
+        newA[:, :, :] += AA_s2
     end
-    L ./ maximum(abs.(L))
-    # project_ket_on_bra(LE, B, M.M, RE, Val(:n))
+    # permutedims(newA, (1, 3, 2)) ./ maximum(abs.(newA))
+    Array{Float64}(permutedims(newA, (1, 3, 2)) ./ maximum(abs.(newA)))
 end
+
+
+# """
+# $(TYPEDSIGNATURES)
+# """
+# function project_ket_on_bra(
+#     LE::S, B::S, M::T, RE::S, ::Val{:n}
+# ) where {S <: AbstractArray{Float64, 3}, T <: SparsePegasusSquareTensor}
+#     pl, pu, pr, pd = M.projs
+#     le1l, le2l, le1u, le2u = M.bnd_exp
+#     p1l, p2l, p1u, p2u = M.bnd_projs
+#     en1, en2 = M.loc_en
+#     L = zeros(size(LE, 3), maximum(pu), size(RE, 1))
+#     for s1 ∈ 1:length(en1), s2 ∈ 1:length(en2)
+#         ll = le1l[p1l[s1], :] .* le2l[p2l[s2], :]
+#         @tensor LL[x, y] := LE[x, z, y] * ll[z]
+#         BB = @view B[:, pd[s1], :]
+#         RR = @view RE[:, pr[s2], :]
+#         XX = reshape(LL' * BB * RR', size(LL, 2), 1, size(RR, 1))
+#         lu = reshape(le1u[p1u[s1], :] .* le2u[p2u[s2], :], 1, :, 1)
+#         L[:, :, :] += M.loc_exp[s2, s1] .* (XX .* lu)
+#     end
+#     L ./ maximum(abs.(L))
+# end
 
 
 """

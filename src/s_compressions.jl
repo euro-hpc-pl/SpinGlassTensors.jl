@@ -284,144 +284,45 @@ println("Pre-processing ...")
 @time begin
     _, _, pr, pd = M.projs
     p1l, p2l, p1u, p2u = M.bnd_projs
-
-    le1l, le2l, le1u, le2u = M.bnd_exp
-
-    lel1 = CUDA.CuArray(le1l')
-    lel2 = CUDA.CuArray(le2l')
-    leu1 = CUDA.CuArray(le1u')
-    leu2 = CUDA.CuArray(le2u')
+    
+    lel1, lel2, leu1, leu2 = CUDA.CuArray.(transpose.(M.bnd_exp))
 
     loc_exp = CUDA.CuArray(M.loc_exp') # [s1, s2]
 
-    en1, en2 = M.loc_en  # to be cleaned, as this is only used for size
+    _, en2 = M.loc_en  # to be cleaned, as this is only used for size
 
     A_d = permutedims(CUDA.CuArray(A), (1, 3, 2))
     L_d = permutedims(CUDA.CuArray(L), (1, 3, 2))
     B_d = permutedims(CUDA.CuArray(B), (3, 1, 2))
 
-    newL = CUDA.zeros(Float64, size(B, 3), size(A, 3), maximum(pr))
+    ret = CUDA.zeros(Float64, size(B, 3), size(A, 3), maximum(pr))
 
     # This needs to be cleand-up
-    lel1 = CUDA.CuArray(view(lel1, :, p1l))
-    leu1 = CUDA.CuArray(view(leu1, :, p1u))
-    BB = CUDA.CuArray(view(B_d, :, :, pd))
+    lel1 = CUDA.CuArray(lel1[:, p1l])
+    leu1 = CUDA.CuArray(leu1[:, p1u])
+    BB = CUDA.CuArray(B_d[:, :, pd])
 end
 
 println("Starting contraction ...")
-    @time begin
+
     for s2 ∈ 1:length(en2)
+    @time begin
         ll = lel1 .* view(lel2, :, p2l[s2])
         lu = leu1 .* view(leu2, :, p2u[s2])
 
-        @matmul AA[x, y, s1] := sum(z) A_d[x, y, z] * lu[z, s1]
-        @matmul LL[x, y, s1] := sum(z) L_d[x, y, z] * ll[z, s1]
+        @tensor AA[x, y, s1] := A_d[x, y, z] * lu[z, s1]
+        @tensor LL[x, y, s1] := L_d[x, y, z] * ll[z, s1]
 
-        L_no_le = BB ⊠ (LL ⊠ AA)  # broadcast over dims = 3
+        L_no_le = BB ⊠ LL ⊠ AA  # broadcast over dims = 3
 
-        le_s1 = view(loc_exp, :, s2)
-        @matmul LL_s2[x, y] := sum(s1) L_no_le[x, y, s1] * le_s1[s1]
-        newL[:, :, pr[s2]] += LL_s2
-
-        CUDA.unsafe_free!(ll)
-        CUDA.unsafe_free!(lu)
-        CUDA.unsafe_free!(AA)
-        CUDA.unsafe_free!(LL)
-        CUDA.unsafe_free!(L_no_le)
-        CUDA.unsafe_free!(LL_s2)
+        le_s1 = @view loc_exp[:, s2]
+        LL_s2 = @view ret[:, :, pr[s2]]
+        @tensor LL_s2[x, y] = L_no_le[x, y, s1] * le_s1[s1] + LL_s2[x, y]
     end
     end
-    Array(permutedims(newL, (1, 3, 2)) ./ maximum(abs.(newL)))
+    Array(permutedims(ret, (1, 3, 2)) ./ maximum(abs.(ret)))
 end
 
-#=
-function _update_env_left_kernel(
-    en1_size, en2_size,
-    p1l, p2l, p1u, p2u,
-    le1l, le2l, le1u, le2u,
-    pr, pd,
-    AA, LL,
-    A, B, LE,
-    loc_exp,
-    ret
-)
-    idx = (blockIdx().x - 1) * blockDim().x + threadIdx().x
-    x_stride = gridDim().x * blockDim().x
-
-    idy = (blockIdx().y - 1) * blockDim().y + threadIdx().y
-    y_stride = gridDim().y * blockDim().y
-
-    for s1 ∈ idx:x_stride:en1_size, s2 ∈ idy:y_stride:en2_size
-        for d ∈ 1:size(AA, 1), y ∈ 1:size(AA, 2), k ∈ 1:size(le1l, 1)
-            @inbounds AA[d, y] += le1l[k, p1l[s1]] * le2l[k, p2l[s2]] * A[k, d, y]
-        end
-
-        for d ∈ 1:size(LL, 1), y ∈ 1:size(LL, 2), k ∈ 1:size(le1u, 1)
-            @inbounds LL[d, y] += le1u[k, p1u[s1]] * le2u[k, p2u[s2]] * LE[k, d, y]
-        end
-
-        α = loc_exp[s2, s1]
-        for i ∈ 1:size(ret, 1), j ∈ 1:size(ret, 2), l ∈ 1:size(LL, 2), k ∈ 1:size(LL, 1)
-            @inbounds ret[i, j, pr[s2]] += α * B[i, k, pd[s1]] * LL[k, l] * AA[l, j]
-        end
-    end
-end
-
-function update_env_left(
-     LE::S, A::S, M::T, B::S, ::Val{:n}
-) where {S <: AbstractArray{Float64, 3}, T <: SparsePegasusSquareTensor}
-@time begin
-    println("Pre-processing starts ...")
-
-    _, _, pr, pd = M.projs
-    pr, pd = CUDA.CuArray(pr), CUDA.CuArray(pd)
-
-    p1l, p2l, p1u, p2u = M.bnd_projs
-    p1l, p2l = CUDA.CuArray(p1l), CUDA.CuArray(p2l)
-    p1u, p2u = CUDA.CuArray(p1u), CUDA.CuArray(p2u)
-
-    le1l, le2l, le1u, le2u = M.bnd_exp
-    le1l = CUDA.CuArray(le1l')
-    le2l = CUDA.CuArray(le2l')
-    le1u = CUDA.CuArray(le1u')
-    le2u = CUDA.CuArray(le2u')
-
-    en1, en2 = M.loc_en
-
-    A_d = CUDA.CuArray(permutedims(A, (2, 1, 3)))
-    LE_d = CUDA.CuArray(permutedims(LE, (2, 1, 3)))
-    B_d = CUDA.CuArray(permutedims(B, (3, 1, 2)))
-    loc_exp = CUDA.CuArray(M.loc_exp)
-
-    AA = CUDA.zeros(Float64, size(A, 2), size(A, 3))
-    LL = CUDA.zeros(Float64, size(LE, 2), size(LE, 3))
-    L = CUDA.zeros(Float64, size(B, 3), size(A, 3), maximum(pr))
-
-    M, N = length(en1), length(en2)
-    th = (16, 16)
-    bl = (ceil(Int, M / th[1]), ceil(Int, N / th[2]))
-
-end
-    @time begin
-        println("Kernel starts ...")
-
-        CUDA.@sync begin
-            @cuda threads=th blocks=bl _update_env_left_kernel(
-                M, N,
-                p1l, p2l, p1u, p2u,
-                le1l, le2l, le1u, le2u,
-                pr, pd,
-                AA, LL,
-                A_d, B_d, LE_d,
-                loc_exp,
-                L
-            )
-        end
-        println("Kernel ends.")
-    end
-    Array(permutedims(L, (1, 3, 2)) ./ maximum(abs.(L)))
- end
-=#
 """
 $(TYPEDSIGNATURES)
 """

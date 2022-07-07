@@ -284,9 +284,8 @@ println("Pre-processing ...")
 @time begin
     _, _, pr, pd = M.projs
     p1l, p2l, p1u, p2u = M.bnd_projs
-    
-    lel1, lel2, leu1, leu2 = CUDA.CuArray.(transpose.(M.bnd_exp))
 
+    lel1, lel2, leu1, leu2 = CUDA.CuArray.(transpose.(M.bnd_exp))
     loc_exp = CUDA.CuArray(M.loc_exp') # [s1, s2]
 
     _, en2 = M.loc_en  # to be cleaned, as this is only used for size
@@ -305,8 +304,8 @@ end
 
 println("Starting contraction ...")
 
-    for s2 ∈ 1:length(en2)
     @time begin
+    for s2 ∈ 1:length(en2)
         ll = lel1 .* view(lel2, :, p2l[s2])
         lu = leu1 .* view(leu2, :, p2u[s2])
 
@@ -346,21 +345,16 @@ function update_env_left(
     _, _, pr, pd = M.projs
     p1l, p2l, p1u, p2u = M.bnd_projs
 
-    le1l, le2l, le1u, le2u = M.bnd_exp
-    lel1 = CUDA.CuArray(le1l')
-    lel2 = CUDA.CuArray(le2l')
-    leu1 = CUDA.CuArray(le1u')
-    leu2 = CUDA.CuArray(le2u')
+    lel1, lel2, leu1, leu2 = CUDA.CuArray.(transpose.(M.bnd_exp))
+    loc_exp = CUDA.CuArray(M.loc_exp') # [s1, s2]
 
-    loc_exp = CUDA.CuArray(M.loc_exp')
-
-    en1, en2 = M.loc_en
+    _, en2 = M.loc_en  # to be cleaned, as this is only used for size
 
     A_d = permutedims(CUDA.CuArray(A), (1, 3, 2))
     L_d = permutedims(CUDA.CuArray(L), (1, 3, 2))
     B_d = permutedims(CUDA.CuArray(B), (3, 1, 2))
 
-    newL = CUDA.zeros(Float64, size(B, 3), size(A, 3), maximum(pr))
+    ret = CUDA.zeros(Float64, size(B, 3), size(A, 3), maximum(pr))
 
     lel1 = CUDA.CuArray(view(lel1, :, p1l))
     leu1 = CUDA.CuArray(view(leu1, :, p1u))
@@ -369,14 +363,17 @@ function update_env_left(
     for s2 ∈ 1:length(en2)
         ll = lel1 .* view(lel2, :, p2l[s2])
         lu = leu1 .* view(leu2, :, p2u[s2])
+
         @matmul BB[x, y, s1] := sum(z) B_d[x, y, z] * lu[z, s1]
         @matmul LL[x, y, s1] := sum(z) L_d[x, y, z] * ll[z, s1]
-        L_no_le = BB ⊠ (LL ⊠ AA)  # broadcast over dims = 3
-        le_s = view(loc_exp, :, s2)
-        @matmul LL_s2[x, y] := sum(s1) L_no_le[x, y, s1] * le_s[s1]
-        newL[:, :, pr[s2]] += LL_s2
+
+        L_no_le = BB ⊠ LL ⊠ AA  # broadcast over dims = 3
+
+        le_s1 = @view loc_exp[:, s2]
+        LL_s2 = @view ret[:, :, pr[s2]]
+        @tensor LL_s2[x, y] = L_no_le[x, y, s1] * le_s1[s1] + LL_s2[x, y]
     end
-    Array(permutedims(newL, (1, 3, 2)) ./ maximum(abs.(newL)))
+    Array(permutedims(ret, (1, 3, 2)) ./ maximum(abs.(ret)))
 end
 
 
@@ -563,21 +560,16 @@ function update_env_right(
     pl, pu, pr, pd = M.projs
     p1l, p2l, p1u, p2u = M.bnd_projs
 
-    le1l, le2l, le1u, le2u = M.bnd_exp
-    lel1 = CUDA.CuArray(le1l')
-    lel2 = CUDA.CuArray(le2l')
-    leu1 = CUDA.CuArray(le1u')
-    leu2 = CUDA.CuArray(le2u')
+    lel1, lel2, leu1, leu2 = CUDA.CuArray.(transpose.(M.bnd_exp))
+    loc_exp = CUDA.CuArray(M.loc_exp') # [s1, s2]
 
-    loc_exp = CUDA.CuArray(M.loc_exp')  # [s1 s2]
-
-    en1, en2 = M.loc_en
+    _, en2 = M.loc_en  # to be cleaned, as this is only used for size
 
     A_d = permutedims(CUDA.CuArray(A), (1, 3, 2))
     R_d = permutedims(CUDA.CuArray(R), (1, 3, 2))
     B_d = permutedims(CUDA.CuArray(B), (3, 1, 2))
 
-    newR = CUDA.zeros(Float64, size(A, 1), size(B, 1), maximum(pl))
+    ret = CUDA.zeros(Float64, size(A, 1), size(B, 1), maximum(pl))
 
     lel1 = CUDA.CuArray(view(lel1, :, p1l))
     leu1 = CUDA.CuArray(view(leu1, :, p1u))
@@ -586,15 +578,18 @@ function update_env_right(
     for s2 ∈ 1:length(en2)
         ll = lel1 .* view(lel2, :, p2l[s2])
         lu = leu1 .* view(leu2, :, p2u[s2])
+
         @matmul AA[x, y, s1] := sum(z) A_d[x, y, z] * lu[z, s1]
         RR = view(R_d, :, :, pr[s2])
-        R_no_le = AA ⊠ (RR ⊠ BB)  # broadcast over dims = 3
+
+        R_no_le = AA ⊠ RR ⊠ BB  # broadcast over dims = 3
         le_s = view(loc_exp, :, s2)
         R_no_le = R_no_le .* reshape(le_s, 1, 1, :)
+
         @matmul RR_s2[x, y, z] := sum(s1) R_no_le[x, y, s1] * ll[z, s1]
-        newR[:, :, :] += RR_s2
+        ret += RR_s2
     end
-    Array(permutedims(newR, (1, 3, 2)) ./ maximum(abs.(newR)))
+    Array(permutedims(ret, (1, 3, 2)) ./ maximum(abs.(ret)))
 end
 
 
@@ -652,21 +647,16 @@ function update_env_right(
     pl, pu, pr, pd = M.projs
     p1l, p2l, p1u, p2u = M.bnd_projs
 
-    le1l, le2l, le1u, le2u = M.bnd_exp
-    lel1 = CUDA.CuArray(le1l')
-    lel2 = CUDA.CuArray(le2l')
-    leu1 = CUDA.CuArray(le1u')
-    leu2 = CUDA.CuArray(le2u')
+    lel1, lel2, leu1, leu2 = CUDA.CuArray.(transpose.(M.bnd_exp))
+    loc_exp = CUDA.CuArray(M.loc_exp') # [s1, s2]
 
-    loc_exp = CUDA.CuArray(M.loc_exp')  # [s1 s2]
-
-    en1, en2 = M.loc_en
+    _, en2 = M.loc_en  # to be cleaned, as this is only used for size
 
     A_d = permutedims(CUDA.CuArray(A), (1, 3, 2))
     R_d = permutedims(CUDA.CuArray(R), (1, 3, 2))
     B_d = permutedims(CUDA.CuArray(B), (3, 1, 2))
 
-    newR = CUDA.zeros(Float64, size(A, 1), size(B, 1), maximum(pl))
+    ret = CUDA.zeros(Float64, size(A, 1), size(B, 1), maximum(pl))
 
     lel1 = CUDA.CuArray(view(lel1, :, p1l))
     leu1 = CUDA.CuArray(view(leu1, :, p1u))
@@ -675,15 +665,19 @@ function update_env_right(
     for s2 ∈ 1:length(en2)
         ll = lel1 .* view(lel2, :, p2l[s2])
         lu = leu1 .* view(leu2, :, p2u[s2])
+
         @matmul BB[x, y, s1] := sum(z) B_d[x, y, z] * lu[z, s1]
+
         RR = view(R_d, :, :, pr[s2])
-        R_no_le = AA ⊠ (RR ⊠ BB)  # broadcast over dims = 3
+        R_no_le = AA ⊠ RR ⊠ BB  # broadcast over dims = 3
+
         le_s = view(loc_exp, :, s2)
         R_no_le = R_no_le .* reshape(le_s, 1, 1, :)
+
         @matmul RR_s2[x, y, z] := sum(s1) R_no_le[x, y, s1] * ll[z, s1]
-        newR[:, :, :] += RR_s2
+        ret += RR_s2
     end
-    Array(permutedims(newR, (1, 3, 2)) ./ maximum(abs.(newR)))
+    Array(permutedims(ret, (1, 3, 2)) ./ maximum(abs.(ret)))
 end
 
 
@@ -896,38 +890,36 @@ function project_ket_on_bra(
     pl, pu, pr, pd = M.projs
     p1l, p2l, p1u, p2u = M.bnd_projs
 
-    le1l, le2l, le1u, le2u = M.bnd_exp
-    lel1 = CUDA.CuArray(le1l')
-    lel2 = CUDA.CuArray(le2l')
-    leu1 = CUDA.CuArray(le1u')
-    leu2 = CUDA.CuArray(le2u')
+    lel1, lel2, leu1, leu2 = CUDA.CuArray.(transpose.(M.bnd_exp))
+    loc_exp = CUDA.CuArray(M.loc_exp) # [s2, s1]
 
-    loc_exp = CUDA.CuArray(M.loc_exp')  # [s1 s2]
-
-    en1, en2 = M.loc_en
+    en1, _ = M.loc_en  # to be cleaned, as this is only used for size
 
     L_d = permutedims(CUDA.CuArray(LE), (3, 1, 2))
     R_d = permutedims(CUDA.CuArray(RE), (3, 1, 2))
     B_d = permutedims(CUDA.CuArray(B), (1, 3, 2))
 
-    newA = CUDA.zeros(Float64, size(LE, 3), size(RE, 1), maximum(pu))
+    ret = CUDA.zeros(Float64, size(LE, 3), size(RE, 1), maximum(pu))
 
-    lel1 = CUDA.CuArray(view(lel1, :, p1l))
-    leu1 = CUDA.CuArray(view(leu1, :, p1u))
-    BB = CUDA.CuArray(view(B_d, :, :, pd))
+    lel2 = CUDA.CuArray(view(lel2, :, p2l))
+    leu2 = CUDA.CuArray(view(leu2, :, p2u))
+    RR = CUDA.CuArray(view(R_d, :, :, pr))
 
-    for s2 ∈ 1:length(en2)
-        ll = lel1 .* view(lel2, :, p2l[s2])
-        lu = leu1 .* view(leu2, :, p2u[s2])
-        @matmul LL[x, y, s1] := sum(z) L_d[x, y, z] * ll[z, s1]
-        RR = view(R_d, :, :, pr[s2])
-        A_no_le = LL ⊠ (BB ⊠ RR)  # broadcast over dims = 3
-        le_s = view(loc_exp, :, s2)
+    for s1 ∈ 1:length(en1)
+        ll = lel2 .* view(lel1, :, p1l[s1])
+        lu = leu2 .* view(leu1, :, p1u[s1])
+
+        @matmul LL[x, y, s2] := sum(z) L_d[x, y, z] * ll[z, s2]
+        BB = view(B_d, :, :, pd[s1])
+        A_no_le = LL ⊠ BB ⊠ RR  # broadcast over dims = 3
+
+        le_s = view(loc_exp, :, s1)
         A_no_le = A_no_le .* reshape(le_s, 1, 1, :)
-        @matmul AA_s2[x, y, z] := sum(s1) A_no_le[x, y, s1] * lu[z, s1]
-        newA[:, :, :] += AA_s2
+
+        @matmul AA_s1[x, y, z] := sum(s2) A_no_le[x, y, s2] * lu[z, s2]
+        ret += AA_s1
     end
-    Array(permutedims(newA, (1, 3, 2)) ./ maximum(abs.(newA)))
+    Array(permutedims(ret, (1, 3, 2)) ./ maximum(abs.(ret)))
 end
 
 
@@ -1026,36 +1018,33 @@ function project_ket_on_bra(
     pl, pu, pr, pd = M.projs
     p1l, p2l, p1u, p2u = M.bnd_projs
 
-    le1l, le2l, le1u, le2u = M.bnd_exp
-    lel1 = CUDA.CuArray(le1l')
-    lel2 = CUDA.CuArray(le2l')
-    leu1 = CUDA.CuArray(le1u')
-    leu2 = CUDA.CuArray(le2u')
+    lel1, lel2, leu1, leu2 = CUDA.CuArray.(transpose.(M.bnd_exp))
+    loc_exp = CUDA.CuArray(M.loc_exp) # [s2, s1]
 
-    loc_exp = CUDA.CuArray(M.loc_exp')  # [s1 s2]
-
-    en1, en2 = M.loc_en
+    en1, _ = M.loc_en  # to be cleaned, as this is only used for size
 
     L_d = permutedims(CUDA.CuArray(LE), (3, 1, 2))
     R_d = permutedims(CUDA.CuArray(RE), (3, 1, 2))
     B_d = permutedims(CUDA.CuArray(B), (1, 3, 2))
 
-    newA = CUDA.zeros(Float64, size(LE, 3), size(RE, 1), maximum(pd))
+    ret = CUDA.zeros(Float64, size(LE, 3), size(RE, 1), maximum(pd))
 
-    lel1 = CUDA.CuArray(view(lel1, :, p1l))
-    leu1 = CUDA.CuArray(view(leu1, :, p1u))
+    lel2 = CUDA.CuArray(view(lel2, :, p2l))
+    leu2 = CUDA.CuArray(view(leu2, :, p2u))
+    RR = CUDA.CuArray(view(R_d, :, :, pr))
 
-    for s2 ∈ 1:length(en2)
-        ll = lel1 .* view(lel2, :, p2l[s2])
-        lu = leu1 .* view(leu2, :, p2u[s2])
-        @matmul LL[x, y, s1] := sum(z) L_d[x, y, z] * ll[z, s1]
-        @matmul BB[x, y, s1] := sum(z) B_d[x, y, z] * lu[z, s1]
-        RR = view(R_d, :, :, pr[s2])
-        A_no_le = LL ⊠ (BB ⊠ RR)  # broadcast over dims = 3
-        le_s = view(loc_exp, :, s2)
-        newA[:, :, :] += A_no_le .* reshape(le_s, 1, 1, :)  # there is pd missing .... need to rewrite this
+    for s1 ∈ 1:length(en1)
+        ll = lel2 .* view(lel1, :, p1l[s1])
+        lu = leu2 .* view(leu1, :, p1u[s1])
+
+        @matmul LL[x, y, s2] := sum(z) L_d[x, y, z] * ll[z, s2]
+        @matmul BB[x, y, s2] := sum(z) B_d[x, y, z] * lu[z, s2]
+        A_no_le = LL ⊠ BB ⊠ RR  # broadcast over dims = 3
+        le_s2 = @view loc_exp[:, s1]
+        AA_s1 = @view ret[:, :, pd[s1]]
+        @tensor AA_s1[x, y] = A_no_le[x, y, s2] * le_s2[s2] + AA_s1[x, y]
     end
-    Array(permutedims(newA, (1, 3, 2)) ./ maximum(abs.(newA)))
+    Array(permutedims(ret, (1, 3, 2)) ./ maximum(abs.(ret)))
 end
 
 

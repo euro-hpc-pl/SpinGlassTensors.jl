@@ -297,8 +297,10 @@ println("Pre-processing ...")
 end
 
 println("Starting contraction ...")
-@time begin
+
+
     for s2 ∈ 1:length(en2)
+@time begin
         ll = lel1[:, p1l] .* lel2[:, p2l[s2]]
         lu = leu1[:, p1u] .* leu2[:, p2u[s2]]
 
@@ -307,11 +309,12 @@ println("Starting contraction ...")
 
         L_no_le = BB ⊠ LL ⊠ AA  # broadcast over dims = 3
 
-        le_s1 = @view loc_exp[:, s2]
-        LL_s2 = @view ret[:, :, pr[s2]]
+        le_s1 = loc_exp[:, s2]
+        LL_s2 = ret[:, :, pr[s2]]
         @tensor LL_s2[x, y] = L_no_le[x, y, s1] * le_s1[s1] + LL_s2[x, y]
     end
 end
+
     Array(permutedims(ret, (1, 3, 2)) ./ maximum(abs.(ret)))
 end
 

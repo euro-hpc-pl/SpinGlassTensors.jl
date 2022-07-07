@@ -273,42 +273,34 @@ function update_env_left(
      permutedims(L, (1, 3, 2))
 end
 
-
 """
 $(TYPEDSIGNATURES)
 """
 function update_env_left(
     L::S, A::S, M::T, B::S, ::Val{:n}
 ) where {S <: AbstractArray{Float64, 3}, T <: SparsePegasusSquareTensor}
+
 println("Pre-processing ...")
+
 @time begin
+    _, en2 = M.loc_en
     _, _, pr, pd = M.projs
     p1l, p2l, p1u, p2u = M.bnd_projs
-    
     lel1, lel2, leu1, leu2 = CUDA.CuArray.(transpose.(M.bnd_exp))
 
-    loc_exp = CUDA.CuArray(M.loc_exp') # [s1, s2]
+    loc_exp = CUDA.CuArray(M.loc_exp')
 
-    _, en2 = M.loc_en  # to be cleaned, as this is only used for size
-
-    A_d = permutedims(CUDA.CuArray(A), (1, 3, 2))
-    L_d = permutedims(CUDA.CuArray(L), (1, 3, 2))
-    B_d = permutedims(CUDA.CuArray(B), (3, 1, 2))
+    A_d, L_d = permutedims.(CUDA.CuArray.((A, L)), Ref((1, 3, 2)))
+    BB = CUDA.CuArray(permutedims(B, (3, 1, 2))[:, :, pd])
 
     ret = CUDA.zeros(Float64, size(B, 3), size(A, 3), maximum(pr))
-
-    # This needs to be cleand-up
-    lel1 = CUDA.CuArray(lel1[:, p1l])
-    leu1 = CUDA.CuArray(leu1[:, p1u])
-    BB = CUDA.CuArray(B_d[:, :, pd])
 end
 
 println("Starting contraction ...")
-
+@time begin
     for s2 ∈ 1:length(en2)
-    @time begin
-        ll = lel1 .* view(lel2, :, p2l[s2])
-        lu = leu1 .* view(leu2, :, p2u[s2])
+        ll = lel1[:, p1l] .* lel2[:, p2l[s2]]
+        lu = leu1[:, p1u] .* leu2[:, p2u[s2]]
 
         @tensor AA[x, y, s1] := A_d[x, y, z] * lu[z, s1]
         @tensor LL[x, y, s1] := L_d[x, y, z] * ll[z, s1]
@@ -319,6 +311,7 @@ println("Starting contraction ...")
         LL_s2 = @view ret[:, :, pr[s2]]
         @tensor LL_s2[x, y] = L_no_le[x, y, s1] * le_s1[s1] + LL_s2[x, y]
     end
+
     end
     Array(permutedims(ret, (1, 3, 2)) ./ maximum(abs.(ret)))
 end

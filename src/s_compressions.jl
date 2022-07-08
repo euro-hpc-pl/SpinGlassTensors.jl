@@ -284,7 +284,7 @@ function update_env_left(
 println(" update_env_left ...")
 
 @time begin
-   pr, pd = M.projs
+    pr, pd = M.projs
     p1l, p2l, p1u, p2u = M.bnd_projs
     lel1, lel2, leu1, leu2 = CUDA.CuArray.(M.bnd_exp)
     loc_exp12 = CUDA.CuArray(M.loc_exp)  # [s1, s2]
@@ -323,7 +323,6 @@ end
     out
 end
 
-
 """
 $(TYPEDSIGNATURES)
 """
@@ -340,8 +339,6 @@ function update_env_left(
     L ./ maximum(abs.(L))
 end
 
-
-
 """
 $(TYPEDSIGNATURES)
 """
@@ -352,6 +349,7 @@ function update_env_left(
     p1l, p2l, p1u, p2u = M.bnd_projs
     lel1, lel2, leu1, leu2 = CUDA.CuArray.(M.bnd_exp)
     loc_exp12 = CUDA.CuArray(M.loc_exp)  # [s1, s2]
+
     A_d = CUDA.CuArray(permutedims(A, (1, 3, 2))[:, :, pd])
     L_d = permutedims(CUDA.CuArray(L), (1, 3, 2))
     B_d = permutedims(CUDA.CuArray(B), (3, 1, 2))
@@ -366,6 +364,7 @@ function update_env_left(
     BB = reshape(BBu[:, :, p1u, p2u], size(B_d, 1), size(B_d, 2), :)  # D x D x (12 x 12)
     LL = reshape(LLl[:, :, p1l, p2l], size(L_d, 1), size(L_d, 2), :)  # D x D x (12 x 12)   # 2GB for D=4
     AA = reshape(A_d .* CUDA.ones(Float64, 1, 1, 1, size(pr, 1)), size(A_d, 1), size(A_d, 2), :) # D x D x (12 x 12)
+
     Lnew_no_le = BB ⊠ LL ⊠ AA  # broadcast over dims = 3
 
     Lnew = Lnew_no_le .* reshape(loc_exp12, 1, 1, :)

@@ -288,9 +288,9 @@ println(" update_env_left ...")
     p1l, p2l, p1u, p2u = M.bnd_projs
     lel1, lel2, leu1, leu2 = CUDA.CuArray.(M.bnd_exp)
     loc_exp12 = CUDA.CuArray(M.loc_exp)  # [s1, s2]
-    A_d, L_d = permutedims.(CUDA.CuArray.((A, L)), Ref((1, 3, 2)))
-    BB = CUDA.CuArray(permutedims(B, (3, 1, 2))[:, :, pd])
-    ret = CUDA.zeros(Float64, size(B, 3), size(A, 3), maximum(pr))
+    A_d = permutedims(CUDA.CuArray(A), (1, 3, 2))
+    L_d = permutedims(CUDA.CuArray(L), (1, 3, 2))
+    B_d = CUDA.CuArray(permutedims(B, (3, 1, 2))[:, :, pd])
 end
 
 @time begin
@@ -308,18 +308,22 @@ end
 @time begin
     LL = reshape(LL[:, :, p1l, p2l], size(L_d, 1), size(L_d, 2), :)  # D x D x (2^12 x 2^12), e.g, 2GB for D=4
     AA = reshape(AA[:, :, p1u, p2u], size(A_d, 1), size(A_d, 2), :)
-    BB = reshape(BB .* CUDA.ones(Float64, 1, 1, 1, size(pr, 1)), size(BB, 1), size(BB, 2), :)
+    BB = reshape(B_d .* CUDA.ones(Float64, 1, 1, 1, size(pr, 1)), size(B_d, 1), size(B_d, 2), :)
     Lnew_no_le = BB ⊠ LL ⊠ AA  # broadcast over dims = 3
 end
 
 @time begin
     Lnew = Lnew_no_le .* reshape(loc_exp12, 1, 1, :)
-    Lnew = sum(reshape(Lnew, size(B, 3), size(A, 3), length(pd), length(pr)), dims=3)
-    for s2 ∈ 1:length(pr)
-        ret[:, :, pr[s2]] += Lnew[:, :, 1, s2]
-    end
+    sA3, sB3 = size(A, 3), size(B, 3)
+    Lnew = reshape(sum(reshape(Lnew, sB3, sA3, length(pd), length(pr)), dims=3), sB3, sA3, :)
+
+    ipr = CUDA.CuArray(diagm(ones(Float64, maximum(pr))))  # instead "for s2 ∈ length(pr)"
+    ipr = ipr[:, pr]
+    @tensor ret[x, y, r] := Lnew[x, y, z] * ipr[r, z]
+    out = Array(permutedims(ret, (1, 3, 2)) ./ maximum(abs.(ret)))
 end
-    Array(permutedims(ret, (1, 3, 2)) ./ maximum(abs.(ret)))
+    CUDA.unsafe_free!.((lel1, lel2, leu1, leu2, loc_exp12, A_d, L_d, B_d, LL, BB, AA, Lnew_no_le, Lnew, ret))
+    out
 end
 
 """
@@ -349,7 +353,7 @@ function update_env_left(
     lel1, lel2, leu1, leu2 = CUDA.CuArray.(M.bnd_exp)
     loc_exp12 = CUDA.CuArray(M.loc_exp)  # [s1, s2]
 
-    AA = CUDA.CuArray(permutedims(A, (1, 3, 2))[:, :, pd])
+    A_d = CUDA.CuArray(permutedims(A, (1, 3, 2))[:, :, pd])
     L_d = permutedims(CUDA.CuArray(L), (1, 3, 2))
     B_d = permutedims(CUDA.CuArray(B), (3, 1, 2))
 
@@ -365,16 +369,19 @@ function update_env_left(
     lu = a .* b
     @tensor BB[x, y, u1, u2] := B_d[x, y, z] * lu[z, u1, u2]
 
-    LL = reshape(LL[:, :, p1l, p2l], size(L_d, 1), size(L_d, 2), :)
-    BB = reshape(BB[:, :, p1u, p2u], size(B_d, 1), size(B_d, 2), :)
-    AA = reshape(AA .* CUDA.ones(Float64, 1, 1, 1, size(pr, 1)), size(AA, 1), size(AA, 2), :)
+    LL = reshape(LL[:, :, p1l, p2l], size(L_d, 1), size(L_d, 2), :)  # D x D x (12 x 12)   # 2GB for D=4
+    BB = reshape(BB[:, :, p1u, p2u], size(B_d, 1), size(B_d, 2), :)  # D x D x (12 x 12)
+    AA = reshape(A_d .* CUDA.ones(Float64, 1, 1, 1, size(pr, 1)), size(A_d, 1), size(A_d, 2), :) # D x D x (12 x 12)
+
     Lnew_no_le = BB ⊠ LL ⊠ AA  # broadcast over dims = 3
 
     Lnew = Lnew_no_le .* reshape(loc_exp12, 1, 1, :)
-    Lnew = sum(reshape(Lnew, size(B, 3), size(A, 3), length(pd), length(pr)), dims=3)
-    for s2 ∈ 1:length(pr)
-        ret[:, :, pr[s2]] += Lnew[:, :, 1, s2]
-    end
+    sA3, sB3 = size(A, 3), size(B, 3)
+    Lnew = reshape(sum(reshape(Lnew, sB3, sA3, length(pd), length(pr)), dims=3), sB3, sA3, :)
+
+    ipr = CUDA.CuArray(diagm(ones(Float64, maximum(pr))))  # this replaces "for s2 in length(pr)" loop
+    ipr = ipr[pr, :]
+    @tensor ret[x, y, r] := Lnew[x, y, z] * ipr[z, r]
     Array(permutedims(ret, (1, 3, 2)) ./ maximum(abs.(ret)))
 end
 

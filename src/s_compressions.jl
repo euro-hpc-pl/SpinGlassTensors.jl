@@ -284,7 +284,7 @@ function update_env_left(
 println(" update_env_left ...")
 
 @time begin
-    _, _, pr, pd = M.projs
+   pr, pd = M.projs
     p1l, p2l, p1u, p2u = M.bnd_projs
     lel1, lel2, leu1, leu2 = CUDA.CuArray.(M.bnd_exp)
     loc_exp12 = CUDA.CuArray(M.loc_exp)  # [s1, s2]
@@ -348,7 +348,7 @@ $(TYPEDSIGNATURES)
 function update_env_left(
     L::S, A::S, M::T, B::S, ::Val{:c}
 ) where {S <: AbstractArray{Float64, 3}, T <: SparsePegasusSquareTensor}
-    _, _, pr, pd = M.projs
+    pr, pd = M.projs
     p1l, p2l, p1u, p2u = M.bnd_projs
     lel1, lel2, leu1, leu2 = CUDA.CuArray.(M.bnd_exp)
     loc_exp12 = CUDA.CuArray(M.loc_exp)  # [s1, s2]
@@ -536,7 +536,7 @@ function update_env_right(
 println(" update_env_right ...")
 
 @time begin
-    _, _, pr, pd = M.projs
+    pr, pd = M.projs
     p1l, p2l, p1u, p2u = M.bnd_projs
     lel1, lel2, leu1, leu2 = CUDA.CuArray.(M.bnd_exp)
     loc_exp12 = CUDA.CuArray(M.loc_exp)  # [s1, s2]
@@ -599,7 +599,7 @@ $(TYPEDSIGNATURES)
 function update_env_right(
     R::S, A::S, M::T, B::S, ::Val{:c}
 ) where {T <: SparsePegasusSquareTensor, S <: AbstractArray{Float64, 3}}
-    _, _, pr, pd = M.projs
+    pr, pd = M.projs
     p1l, p2l, p1u, p2u = M.bnd_projs
     lel1, lel2, leu1, leu2 = CUDA.CuArray.(M.bnd_exp)
     loc_exp12 = CUDA.CuArray(M.loc_exp)  # [s1, s2]
@@ -811,7 +811,7 @@ function project_ket_on_bra(
 println(" project_ket_on_bra ...")
 
 @time begin
-    _, _, pr, pd = M.projs
+    pr, pd = M.projs
     p1l, p2l, p1u, p2u = M.bnd_projs
     lel1, lel2, leu1, leu2 = CUDA.CuArray.(M.bnd_exp)
     loc_exp12 = CUDA.CuArray(M.loc_exp)  # [s1, s2]
@@ -919,7 +919,7 @@ $(TYPEDSIGNATURES)
 function project_ket_on_bra(
     L::S, B::S, M::T, R::S, ::Val{:c}
 ) where {S <: AbstractArray{Float64, 3}, T <: SparsePegasusSquareTensor}
-    _, _, pr, pd = M.projs
+    pr, pd = M.projs
     p1l, p2l, p1u, p2u = M.bnd_projs
     lel1, lel2, leu1, leu2 = CUDA.CuArray.(M.bnd_exp)
     loc_exp12 = CUDA.CuArray(M.loc_exp)  # [s1, s2]

@@ -39,7 +39,6 @@ struct SparsePegasusSquareTensor <: AbstractSparseTensor
     loc_exp::Matrix{<:Real}
     bnd_exp::Vector{Matrix{<:Real}}
     bnd_projs::Vector{Vector{Int}}
-    loc_en::Vector{Vector{<:Real}}
 end
 
 """

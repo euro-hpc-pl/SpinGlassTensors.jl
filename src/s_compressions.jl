@@ -320,10 +320,8 @@ end
     ipr = CUDA.CuArray(diagm(ones(Float64, maximum(pr))))  # instead "for s2 ∈ length(pr)"
     ipr = ipr[:, pr]
     @tensor ret[x, y, r] := Lnew[x, y, z] * ipr[r, z]
-    out = Array(permutedims(ret, (1, 3, 2)) ./ maximum(abs.(ret)))
 end
-    CUDA.unsafe_free!.((lel1, lel2, leu1, leu2, loc_exp12, A_d, L_d, B_d, LL, BB, AA, Lnew_no_le, Lnew, ret))
-    out
+    Array(permutedims(ret, (1, 3, 2)) ./ maximum(abs.(ret)))
 end
 
 """

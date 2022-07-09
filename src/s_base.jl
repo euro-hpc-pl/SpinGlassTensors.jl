@@ -34,12 +34,11 @@ end
 $(TYPEDSIGNATURES)
 """
 struct SparsePegasusSquareTensor <: AbstractSparseTensor
-    # M::Array{<:Real, 4}
     projs::Vector{Vector{Int}}
     loc_exp::Matrix{<:Real}
     bnd_exp::Vector{Matrix{<:Real}}
     bnd_projs::Vector{Vector{Int}}
-    loc_en::Vector{Vector{<:Real}}
+    sizes::NTuple{4, Int}
 end
 
 """

@@ -296,10 +296,13 @@ end
     ll = a .* b
     @tensor LL[x, y, l1, l2] := L_d[x, y, z] * ll[z, l1, l2]  #  D x D x 2^12 x 2^6
 
-    @cast a[x, y, _] := leu1[x, y]
-    @cast b[x, _, y] := leu2[x, y]
-    lu = a .* b
-    @tensor AA[x, y, u1, u2] := A_d[x, y, z] * lu[z, u1, u2]
+    #@cast a[x, y, _] := leu1[x, y]
+    #@cast b[x, _, y] := leu2[x, y]
+    #lu = a .* b
+    #@tensor AA[x, y, u1, u2] := A_d[x, y, z] * lu[z, u1, u2]
+
+    @matmul out[x, y, u1, u2] := sum(z) A_d[x, y, z] * leu1[z, u1] * leu2[z, u2]
+
 end
 
 @time begin

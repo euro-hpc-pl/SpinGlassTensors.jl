@@ -1,4 +1,5 @@
 using CUDA
+using LazyArrays
 using TensorCast
 using TensorOperations
 
@@ -25,7 +26,7 @@ end
 println("GPU:")
 
 @time begin
-    @cast p12[z, l1, l2] := p1[z, l1] * p2[z, l2]
+    @cast p12[z, l1, l2] := p1_d[z, l1] * p2_d[z, l2]
     @tensor AA[x, y, u1, u2] := A_d[x, y, z] * p12[z, u1, u2]
 end
 

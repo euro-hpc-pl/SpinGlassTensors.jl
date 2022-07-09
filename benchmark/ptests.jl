@@ -32,4 +32,11 @@ end
 
 @time @reduce B[x, y, s, r] := sum(z) A_d[x, y, z] * p1_d[z, s] * p2_d[z, r];
 
+@time begin
+    @cast ll[x, y, z, l1] := A_d[x, y, z] * p1_d[z, l1]
+    @tensor LL[x, y, l1, l2] := ll[x, y, z, l1] * p2_d[z, l2]
+end
+
+
+
 nothing

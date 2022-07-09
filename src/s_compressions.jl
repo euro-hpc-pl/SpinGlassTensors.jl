@@ -354,7 +354,10 @@ function update_env_left(
     @cast lu[z, u1, u2] := leu1[z, u1] * leu2[z, u2]
     @tensor BB[x, y, u1, u2] := B_d[x, y, z] * lu[z, u1, u2]
 
-    LL = reshape(LL[:, :, p1l, p2l], size(L_d, 1), size(L_d, 2), :)  # D x D x (12 x 12)   # 2GB for D=4
+    LL = LL[:, :, p1l, p2l]
+    @cast LL[x, y, (s, r)] := LL[x, y, s, r]
+
+# ----
     BB = reshape(BB[:, :, p1u, p2u], size(B_d, 1), size(B_d, 2), :)  # D x D x (12 x 12)
     AA = reshape(A_d .* CUDA.ones(Float64, 1, 1, 1, size(pr, 1)), size(A_d, 1), size(A_d, 2), :) # D x D x (12 x 12)
 

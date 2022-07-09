@@ -291,18 +291,11 @@ println(" update_env_left ...")
 end
 
 @time begin
-    @cast a[x, y, _] := lel1[x, y]
-    @cast b[x, _, y] := lel2[x, y]
-    ll = a .* b
+    @cast ll[z, l1, l2] := lel1[z, l1] * lel2[z, l2]
     @tensor LL[x, y, l1, l2] := L_d[x, y, z] * ll[z, l1, l2]  #  D x D x 2^12 x 2^6
 
-    #@cast a[x, y, _] := leu1[x, y]
-    #@cast b[x, _, y] := leu2[x, y]
-    #lu = a .* b
-    #@tensor AA[x, y, u1, u2] := A_d[x, y, z] * lu[z, u1, u2]
-
-    @matmul out[x, y, u1, u2] := sum(z) A_d[x, y, z] * leu1[z, u1] * leu2[z, u2]
-
+    @cast lu[z, u1, u2] := leu1[z, u1] * leu2[z, u2]
+    @tensor AA[x, y, u1, u2] := A_d[x, y, z] * lu[z, u1, u2]
 end
 
 @time begin
@@ -355,14 +348,10 @@ function update_env_left(
     L_d = permutedims(CUDA.CuArray(L), (1, 3, 2))
     B_d = permutedims(CUDA.CuArray(B), (3, 1, 2))
 
-    @cast a[x, y, _] := lel1[x, y]
-    @cast b[x, _, y] := lel2[x, y]
-    ll = a .* b
+    @cast ll[z, l1, l2] := lel1[z, l1] * lel2[z, l2]
     @tensor LL[x, y, l1, l2] := L_d[x, y, z] * ll[z, l1, l2]  #  D x D x 2^12 x 2^6
 
-    @cast a[x, y, _] := leu1[x, y]
-    @cast b[x, _, y] := leu2[x, y]
-    lu = a .* b
+    @cast lu[z, u1, u2] := leu1[z, u1] * leu2[z, u2]
     @tensor BB[x, y, u1, u2] := B_d[x, y, z] * lu[z, u1, u2]
 
     LL = reshape(LL[:, :, p1l, p2l], size(L_d, 1), size(L_d, 2), :)  # D x D x (12 x 12)   # 2GB for D=4

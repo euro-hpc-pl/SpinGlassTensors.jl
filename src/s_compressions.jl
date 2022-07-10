@@ -348,24 +348,31 @@ function update_env_left(
     L_d = permutedims(CUDA.CuArray(L), (1, 3, 2))
     B_d = permutedims(CUDA.CuArray(B), (3, 1, 2))
 
-    @cast ll[z, l1, l2] := lel1[z, l1] * lel2[z, l2]
-    @tensor LL[x, y, l1, l2] := L_d[x, y, z] * ll[z, l1, l2]  #  D x D x 2^12 x 2^6
+    @cast ll[x, y, z, l1] := L_d[x, y, z] * lel1[z, l1]
+    @tensor LL[x, y, l1, l2] := ll[x, y, z, l1] * lel2[z, l2]
 
-    @cast lu[z, u1, u2] := leu1[z, u1] * leu2[z, u2]
-    @tensor BB[x, y, u1, u2] := B_d[x, y, z] * lu[z, u1, u2]
+    #@cast ll[z, l1, l2] := lel1[z, l1] * lel2[z, l2]
+    #@tensor LL[x, y, l1, l2] := L_d[x, y, z] * ll[z, l1, l2]  # D x D x 2^12 x 2^6
+
+    @cast lu[x, y, z, u1] := B_d[x, y, z] * leu1[z, u1]
+    @tensor BB[x, y, u1, u2] := lu[x, y, z, u1] * leu2[z, u2]
+
+    #@cast lu[z, u1, u2] := leu1[z, u1] * leu2[z, u2]
+    #@tensor BB[x, y, u1, u2] := B_d[x, y, z] * lu[z, u1, u2]
 
     LL = LL[:, :, p1l, p2l]
     @cast LL[x, y, (s, r)] := LL[x, y, s, r]
 
-# ----
-    BB = reshape(BB[:, :, p1u, p2u], size(B_d, 1), size(B_d, 2), :)  # D x D x (12 x 12)
-    AA = reshape(A_d .* CUDA.ones(Float64, 1, 1, 1, size(pr, 1)), size(A_d, 1), size(A_d, 2), :) # D x D x (12 x 12)
+    BB = BB[:, :, p1u, p2u]
+    @cast BB[x, y, (s, r)] := BB[x, y, s, r]
+
+    AA = repeat(A_d, outer=(1, 1, 1, size(pr, 1)))
+    @cast AA[x, y, (z, σ)] := AA[x, y, z, σ] (σ ∈ 1:size(pr, 1))
 
     Lnew_no_le = BB ⊠ LL ⊠ AA  # broadcast over dims = 3
 
-    Lnew = Lnew_no_le .* reshape(loc_exp12, 1, 1, :)
-    sA3, sB3 = size(A, 3), size(B, 3)
-    Lnew = reshape(sum(reshape(Lnew, sB3, sA3, length(pd), length(pr)), dims=3), sB3, sA3, :)
+    Ln = Lnew_no_le .* reshape(loc_exp12, 1, 1, :)
+    @reduce Lnew[x, y, σ] := sum(z) Ln[x, y, (z, σ)] (σ ∈ 1:size(pr, 1))
 
     ipr = CUDA.CuArray(diagm(ones(Float64, maximum(pr))))  # this replaces "for s2 in length(pr)" loop
     ipr = ipr[pr, :]

@@ -349,16 +349,10 @@ function update_env_left(
     B_d = permutedims(CUDA.CuArray(B), (3, 1, 2))
 
     @cast ll[x, y, z, l1] := L_d[x, y, z] * lel1[z, l1]
-    @tensor LL[x, y, l1, l2] := ll[x, y, z, l1] * lel2[z, l2]
-
-    #@cast ll[z, l1, l2] := lel1[z, l1] * lel2[z, l2]
-    #@tensor LL[x, y, l1, l2] := L_d[x, y, z] * ll[z, l1, l2]  # D x D x 2^12 x 2^6
+    @tensor LL[x, y, l1, l2] := ll[x, y, z, l1] * lel2[z, l2] # D x D x 2^12 x 2^6
 
     @cast lu[x, y, z, u1] := B_d[x, y, z] * leu1[z, u1]
     @tensor BB[x, y, u1, u2] := lu[x, y, z, u1] * leu2[z, u2]
-
-    #@cast lu[z, u1, u2] := leu1[z, u1] * leu2[z, u2]
-    #@tensor BB[x, y, u1, u2] := B_d[x, y, z] * lu[z, u1, u2]
 
     LL = LL[:, :, p1l, p2l]
     @cast LL[x, y, (s, r)] := LL[x, y, s, r]

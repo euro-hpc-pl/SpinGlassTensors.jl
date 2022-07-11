@@ -277,43 +277,39 @@ $(TYPEDSIGNATURES)
 function update_env_left(
     L::S, A::S, M::T, B::S, ::Val{:n}
 ) where {S <: AbstractArray{Float64, 3}, T <: SparsePegasusSquareTensor}
-
-println(" update_env_left ...")
-
-@time begin
     pr, pd = M.projs
     p1l, p2l, p1u, p2u = M.bnd_projs
+
     lel1, lel2, leu1, leu2 = CUDA.CuArray.(M.bnd_exp)
     loc_exp12 = CUDA.CuArray(M.loc_exp)  # [s1, s2]
+
     A_d = permutedims(CUDA.CuArray(A), (1, 3, 2))
     L_d = permutedims(CUDA.CuArray(L), (1, 3, 2))
     B_d = CUDA.CuArray(permutedims(B, (3, 1, 2))[:, :, pd])
-end
 
-@time begin
-    @cast ll[z, l1, l2] := lel1[z, l1] * lel2[z, l2]
-    @tensor LL[x, y, l1, l2] := L_d[x, y, z] * ll[z, l1, l2]  #  D x D x 2^12 x 2^6
+    @cast ll[x, y, z, l1] := L_d[x, y, z] * lel1[z, l1]
+    @tensor LL[x, y, l1, l2] := ll[x, y, z, l1] * lel2[z, l2] # D x D x 2^12 x 2^6
 
-    @cast lu[z, u1, u2] := leu1[z, u1] * leu2[z, u2]
-    @tensor AA[x, y, u1, u2] := A_d[x, y, z] * lu[z, u1, u2]
-end
+    @cast lu[x, y, z, u1] := A_d[x, y, z] * leu1[z, u1]
+    @tensor AA[x, y, u1, u2] := lu[x, y, z, u1] * leu2[z, u2]
 
-@time begin
-    LL = reshape(LL[:, :, p1l, p2l], size(L_d, 1), size(L_d, 2), :)  # D x D x (2^12 x 2^12), e.g, 2GB for D=4
-    AA = reshape(AA[:, :, p1u, p2u], size(A_d, 1), size(A_d, 2), :)
-    BB = reshape(B_d .* CUDA.ones(Float64, 1, 1, 1, size(pr, 1)), size(B_d, 1), size(B_d, 2), :)
+    LL = LL[:, :, p1l, p2l]
+    @cast LL[x, y, (s, r)] := LL[x, y, s, r]
+
+    AA = AA[:, :, p1u, p2u]
+    @cast AA[x, y, (s, r)] := AA[x, y, s, r]
+
+    BB = repeat(B_d, outer=(1, 1, 1, size(pr, 1)))
+    @cast BB[x, y, (z, σ)] := BB[x, y, z, σ] (σ ∈ 1:size(pr, 1))
+
     Lnew_no_le = BB ⊠ LL ⊠ AA  # broadcast over dims = 3
-end
 
-@time begin
-    Lnew = Lnew_no_le .* reshape(loc_exp12, 1, 1, :)
-    sA3, sB3 = size(A, 3), size(B, 3)
-    Lnew = reshape(sum(reshape(Lnew, sB3, sA3, length(pd), length(pr)), dims=3), sB3, sA3, :)
+    Ln = Lnew_no_le .* reshape(loc_exp12, 1, 1, :)
+    @reduce Lnew[x, y, σ] := sum(z) Ln[x, y, (z, σ)] (σ ∈ 1:size(pr, 1))
 
-    ipr = CUDA.CuArray(diagm(ones(Float64, maximum(pr))))  # instead "for s2 ∈ length(pr)"
-    ipr = ipr[:, pr]
-    @tensor ret[x, y, r] := Lnew[x, y, z] * ipr[r, z]
-end
+    ipr = CUDA.CuArray(diagm(ones(maximum(pr)))[pr, :])
+    @tensor ret[x, y, r] := Lnew[x, y, z] * ipr[z, r]
+
     Array(permutedims(ret, (1, 3, 2)) ./ maximum(abs.(ret)))
 end
 
@@ -529,45 +525,43 @@ $(TYPEDSIGNATURES)
 function update_env_right(
     R::S, A::S, M::T, B::S, ::Val{:n}
 ) where {T <: SparsePegasusSquareTensor, S <: AbstractArray{Float64, 3}}
-println(" update_env_right ...")
-
-@time begin
     pr, pd = M.projs
     p1l, p2l, p1u, p2u = M.bnd_projs
     lel1, lel2, leu1, leu2 = CUDA.CuArray.(M.bnd_exp)
     loc_exp12 = CUDA.CuArray(M.loc_exp)  # [s1, s2]
+
     A_d = permutedims(CUDA.CuArray(A), (1, 3, 2))
     R_d = CUDA.CuArray(permutedims(R, (1, 3, 2))[:, :, pr])
-    R_d = reshape(R_d, size(R_d, 1), size(R_d, 2), 1, :)
     B_d = CUDA.CuArray(permutedims(B, (3, 1, 2))[:, :, pd])
-end
 
-@time begin
-    lu = reshape(leu1, size(leu1, 1), size(leu1, 2), 1) .* reshape(leu2, size(leu2, 1), 1, size(leu2, 2)) # pu u1 u2 # 2.** 12x12x6
-    @tensor AAu[x, y, u1, u2] := A_d[x, y, z] * lu[z, u1, u2]
-    CUDA.unsafe_free!(lu)
-end
+    @cast R_d[x, y, _, z] := R_d[x, y, z]
 
-@time begin
-    AA = reshape(AAu[:, :, p1u, p2u], size(A_d, 1), size(A_d, 2), :)  # D x D x (12 x 12)
-    RR = reshape(R_d .* CUDA.ones(Float64, 1, 1, size(pd, 1), 1), size(R_d, 1), size(R_d, 2), :) # D x D x (12 x 12)
-    BB = reshape(B_d .* CUDA.ones(Float64, 1, 1, 1, size(pr, 1)), size(B_d, 1), size(B_d, 2), :) # D x D x (12 x 12)
+    @cast lu[x, y, z, l1] := A_d[x, y, z] * leu1[z, l1]
+    @tensor AA[x, y, l1, l2] := lu[x, y, z, l1] * leu2[z, l2] # D x D x 2^12 x 2^6
+
+    AA = AA[:, :, p1u, p2u]
+    @cast AA[x, y, (s, r)] := AA[x, y, s, r]
+
+    RR = repeat(R_d, outer=(1, 1, size(pd, 1), 1))
+    @cast RR[x, y, (z, σ)] := RR[x, y, z, σ] (σ ∈ 1:size(pd, 1))
+
+    BB = repeat(B_d, outer=(1, 1, 1, size(pr, 1)))
+    @cast BB[x, y, (z, σ)] := BB[x, y, z, σ] (σ ∈ 1:size(pr, 1))
+
     Rnew_no_le = AA ⊠ RR ⊠ BB  # broadcast over dims = 3
-end
 
-@time begin
-    Rnew = reshape(Rnew_no_le .* reshape(loc_exp12, 1, 1, :), size(A_d, 1), size(B_d, 2), length(pd), length(pr)) # x y s1 s2
-    ip1l = CUDA.CuArray(diagm(ones(Float64, maximum(p1l))))[p1l, :]  # s1 l1
-    ip2l = CUDA.CuArray(diagm(ones(Float64, maximum(p2l))))[p2l, :]  # s2 l2
-    ll = reshape(lel1, size(lel1, 1), size(lel1, 2), 1) .* reshape(lel2, size(lel2, 1), 1, size(lel2, 2)) # pl l1 l2 # 2.** 12x12x6
-    @tensor ret[x, y, l] := Rnew[x, y, s1, s2] * ip1l[s1, l1] * ip2l[s2, l2] *  ll[l, l1, l2]  order=(s2, s1, l1, l2)
-    out = Array(permutedims(ret, (1, 3, 2)) ./ maximum(abs.(ret)))
-end
+    Rn = Rnew_no_le .* reshape(loc_exp12, 1, 1, :)
+    @cast Rnew[x, y, η, σ] := Rn[x, y, (η, σ)] (σ ∈ 1:size(pr, 1))
 
-@time begin
-    CUDA.unsafe_free!.((lel1, lel2, leu1, leu2, loc_exp12, A_d, R_d, B_d, AA, AAu, RR, BB, ip1l, ip2l, ll, Rnew_no_le, Rnew, ret))
-end
-    out
+    ip1l = CUDA.CuArray(diagm(ones(maximum(p1l))))[p1l, :]  # s1 l1
+    ip2l = CUDA.CuArray(diagm(ones(maximum(p2l))))[p2l, :]  # s2 l2
+
+    @cast lel1[x, y, _] := lel1[x, y]
+    @cast lel2[x, _, y] := lel2[x, y]
+    ll = lel1 .* lel2
+    @tensor ret[x, y, l] := Rnew[x, y, s1, s2] * ip1l[s1, l1] * ip2l[s2, l2] * ll[l, l1, l2]  order=(s2, s1, l1, l2)
+
+    Array(permutedims(ret, (1, 3, 2)) ./ maximum(abs.(ret)))
 end
 
 
@@ -599,29 +593,39 @@ function update_env_right(
     p1l, p2l, p1u, p2u = M.bnd_projs
     lel1, lel2, leu1, leu2 = CUDA.CuArray.(M.bnd_exp)
     loc_exp12 = CUDA.CuArray(M.loc_exp)  # [s1, s2]
+
     A_d = CUDA.CuArray(permutedims(A, (1, 3, 2))[:, :, pd])
     R_d = CUDA.CuArray(permutedims(R, (1, 3, 2))[:, :, pr])
-    R_d = reshape(R_d, size(R_d, 1), size(R_d, 2), 1, :)
     B_d = CUDA.CuArray(permutedims(B, (3, 1, 2)))
 
-    lu = reshape(leu1, size(leu1, 1), size(leu1, 2), 1) .* reshape(leu2, size(leu2, 1), 1, size(leu2, 2)) # pu u1 u2 # 2.** 12x12x6
-    @tensor BBu[x, y, u1, u2] := B_d[x, y, z] * lu[z, u1, u2]
-    CUDA.unsafe_free!(lu)
+    @cast R_d[x, y, _, z] := R_d[x, y, z]
 
-    AA = reshape(A_d .* CUDA.ones(Float64, 1, 1, 1, size(pr, 1)), size(A_d, 1), size(A_d, 2), :) # D x D x (12 x 12)
-    RR = reshape(R_d .* CUDA.ones(Float64, 1, 1, size(pd, 1), 1), size(R_d, 1), size(R_d, 2), :) # D x D x (12 x 12)
-    BB = reshape(BBu[:, :, p1u, p2u], size(B_d, 1), size(B_d, 2), :)  # D x D x (12 x 12)
+    @cast lu[x, y, z, u1] := B_d[x, y, z] * leu1[z, u1]
+    @tensor BB[x, y, u1, u2] := lu[x, y, z, u1] * leu2[z, u2] # D x D x 2^12 x 2^6
+
+    BB = BB[:, :, p1u, p2u]
+    @cast BB[x, y, (s, r)] := BB[x, y, s, r]
+
+    RR = repeat(R_d, outer=(1, 1, size(pd, 1), 1))
+    @cast RR[x, y, (z, σ)] := RR[x, y, z, σ] (σ ∈ 1:size(pd, 1))
+
+    AA = repeat(A_d, outer=(1, 1, 1, size(pr, 1)))
+    @cast AA[x, y, (z, σ)] := AA[x, y, z, σ] (σ ∈ 1:size(pr, 1))
+
     Rnew_no_le = AA ⊠ RR ⊠ BB  # broadcast over dims = 3
 
-    Rnew = reshape(Rnew_no_le .* reshape(loc_exp12, 1, 1, :), size(A_d, 1), size(B_d, 2), length(pd), length(pr)) # x y s1 s2
-    ip1l = CUDA.CuArray(diagm(ones(Float64, maximum(p1l))))[p1l, :]  # s1 l1
-    ip2l = CUDA.CuArray(diagm(ones(Float64, maximum(p2l))))[p2l, :]  # s2 l2
-    ll = reshape(lel1, size(lel1, 1), size(lel1, 2), 1) .* reshape(lel2, size(lel2, 1), 1, size(lel2, 2)) # pl l1 l2 # 2.** 12x12x6
+    Rn = Rnew_no_le .* reshape(loc_exp12, 1, 1, :)
+    @cast Rnew[x, y, η, σ] := Rn[x, y, (η, σ)] (σ ∈ 1:size(pr, 1))
+
+    ip1l = CUDA.CuArray(diagm(ones(maximum(p1l))))[p1l, :]  # s1 l1
+    ip2l = CUDA.CuArray(diagm(ones(maximum(p2l))))[p2l, :]  # s2 l2
+
+    @cast lel1[x, y, _] := lel1[x, y]
+    @cast lel2[x, _, y] := lel2[x, y]
+    ll = lel1 .* lel2
     @tensor ret[x, y, l] := Rnew[x, y, s1, s2] * ip1l[s1, l1] * ip2l[s2, l2] *  ll[l, l1, l2]  order=(s2, s1, l1, l2)
 
-    out = Array(permutedims(ret, (1, 3, 2)) ./ maximum(abs.(ret)))
-    CUDA.unsafe_free!.((lel1, lel2, leu1, leu2, loc_exp12, A_d, R_d, B_d, AA, RR, BB, BBu, ip1l, ip2l, ll, Rnew_no_le, Rnew, ret))
-    out
+    Array(permutedims(ret, (1, 3, 2)) ./ maximum(abs.(ret)))
 end
 
 
@@ -803,46 +807,43 @@ end
 function project_ket_on_bra(
     L::S, B::S, M::T, R::S, ::Val{:n}
 ) where {S <: AbstractArray{Float64, 3}, T <: SparsePegasusSquareTensor}
-println(" project_ket_on_bra ...")
-
-@time begin
     pr, pd = M.projs
     p1l, p2l, p1u, p2u = M.bnd_projs
     lel1, lel2, leu1, leu2 = CUDA.CuArray.(M.bnd_exp)
     loc_exp12 = CUDA.CuArray(M.loc_exp)  # [s1, s2]
+
     L_d = CUDA.CuArray(permutedims(L, (3, 1, 2)))
     B_d = CUDA.CuArray(permutedims(B, (1, 3, 2))[:, :, pd])
     R_d = CUDA.CuArray(permutedims(R, (3, 1, 2))[:, :, pr])
-    R_d = reshape(R_d, size(R_d, 1), size(R_d, 2), 1, :)
-end
 
-@time begin
-    ll = reshape(lel1, size(lel1, 1), size(lel1, 2), 1) .* reshape(lel2, size(lel2, 1), 1, size(lel2, 2)) # pl s1 s2 # 2.** 12x12x6
-    @tensor LLl[x, y, l1, l2] := L_d[x, y, z] * ll[z, l1, l2]  #  D x D x 12 x 6
-    CUDA.unsafe_free!(ll)
+    @cast R_d[x, y, _, z] := R_d[x, y, z]
 
-    LL = reshape(LLl[:, :, p1l, p2l], size(L_d, 1), size(L_d, 2), :)  # D x D x (12 x 12)   # 2GB for D=4
-    BB = reshape(B_d .* CUDA.ones(Float64, 1, 1, 1, size(pr, 1)), size(B_d, 1), size(B_d, 2), :) # D x D x (12 x 12)
-    RR = reshape(R_d .* CUDA.ones(Float64, 1, 1, size(pd, 1), 1), size(R_d, 1), size(R_d, 2), :) # D x D x (12 x 12)
-end
+    @cast ll[x, y, z, l1] := L_d[x, y, z] * lel1[z, l1]
+    @tensor LL[x, y, l1, l2] := ll[x, y, z, l1] * lel2[z, l2] # D x D x 2^12 x 2^6
 
-@time begin
+    LL = LL[:, :, p1l, p2l]
+    @cast LL[x, y, (s, r)] := LL[x, y, s, r]
+
+    RR = repeat(R_d, outer=(1, 1, size(pd, 1), 1))
+    @cast RR[x, y, (z, σ)] := RR[x, y, z, σ] (σ ∈ 1:size(pd, 1))
+
+    BB = repeat(B_d, outer=(1, 1, 1, size(pr, 1)))
+    @cast BB[x, y, (z, σ)] := BB[x, y, z, σ] (σ ∈ 1:size(pr, 1))
+
     Anew_no_le = LL ⊠ BB ⊠ RR
-end
 
-@time begin
-    Anew = reshape(Anew_no_le .* reshape(loc_exp12, 1, 1, :), size(L_d, 1), size(R_d, 2), length(pd), length(pr)) # x y s1 s2
-    ip1u = CUDA.CuArray(diagm(ones(Float64, maximum(p1u))))[p1u, :]  # s1 u1
-    ip2u = CUDA.CuArray(diagm(ones(Float64, maximum(p2u))))[p2u, :]  # s2 u2
-    lu = reshape(leu1, size(leu1, 1), size(leu1, 2), 1) .* reshape(leu2, size(leu2, 1), 1, size(leu2, 2)) # pu u1 u2 # 2.** 12x12x6
+    An = Anew_no_le .* reshape(loc_exp12, 1, 1, :)
+    @cast Anew[x, y, η, σ] := An[x, y, (η, σ)] (σ ∈ 1:size(pr, 1))
+
+    ip1u = CUDA.CuArray(diagm(ones(maximum(p1u))))[p1u, :]  # s1 u1
+    ip2u = CUDA.CuArray(diagm(ones(maximum(p2u))))[p2u, :]  # s2 u2
+
+    @cast leu1[x, y, _] := leu1[x, y]
+    @cast leu2[x, _, y] := leu2[x, y]
+    lu = leu1 .* leu2
     @tensor ret[x, y, u] := Anew[x, y, s1, s2] * ip1u[s1, u1] * ip2u[s2, u2] *  lu[u, u1, u2]  order=(s2, s1, u1, u2)
-    out = Array(permutedims(ret, (1, 3, 2)) ./ maximum(abs.(ret)))
-end
 
-@time begin
-    CUDA.unsafe_free!.((lel1, lel2, leu1, leu2, loc_exp12, L_d, B_d, R_d, LL, LLl, BB, RR, Anew_no_le, Anew, ret, ip1u, ip2u, lu))
-end
-    out
+    Array(permutedims(ret, (1, 3, 2)) ./ maximum(abs.(ret)))
 end
 
 
@@ -852,7 +853,6 @@ $(TYPEDSIGNATURES)
 function project_ket_on_bra(
     LE::S, B::S, M::T, RE::S, ::Val{:n}
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseVirtualTensor}
-
     h = M.con
     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
     @cast B4[x, k, l, y] := B[x, (k, l), y] (k ∈ 1:maximum(p_lb))
@@ -922,29 +922,33 @@ function project_ket_on_bra(
     L_d = CUDA.CuArray(permutedims(L, (3, 1, 2)))
     B_d = CUDA.CuArray(permutedims(B, (1, 3, 2)))
     R_d = CUDA.CuArray(permutedims(R, (3, 1, 2))[:, :, pr])
-    R_d = reshape(R_d, size(R_d, 1), size(R_d, 2), 1, :)
 
-    ll = reshape(lel1, size(lel1, 1), size(lel1, 2), 1) .* reshape(lel2, size(lel2, 1), 1, size(lel2, 2)) # pl s1 s2 # 2.** 12x12x6
-    @tensor LLl[x, y, l1, l2] := L_d[x, y, z] * ll[z, l1, l2]  #  D x D x 12 x 6
-    CUDA.unsafe_free!(ll)
+    @cast R_d[x, y, _, z] := R_d[x, y, z]
 
-    lu = reshape(leu1, size(leu1, 1), size(leu1, 2), 1) .* reshape(leu2, size(leu2, 1), 1, size(leu2, 2)) # pu u1 u2 # 2.** 12x12x6
-    @tensor BBu[x, y, u1, u2] := B_d[x, y, z] * lu[z, u1, u2]
-    CUDA.unsafe_free!(lu)
+    @cast ll[x, y, z, l1] := L_d[x, y, z] * lel1[z, l1]
+    @tensor LL[x, y, l1, l2] := ll[x, y, z, l1] * lel2[z, l2] # D x D x 2^12 x 2^6
 
-    LL = reshape(LLl[:, :, p1l, p2l], size(L_d, 1), size(L_d, 2), :)  # D x D x (12 x 12)   # 2GB for D=4
-    BB = reshape(BBu[:, :, p1u, p2u], size(B_d, 1), size(B_d, 2), :)  # D x D x (12 x 12)
-    RR = reshape(R_d .* CUDA.ones(Float64, 1, 1, size(pd, 1), 1), size(R_d, 1), size(R_d, 2), :) # D x D x (12 x 12)
+    @cast lu[x, y, z, u1] := B_d[x, y, z] * leu1[z, u1]
+    @tensor BB[x, y, u1, u2] := lu[x, y, z, u1] * leu2[z, u2] # D x D x 2^12 x 2^6
+
+    LL = LL[:, :, p1l, p2l]
+    @cast LL[x, y, (s, r)] := LL[x, y, s, r]
+
+    BB = BB[:, :, p1u, p2u]
+    @cast BB[x, y, (s, r)] := BB[x, y, s, r]
+
+    RR = repeat(R_d, outer=(1, 1, size(pd, 1), 1))
+    @cast RR[x, y, (z, σ)] := RR[x, y, z, σ] (σ ∈ 1:size(pd, 1))
 
     Anew_no_le = LL ⊠ BB ⊠ RR
-    Anew = reshape(Anew_no_le .* reshape(loc_exp12, 1, 1, :), size(L_d, 1), size(R_d, 2), length(pd), length(pr)) # x y s1 s2
-    Anew2 = reshape(sum(Anew, dims=4), size(L_d, 1), size(R_d, 2), :)
-    ipd = CUDA.CuArray(diagm(ones(Float64, maximum(pd))))[pd, :]  # this replaces "for s1 in length(pd)" loop
-    @tensor ret[x, y, d] := Anew2[x, y, z] * ipd[z, d]
 
-    out = Array(permutedims(ret, (1, 3, 2)) ./ maximum(abs.(ret)))
-    CUDA.unsafe_free!.((lel1, lel2, leu1, leu2, loc_exp12, L_d, B_d, R_d, LL, LLl, BB, BBu, RR, Anew_no_le, Anew, Anew2, ret, ipd))
-    out
+    An = Anew_no_le .* reshape(loc_exp12, 1, 1, :)
+    @reduce Anew[x, y, z] := sum(σ) An[x, y, (z, σ)] (σ ∈ 1:length(pr))
+
+    ipd = CUDA.CuArray(diagm(ones(maximum(pd))))[pd, :]
+    @tensor ret[x, y, d] := Anew[x, y, z] * ipd[z, d]
+
+    Array(permutedims(ret, (1, 3, 2)) ./ maximum(abs.(ret)))
 end
 
 

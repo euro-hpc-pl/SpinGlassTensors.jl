@@ -368,9 +368,9 @@ function update_env_left(
     Ln = Lnew_no_le .* reshape(loc_exp12, 1, 1, :)
     @reduce Lnew[x, y, σ] := sum(z) Ln[x, y, (z, σ)] (σ ∈ 1:size(pr, 1))
 
-    ipr = CUDA.CuArray(diagm(ones(Float64, maximum(pr))))  # this replaces "for s2 in length(pr)" loop
-    ipr = ipr[pr, :]
+    ipr = CUDA.CuArray(diagm(ones(maximum(pr)))[pr, :])
     @tensor ret[x, y, r] := Lnew[x, y, z] * ipr[z, r]
+
     Array(permutedims(ret, (1, 3, 2)) ./ maximum(abs.(ret)))
 end
 

@@ -225,31 +225,32 @@ function update_env_left(
     L
 end
 
-#=
-#TODO: experimental ((uses ⊠ operator - batched_multiply - from NNlib / NNlibCUDA)
-# Remove CUDA.CuArray to use CPU
+#
 """
 $(TYPEDSIGNATURES)
 """
 function update_env_left(
     LE::S, A::S, M::T, B::S, ::Val{:n}
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
-    L = zeros(size(B, 3), maximum(M.projs[3]), size(A, 3))
+    L = zeros(size(B, 3), size(A, 3), maximum(M.projs[3]))
+
     A_d = permutedims(CUDA.CuArray(A[:, M.projs[2], :]), (1, 3, 2))
     L_d = permutedims(CUDA.CuArray(LE[:, M.projs[1], :]), (1, 3, 2))
     B_d = permutedims(CUDA.CuArray(B[:, M.projs[4], :]), (3, 1, 2))
+
     Lr_d = B_d ⊠ L_d ⊠ A_d
-    Lr_d .*= reshape(CUDA.CuArray(M.loc_exp), 1, 1, :)
-    Lr = Array(Lr_d)
-    Threads.@threads for r ∈ 1:maximum(M.projs[3])
+    Lr_d .*= CUDA.CuArray(reshape(M.loc_exp, 1, 1, :))
+
+    Lr_d = Array(Lr_d)
+    for r ∈ 1:maximum(M.projs[3])
         σ = findall(M.projs[3] .== r)
-        L[:, r, :] = sum(Lr[:, :, σ], dims=3)
+        L[:, :, r] = sum(Lr_d[:, :, σ], dims=3)
     end
-    L
+    permutedims(L, (1, 3, 2))
 end
-=#
 
 #TODO: This implementation may not be optimal as is not batching matrix multiplication.
+#=
 """
 $(TYPEDSIGNATURES)
 """
@@ -269,7 +270,7 @@ function update_env_left(
      end
      permutedims(L, (1, 3, 2))
 end
-
+=#
 
 """
 $(TYPEDSIGNATURES)

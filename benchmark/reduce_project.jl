@@ -17,6 +17,6 @@ pr = rand(1:prmax, k)
 
 println("Custom:")
 
-@time add_project(L, pr, th=(16, 16))
+@time add_project(L, pr, (16, 16))
 
 nothing

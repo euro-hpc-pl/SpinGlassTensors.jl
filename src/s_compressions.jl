@@ -308,11 +308,8 @@ function update_env_left(
     Ln = Lnew_no_le .* reshape(loc_exp12, 1, 1, :)
     @reduce Lnew[x, y, σ] := sum(z) Ln[x, y, (z, σ)] (σ ∈ 1:size(pr, 1))
 
-    ipr = CUDA.CuArray(diagm(ones(maximum(pr)))[pr, :])
+    @time ipr = cuIdentity(eltype(L), maximum(pr))[pr, :]
     @tensor ret[x, y, r] := Lnew[x, y, z] * ipr[z, r]
-
-    #@time ret = add_project(Lnew, pr)
-    #println(size(ret), " ", size(Lnew), " ", size(pr))
 
     Array(permutedims(ret, (1, 3, 2)) ./ maximum(abs.(ret)))
 end
@@ -368,7 +365,7 @@ function update_env_left(
     Ln = Lnew_no_le .* reshape(loc_exp12, 1, 1, :)
     @reduce Lnew[x, y, σ] := sum(z) Ln[x, y, (z, σ)] (σ ∈ 1:size(pr, 1))
 
-    ipr = CUDA.CuArray(diagm(ones(maximum(pr)))[pr, :])
+    @time ipr = cuIdentity(eltype(L), maximum(pr))[pr, :]
     @tensor ret[x, y, r] := Lnew[x, y, z] * ipr[z, r]
 
     Array(permutedims(ret, (1, 3, 2)) ./ maximum(abs.(ret)))
@@ -557,8 +554,8 @@ function update_env_right(
     Rn = Rnew_no_le .* reshape(loc_exp12, 1, 1, :)
     @cast Rnew[x, y, η, σ] := Rn[x, y, (η, σ)] (σ ∈ 1:size(pr, 1))
 
-    ip1l = CUDA.CuArray(diagm(ones(maximum(p1l))))[p1l, :]  # s1 l1
-    ip2l = CUDA.CuArray(diagm(ones(maximum(p2l))))[p2l, :]  # s2 l2
+    ip1l = cuIdentity(eltype(R), maximum(p1l))[p1l, :]
+    ip2l = cuIdentity(eltype(R), maximum(p2l))[p2l, :]
 
     @cast ll[x, y, z] := lel1[x, y] * lel2[x, z]
     @tensor ret[x, y, l] := Rnew[x, y, s1, s2] * ip1l[s1, l1] * ip2l[s2, l2] * ll[l, l1, l2]  order=(s2, s1, l1, l2)
@@ -619,8 +616,8 @@ function update_env_right(
     Rn = Rnew_no_le .* reshape(loc_exp12, 1, 1, :)
     @cast Rnew[x, y, η, σ] := Rn[x, y, (η, σ)] (σ ∈ 1:size(pr, 1))
 
-    ip1l = CUDA.CuArray(diagm(ones(maximum(p1l))))[p1l, :]  # s1 l1
-    ip2l = CUDA.CuArray(diagm(ones(maximum(p2l))))[p2l, :]  # s2 l2
+    ip1l = cuIdentity(eltype(R), maximum(p1l))[p1l, :]
+    ip2l = cuIdentity(eltype(R), maximum(p2l))[p2l, :]
 
     @cast ll[x, y, z] := lel1[x, y] * lel2[x, z]
     @tensor ret[x, y, l] := Rnew[x, y, s1, s2] * ip1l[s1, l1] * ip2l[s2, l2] *  ll[l, l1, l2]  order=(s2, s1, l1, l2)
@@ -835,8 +832,8 @@ function project_ket_on_bra(
     An = Anew_no_le .* reshape(loc_exp12, 1, 1, :)
     @cast Anew[x, y, η, σ] := An[x, y, (η, σ)] (σ ∈ 1:size(pr, 1))
 
-    ip1u = CUDA.CuArray(diagm(ones(maximum(p1u))))[p1u, :]  # s1 u1
-    ip2u = CUDA.CuArray(diagm(ones(maximum(p2u))))[p2u, :]  # s2 u2
+    ip1u = cuIdentity(eltype(L), maximum(p1u))[p1u, :]
+    ip2u = cuIdentity(eltype(L), maximum(p2u))[p2u, :]
 
     @cast lu[x, y, z] := leu1[x, y] * leu2[x, z]
     @tensor ret[x, y, u] := Anew[x, y, s1, s2] * ip1u[s1, u1] * ip2u[s2, u2] *  lu[u, u1, u2]  order=(s2, s1, u1, u2)
@@ -943,7 +940,7 @@ function project_ket_on_bra(
     An = Anew_no_le .* reshape(loc_exp12, 1, 1, :)
     @reduce Anew[x, y, z] := sum(σ) An[x, y, (z, σ)] (σ ∈ 1:length(pr))
 
-    ipd = CUDA.CuArray(diagm(ones(maximum(pd))))[pd, :]
+    ipd = cuIdentity(eltype(L), maximum(pd))[pd, :]
     @tensor ret[x, y, d] := Anew[x, y, z] * ipd[z, d]
 
     Array(permutedims(ret, (1, 3, 2)) ./ maximum(abs.(ret)))

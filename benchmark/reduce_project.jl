@@ -11,7 +11,7 @@ n, m, k = 32, 32, 4096
 L = CUDA.rand(T, n, m, k);
 
 pr = rand(1:prmax, k)
-
+println(size(pr), " ", maximum(pr))
 println("Naive:")
 @time ipr0 = CUDA.CuArray(diagm(ones(maximum(pr)))[pr, :])
 

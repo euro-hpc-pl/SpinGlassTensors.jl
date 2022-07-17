@@ -311,7 +311,9 @@ function update_env_left(
     @time ipr = cuIdentity(eltype(L), maximum(pr))[pr, :]
     @tensor ret[x, y, r] := Lnew[x, y, z] * ipr[z, r]
 
-    Array(permutedims(ret, (1, 3, 2)) ./ maximum(abs.(ret)))
+    ret = Array(permutedims(ret, (1, 3, 2)) ./ maximum(abs.(ret)))
+    CUDA.reclaim()
+    ret
 end
 
 """
@@ -368,7 +370,9 @@ function update_env_left(
     @time ipr = cuIdentity(eltype(L), maximum(pr))[pr, :]
     @tensor ret[x, y, r] := Lnew[x, y, z] * ipr[z, r]
 
-    Array(permutedims(ret, (1, 3, 2)) ./ maximum(abs.(ret)))
+    ret = Array(permutedims(ret, (1, 3, 2)) ./ maximum(abs.(ret)))
+    CUDA.reclaim()
+    ret
 end
 
 """
@@ -560,7 +564,9 @@ function update_env_right(
     @cast ll[x, y, z] := lel1[x, y] * lel2[x, z]
     @tensor ret[x, y, l] := Rnew[x, y, s1, s2] * ip1l[s1, l1] * ip2l[s2, l2] * ll[l, l1, l2]  order=(s2, s1, l1, l2)
 
-    Array(permutedims(ret, (1, 3, 2)) ./ maximum(abs.(ret)))
+    ret = Array(permutedims(ret, (1, 3, 2)) ./ maximum(abs.(ret)))
+    CUDA.reclaim()
+    ret
 end
 
 
@@ -622,7 +628,9 @@ function update_env_right(
     @cast ll[x, y, z] := lel1[x, y] * lel2[x, z]
     @tensor ret[x, y, l] := Rnew[x, y, s1, s2] * ip1l[s1, l1] * ip2l[s2, l2] *  ll[l, l1, l2]  order=(s2, s1, l1, l2)
 
-    Array(permutedims(ret, (1, 3, 2)) ./ maximum(abs.(ret)))
+    ret = Array(permutedims(ret, (1, 3, 2)) ./ maximum(abs.(ret)))
+    CUDA.reclaim()
+    ret
 end
 
 
@@ -838,7 +846,9 @@ function project_ket_on_bra(
     @cast lu[x, y, z] := leu1[x, y] * leu2[x, z]
     @tensor ret[x, y, u] := Anew[x, y, s1, s2] * ip1u[s1, u1] * ip2u[s2, u2] *  lu[u, u1, u2]  order=(s2, s1, u1, u2)
 
-    Array(permutedims(ret, (1, 3, 2)) ./ maximum(abs.(ret)))
+    ret = Array(permutedims(ret, (1, 3, 2)) ./ maximum(abs.(ret)))
+    CUDA.reclaim()
+    ret
 end
 
 
@@ -943,7 +953,9 @@ function project_ket_on_bra(
     ipd = cuIdentity(eltype(L), maximum(pd))[pd, :]
     @tensor ret[x, y, d] := Anew[x, y, z] * ipd[z, d]
 
-    Array(permutedims(ret, (1, 3, 2)) ./ maximum(abs.(ret)))
+    ret = Array(permutedims(ret, (1, 3, 2)) ./ maximum(abs.(ret)))
+    CUDA.reclaim()
+    ret
 end
 
 

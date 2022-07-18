@@ -225,28 +225,26 @@ function update_env_left(
     L
 end
 
-#
 """
 $(TYPEDSIGNATURES)
 """
 function update_env_left(
     LE::S, A::S, M::T, B::S, ::Val{:n}
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
-    L = zeros(size(B, 3), size(A, 3), maximum(M.projs[3]))
+    L = CUDA.zeros(eltype(LE), size(B, 3), size(A, 3), maximum(M.projs[3]))
 
     A_d = permutedims(CUDA.CuArray(A[:, M.projs[2], :]), (1, 3, 2))
     L_d = permutedims(CUDA.CuArray(LE[:, M.projs[1], :]), (1, 3, 2))
     B_d = permutedims(CUDA.CuArray(B[:, M.projs[4], :]), (3, 1, 2))
 
     Lr_d = B_d ⊠ L_d ⊠ A_d
-    Lr_d .*= CUDA.CuArray(reshape(M.loc_exp, 1, 1, :))
+    Lr_d .*= reshape(CUDA.CuArray(M.loc_exp), 1, 1, :)
 
-    Lr_d = Array(Lr_d)
-    for r ∈ 1:maximum(M.projs[3])
-        σ = findall(M.projs[3] .== r)
-        L[:, :, r] = sum(Lr_d[:, :, σ], dims=3)
-    end
-    permutedims(L, (1, 3, 2))
+    pr = M.projs[3]
+    ipr = cuIdentity(eltype(LE), maximum(pr))[pr, :]
+
+    @tensor L[x, y, r] := Lr_d[x, y, z] * ipr[z, r]
+    Array(permutedims(L, (1, 3, 2)))
 end
 
 #TODO: This implementation may not be optimal as is not batching matrix multiplication.
@@ -286,7 +284,7 @@ function update_env_left(
 
     A_d = permutedims(CUDA.CuArray(A), (1, 3, 2))
     L_d = permutedims(CUDA.CuArray(L), (1, 3, 2))
-    B_d = CUDA.CuArray(permutedims(B, (3, 1, 2))[:, :, pd])
+    B_d = permutedims(CUDA.CuArray(B), (3, 1, 2))[:, :, pd]
 
     @cast ll[x, y, z, l1] := L_d[x, y, z] * lel1[z, l1]
     @tensor LL[x, y, l1, l2] := ll[x, y, z, l1] * lel2[z, l2] # D x D x 2^12 x 2^6
@@ -341,7 +339,7 @@ function update_env_left(
     lel1, lel2, leu1, leu2 = CUDA.CuArray.(M.bnd_exp)
     ipr = cuIdentity(eltype(L), maximum(pr))[pr, :]
 
-    A_d = CUDA.CuArray(permutedims(A, (1, 3, 2))[:, :, pd])
+    A_d = permutedims(CUDA.CuArray(A), (1, 3, 2))[:, :, pd]
     L_d = permutedims(CUDA.CuArray(L), (1, 3, 2))
     B_d = permutedims(CUDA.CuArray(B), (3, 1, 2))
 
@@ -533,8 +531,8 @@ function update_env_right(
     ip2l = cuIdentity(eltype(R), maximum(p2l))[p2l, :]
 
     A_d = permutedims(CUDA.CuArray(A), (1, 3, 2))
-    R_d = CUDA.CuArray(permutedims(R, (1, 3, 2))[:, :, pr])
-    B_d = CUDA.CuArray(permutedims(B, (3, 1, 2))[:, :, pd])
+    R_d = permutedims(CUDA.CuArray(R), (1, 3, 2))[:, :, pr]
+    B_d = permutedims(CUDA.CuArray(B), (3, 1, 2))[:, :, pd]
 
     @cast R_d[x, y, _, z] := R_d[x, y, z]
 
@@ -593,9 +591,9 @@ function update_env_right(
     ip1l = cuIdentity(eltype(R), maximum(p1l))[p1l, :]
     ip2l = cuIdentity(eltype(R), maximum(p2l))[p2l, :]
 
-    A_d = CUDA.CuArray(permutedims(A, (1, 3, 2))[:, :, pd])
-    R_d = CUDA.CuArray(permutedims(R, (1, 3, 2))[:, :, pr])
-    B_d = CUDA.CuArray(permutedims(B, (3, 1, 2)))
+    A_d = permutedims(CUDA.CuArray(A), (1, 3, 2))[:, :, pd]
+    R_d = permutedims(CUDA.CuArray(R), (1, 3, 2))[:, :, pr]
+    B_d = permutedims(CUDA.CuArray(B), (3, 1, 2))
 
     @cast R_d[x, y, _, z] := R_d[x, y, z]
 
@@ -808,9 +806,9 @@ function project_ket_on_bra(
     ip1u = cuIdentity(eltype(L), maximum(p1u))[p1u, :]
     ip2u = cuIdentity(eltype(L), maximum(p2u))[p2u, :]
 
-    L_d = CUDA.CuArray(permutedims(L, (3, 1, 2)))
-    B_d = CUDA.CuArray(permutedims(B, (1, 3, 2))[:, :, pd])
-    R_d = CUDA.CuArray(permutedims(R, (3, 1, 2))[:, :, pr])
+    L_d = permutedims(CUDA.CuArray(L), (3, 1, 2))
+    B_d = permutedims(CUDA.CuArray(B), (1, 3, 2))[:, :, pd]
+    R_d = permutedims(CUDA.CuArray(R), (3, 1, 2))[:, :, pr]
 
     @cast R_d[x, y, _, z] := R_d[x, y, z]
 
@@ -836,7 +834,6 @@ function project_ket_on_bra(
 
     Array(permutedims(ret, (1, 3, 2)) ./ maximum(abs.(ret)))
 end
-
 
 """
 $(TYPEDSIGNATURES)
@@ -911,9 +908,9 @@ function project_ket_on_bra(
 
     ipd = cuIdentity(eltype(L), maximum(pd))[pd, :]
 
-    L_d = CUDA.CuArray(permutedims(L, (3, 1, 2)))
-    B_d = CUDA.CuArray(permutedims(B, (1, 3, 2)))
-    R_d = CUDA.CuArray(permutedims(R, (3, 1, 2))[:, :, pr])
+    L_d = permutedims(CUDA.CuArray(L), (3, 1, 2))
+    B_d = permutedims(CUDA.CuArray(B), (1, 3, 2))
+    R_d = permutedims(CUDA.CuArray(R), (3, 1, 2))[:, :, pr]
 
     @cast R_d[x, y, _, z] := R_d[x, y, z]
 

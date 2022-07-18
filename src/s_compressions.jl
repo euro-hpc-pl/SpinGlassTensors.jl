@@ -281,8 +281,8 @@ function update_env_left(
     pr, pd = M.projs
     p1l, p2l, p1u, p2u = M.bnd_projs
 
+    @time ipr = cuIdentity(eltype(L), maximum(pr))[pr, :]
     lel1, lel2, leu1, leu2 = CUDA.CuArray.(M.bnd_exp)
-    loc_exp12 = CUDA.CuArray(M.loc_exp)  # [s1, s2]
 
     A_d = permutedims(CUDA.CuArray(A), (1, 3, 2))
     L_d = permutedims(CUDA.CuArray(L), (1, 3, 2))
@@ -305,15 +305,12 @@ function update_env_left(
 
     Lnew_no_le = BB ⊠ LL ⊠ AA  # broadcast over dims = 3
 
-    Ln = Lnew_no_le .* reshape(loc_exp12, 1, 1, :)
+    Ln = Lnew_no_le .* reshape(CUDA.CuArray(M.loc_exp), 1, 1, :)
     @reduce Lnew[x, y, σ] := sum(z) Ln[x, y, (z, σ)] (σ ∈ 1:size(pr, 1))
 
-    @time ipr = cuIdentity(eltype(L), maximum(pr))[pr, :]
     @tensor ret[x, y, r] := Lnew[x, y, z] * ipr[z, r]
 
-    ret = Array(permutedims(ret, (1, 3, 2)) ./ maximum(abs.(ret)))
-    CUDA.reclaim()
-    ret
+    Array(permutedims(ret, (1, 3, 2)) ./ maximum(abs.(ret)))
 end
 
 """
@@ -340,8 +337,9 @@ function update_env_left(
 ) where {S <: AbstractArray{Float64, 3}, T <: SparsePegasusSquareTensor}
     pr, pd = M.projs
     p1l, p2l, p1u, p2u = M.bnd_projs
+
     lel1, lel2, leu1, leu2 = CUDA.CuArray.(M.bnd_exp)
-    loc_exp12 = CUDA.CuArray(M.loc_exp)  # [s1, s2]
+    ipr = cuIdentity(eltype(L), maximum(pr))[pr, :]
 
     A_d = CUDA.CuArray(permutedims(A, (1, 3, 2))[:, :, pd])
     L_d = permutedims(CUDA.CuArray(L), (1, 3, 2))
@@ -364,15 +362,12 @@ function update_env_left(
 
     Lnew_no_le = BB ⊠ LL ⊠ AA  # broadcast over dims = 3
 
-    Ln = Lnew_no_le .* reshape(loc_exp12, 1, 1, :)
+    Ln = Lnew_no_le .* reshape(CUDA.CuArray(M.loc_exp), 1, 1, :)
     @reduce Lnew[x, y, σ] := sum(z) Ln[x, y, (z, σ)] (σ ∈ 1:size(pr, 1))
 
-    @time ipr = cuIdentity(eltype(L), maximum(pr))[pr, :]
     @tensor ret[x, y, r] := Lnew[x, y, z] * ipr[z, r]
 
-    ret = Array(permutedims(ret, (1, 3, 2)) ./ maximum(abs.(ret)))
-    CUDA.reclaim()
-    ret
+    Array(permutedims(ret, (1, 3, 2)) ./ maximum(abs.(ret)))
 end
 
 """
@@ -533,7 +528,9 @@ function update_env_right(
     pr, pd = M.projs
     p1l, p2l, p1u, p2u = M.bnd_projs
     lel1, lel2, leu1, leu2 = CUDA.CuArray.(M.bnd_exp)
-    loc_exp12 = CUDA.CuArray(M.loc_exp)  # [s1, s2]
+
+    ip1l = cuIdentity(eltype(R), maximum(p1l))[p1l, :]
+    ip2l = cuIdentity(eltype(R), maximum(p2l))[p2l, :]
 
     A_d = permutedims(CUDA.CuArray(A), (1, 3, 2))
     R_d = CUDA.CuArray(permutedims(R, (1, 3, 2))[:, :, pr])
@@ -555,18 +552,13 @@ function update_env_right(
 
     Rnew_no_le = AA ⊠ RR ⊠ BB  # broadcast over dims = 3
 
-    Rn = Rnew_no_le .* reshape(loc_exp12, 1, 1, :)
+    Rn = Rnew_no_le .* reshape(CUDA.CuArray(M.loc_exp), 1, 1, :)
     @cast Rnew[x, y, η, σ] := Rn[x, y, (η, σ)] (σ ∈ 1:size(pr, 1))
-
-    ip1l = cuIdentity(eltype(R), maximum(p1l))[p1l, :]
-    ip2l = cuIdentity(eltype(R), maximum(p2l))[p2l, :]
 
     @cast ll[x, y, z] := lel1[x, y] * lel2[x, z]
     @tensor ret[x, y, l] := Rnew[x, y, s1, s2] * ip1l[s1, l1] * ip2l[s2, l2] * ll[l, l1, l2]  order=(s2, s1, l1, l2)
 
-    ret = Array(permutedims(ret, (1, 3, 2)) ./ maximum(abs.(ret)))
-    CUDA.reclaim()
-    ret
+    Array(permutedims(ret, (1, 3, 2)) ./ maximum(abs.(ret)))
 end
 
 
@@ -597,7 +589,9 @@ function update_env_right(
     pr, pd = M.projs
     p1l, p2l, p1u, p2u = M.bnd_projs
     lel1, lel2, leu1, leu2 = CUDA.CuArray.(M.bnd_exp)
-    loc_exp12 = CUDA.CuArray(M.loc_exp)  # [s1, s2]
+
+    ip1l = cuIdentity(eltype(R), maximum(p1l))[p1l, :]
+    ip2l = cuIdentity(eltype(R), maximum(p2l))[p2l, :]
 
     A_d = CUDA.CuArray(permutedims(A, (1, 3, 2))[:, :, pd])
     R_d = CUDA.CuArray(permutedims(R, (1, 3, 2))[:, :, pr])
@@ -619,18 +613,13 @@ function update_env_right(
 
     Rnew_no_le = AA ⊠ RR ⊠ BB  # broadcast over dims = 3
 
-    Rn = Rnew_no_le .* reshape(loc_exp12, 1, 1, :)
+    Rn = Rnew_no_le .* reshape(CUDA.CuArray(M.loc_exp), 1, 1, :)
     @cast Rnew[x, y, η, σ] := Rn[x, y, (η, σ)] (σ ∈ 1:size(pr, 1))
-
-    ip1l = cuIdentity(eltype(R), maximum(p1l))[p1l, :]
-    ip2l = cuIdentity(eltype(R), maximum(p2l))[p2l, :]
 
     @cast ll[x, y, z] := lel1[x, y] * lel2[x, z]
     @tensor ret[x, y, l] := Rnew[x, y, s1, s2] * ip1l[s1, l1] * ip2l[s2, l2] *  ll[l, l1, l2]  order=(s2, s1, l1, l2)
 
-    ret = Array(permutedims(ret, (1, 3, 2)) ./ maximum(abs.(ret)))
-    CUDA.reclaim()
-    ret
+    Array(permutedims(ret, (1, 3, 2)) ./ maximum(abs.(ret)))
 end
 
 
@@ -815,7 +804,9 @@ function project_ket_on_bra(
     pr, pd = M.projs
     p1l, p2l, p1u, p2u = M.bnd_projs
     lel1, lel2, leu1, leu2 = CUDA.CuArray.(M.bnd_exp)
-    loc_exp12 = CUDA.CuArray(M.loc_exp)  # [s1, s2]
+
+    ip1u = cuIdentity(eltype(L), maximum(p1u))[p1u, :]
+    ip2u = cuIdentity(eltype(L), maximum(p2u))[p2u, :]
 
     L_d = CUDA.CuArray(permutedims(L, (3, 1, 2)))
     B_d = CUDA.CuArray(permutedims(B, (1, 3, 2))[:, :, pd])
@@ -837,18 +828,13 @@ function project_ket_on_bra(
 
     Anew_no_le = LL ⊠ BB ⊠ RR
 
-    An = Anew_no_le .* reshape(loc_exp12, 1, 1, :)
+    An = Anew_no_le .* reshape(CUDA.CuArray(M.loc_exp), 1, 1, :)
     @cast Anew[x, y, η, σ] := An[x, y, (η, σ)] (σ ∈ 1:size(pr, 1))
-
-    ip1u = cuIdentity(eltype(L), maximum(p1u))[p1u, :]
-    ip2u = cuIdentity(eltype(L), maximum(p2u))[p2u, :]
 
     @cast lu[x, y, z] := leu1[x, y] * leu2[x, z]
     @tensor ret[x, y, u] := Anew[x, y, s1, s2] * ip1u[s1, u1] * ip2u[s2, u2] *  lu[u, u1, u2]  order=(s2, s1, u1, u2)
 
-    ret = Array(permutedims(ret, (1, 3, 2)) ./ maximum(abs.(ret)))
-    CUDA.reclaim()
-    ret
+    Array(permutedims(ret, (1, 3, 2)) ./ maximum(abs.(ret)))
 end
 
 
@@ -922,7 +908,8 @@ function project_ket_on_bra(
     pr, pd = M.projs
     p1l, p2l, p1u, p2u = M.bnd_projs
     lel1, lel2, leu1, leu2 = CUDA.CuArray.(M.bnd_exp)
-    loc_exp12 = CUDA.CuArray(M.loc_exp)  # [s1, s2]
+
+    ipd = cuIdentity(eltype(L), maximum(pd))[pd, :]
 
     L_d = CUDA.CuArray(permutedims(L, (3, 1, 2)))
     B_d = CUDA.CuArray(permutedims(B, (1, 3, 2)))
@@ -947,15 +934,12 @@ function project_ket_on_bra(
 
     Anew_no_le = LL ⊠ BB ⊠ RR
 
-    An = Anew_no_le .* reshape(loc_exp12, 1, 1, :)
+    An = Anew_no_le .* reshape(CUDA.CuArray(M.loc_exp), 1, 1, :)
     @reduce Anew[x, y, z] := sum(σ) An[x, y, (z, σ)] (σ ∈ 1:length(pr))
 
-    ipd = cuIdentity(eltype(L), maximum(pd))[pd, :]
     @tensor ret[x, y, d] := Anew[x, y, z] * ipd[z, d]
 
-    ret = Array(permutedims(ret, (1, 3, 2)) ./ maximum(abs.(ret)))
-    CUDA.reclaim()
-    ret
+    Array(permutedims(ret, (1, 3, 2)) ./ maximum(abs.(ret)))
 end
 
 

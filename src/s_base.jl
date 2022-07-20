@@ -8,6 +8,7 @@ export
     SparseSiteTensor,
     SparseVirtualTensor,
     SparsePegasusSquareTensor,
+    SparseCentralTensor,
     IdentityQMps
 
 abstract type AbstractEnvironment end
@@ -27,6 +28,15 @@ $(TYPEDSIGNATURES)
 """
 struct SparseVirtualTensor <: AbstractSparseTensor
     con::Matrix{<:Real}
+    projs::NTuple{N, Vector{Int}} where N
+end
+
+
+struct SparseCentralTensor <: AbstractSparseTensor
+    e11::Matrix{<:Real}
+    e12::Matrix{<:Real}
+    e21::Matrix{<:Real}
+    e22::Matrix{<:Real}
     projs::NTuple{N, Vector{Int}} where N
 end
 

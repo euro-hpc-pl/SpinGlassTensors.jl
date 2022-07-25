@@ -54,7 +54,7 @@ end
 """
 $(TYPEDSIGNATURES)
 """
-const Tensor = Union{AbstractArray{Float64}, SparseSiteTensor, SparseVirtualTensor, SparsePegasusSquareTensor}
+const Tensor = Union{AbstractArray{Float64}, SparseSiteTensor, SparseVirtualTensor, SparsePegasusSquareTensor, SparseCentralTensor}
 
 #TODO: type of sites
 """

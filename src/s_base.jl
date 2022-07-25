@@ -38,6 +38,7 @@ struct SparseCentralTensor <: AbstractSparseTensor
     e21::Matrix{<:Real}
     e22::Matrix{<:Real}
     projs::NTuple{N, Vector{Int}} where N
+    sizes::NTuple{2, Int}
 end
 
 """

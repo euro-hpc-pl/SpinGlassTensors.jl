@@ -133,7 +133,7 @@ function update_env_left!(env::Environment, site::Site, trans::Symbol=:n)
 
     rs = _right_nbrs_site(ls, env.mpo.sites)
     while rs < site
-        LL = update_env_left(LL, env.mpo[rs], Val(trans))
+        LL = update_env_left(LL, env.mpo[rs], trans)
         rs = _right_nbrs_site(rs, env.mpo.sites)
     end
     push!(env.env, (site, :left) => LL)
@@ -185,10 +185,28 @@ end
 $(TYPEDSIGNATURES)
 """
 function update_env_left(
-    LE::S, M::T, ::Val{:n}
+    LE::S, M::T, trans::Symbol=:n
 ) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
-    MM = M[0]  # Can be more general
-    @tensor L[nt, nc, nb] :=  LE[nt, oc, nb] * MM[oc, nc]
+    update_env_left(LE, M[0], Val(trans))
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function update_env_left(
+    LE::S, M::T, ::Val{:n}
+) where {S <: AbstractArray{Float64, 3}, T <: AbstractArray{Float64, 2}}
+    @tensor L[nt, nc, nb] :=  LE[nt, oc, nb] * M[oc, nc]
+    L
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function update_env_left(
+    LE::S, M::T, ::Val{:n}
+) where {S <: AbstractArray{Float64, 3}, T <: SparseCentralTensor}
+    @tensor L[nt, nc, nb] :=  LE[nt, oc, nb] * M[oc, nc]
     L
 end
 
@@ -197,9 +215,18 @@ $(TYPEDSIGNATURES)
 """
 function update_env_left(
     LE::S, M::T, ::Val{:c}
-) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
-    MM = M[0]  # Can be more general
-    @tensor L[nt, nc, nb] :=  LE[nt, oc, nb] * MM[oc, nc]
+) where {S <: AbstractArray{Float64, 3}, T <: AbstractArray{Float64, 2}}
+    @tensor L[nt, nc, nb] :=  LE[nt, oc, nb] * M[oc, nc]
+    L
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function update_env_left(
+    LE::S, M::T, ::Val{:c}
+) where {S <: AbstractArray{Float64, 3}, T <: SparseCentralTensor}
+    @tensor L[nt, nc, nb] :=  LE[nt, oc, nb] * M[oc, nc]
     L
 end
 

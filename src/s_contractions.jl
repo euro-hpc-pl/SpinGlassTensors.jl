@@ -148,13 +148,14 @@ end
 """
 $(TYPEDSIGNATURES)
 """
-function contract_up(A::AbstractArray{T, 3}, B::SparseCentralTensor) where T
-    B11 = B.e11
-    B12 = B.e12
-    B21 = B.e21
-    B22 = B.e22
-    @cast BB[(oc11, oc12, oc21, oc22), (nc11, nc12, nc21, nc22)] := B11[oc11, nc11] * B12[oc12, nc12] * B21[oc21, nc21] * B22[oc22, nc22]
-    @tensor C[l, u, r] := BB[u, σ] * A[l, σ, r]
+function contract_up(A::AbstractArray{T, 3}, M::SparseCentralTensor) where T
+    M11 = M.e11
+    M12 = M.e12
+    M21 = M.e21
+    M22 = M.e22
+
+    @cast MM[(l1, l2), (r1, r2)] := M11[l1,r1] * M21[l2, r1] * M12[l1, r2] * M22[l2, r2]
+    @tensor C[l, u, r] := MM[u, σ] * A[l, σ, r]
     C
 end
 

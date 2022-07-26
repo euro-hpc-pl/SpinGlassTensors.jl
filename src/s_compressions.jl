@@ -210,7 +210,8 @@ function update_env_left(
     M12 = M.e12
     M21 = M.e21
     M22 = M.e22
-    @cast MM[(oc11, oc12, oc21, oc22), (nc11, nc12, nc21, nc22)] := M11[oc11, nc11] * M12[oc12, nc12] * M21[oc21, nc21] * M22[oc22, nc22]
+
+    @cast MM[(l1, l2), (r1, r2)] := M11[l1,r1] * M21[l2, r1] * M12[l1, r2] * M22[l2, r2]
     @tensor L[nt, nc, nb] :=  LE[nt, oc, nb] * MM[oc, nc]
     L
 end
@@ -235,7 +236,8 @@ function update_env_left(
     M12 = M.e12
     M21 = M.e21
     M22 = M.e22
-    @cast MM[(oc11, oc12, oc21, oc22), (nc11, nc12, nc21, nc22)] := M11[oc11, nc11] * M12[oc12, nc12] * M21[oc21, nc21] * M22[oc22, nc22]
+
+    @cast MM[(l1, l2), (r1, r2)] := M11[l1,r1] * M21[l2, r1] * M12[l1, r2] * M22[l2, r2]
     @tensor L[nt, nc, nb] :=  LE[nt, oc, nb] * MM[oc, nc]
     L
 end
@@ -459,15 +461,28 @@ function _update_tensor_forward(
     for i ∈ sites
         if i == 0 break end
         C = M[i]
-        if typeof(C) == SparseCentralTensor
-            M11 = C.e11
-            M12 = C.e12
-            M21 = C.e21
-            M22 = C.e22
-            @cast C[(oc11, oc12, oc21, oc22), (nc11, nc12, nc21, nc22)] := M11[oc11, nc11] * M12[oc12, nc12] * M21[oc21, nc21] * M22[oc22, nc22]
-        end
-        @tensor B[l, x, r] := B[l, y, r] * C[y, x]
+        B = _update_tensor_forward_n(C, B)
     end
+    B
+end
+
+function _update_tensor_forward_n(
+    C::T, B::S
+    ) where {S <: AbstractArray{Float64, 3}, T <: AbstractArray{Float64, 2}}
+    @tensor B[l, x, r] := B[l, y, r] * C[y, x]
+    B
+end
+
+function _update_tensor_forward_n(
+    C::T, B::S
+    ) where {S <: AbstractArray{Float64, 3}, T <: SparseCentralTensor}
+    M11 = C.e11
+    M12 = C.e12
+    M21 = C.e21
+    M22 = C.e22
+
+    @cast MM[(l1, l2), (r1, r2)] := M11[l1,r1] * M21[l2, r1] * M12[l1, r2] * M22[l2, r2]
+    @tensor B[l, x, r] := B[l, y, r] * MM[y, x]
     B
 end
 
@@ -481,15 +496,28 @@ function _update_tensor_forward(
     for i ∈ reverse(sites)
         if i == 0 break end
         C = M[i]
-        if typeof(C) == SparseCentralTensor
-            M11 = C.e11
-            M12 = C.e12
-            M21 = C.e21
-            M22 = C.e22
-            @cast C[(oc11, oc12, oc21, oc22), (nc11, nc12, nc21, nc22)] := M11[oc11, nc11] * M12[oc12, nc12] * M21[oc21, nc21] * M22[oc22, nc22]
-        end
-        @tensor B[l, x, r] := B[l, y, r] * C[x, y]
+        B = _update_tensor_forward_c(C, B)
     end
+    B
+end
+
+function _update_tensor_forward_c(
+    C::T, B::S
+    ) where {S <: AbstractArray{Float64, 3}, T <: AbstractArray{Float64, 2}}
+    @tensor B[l, x, r] := B[l, y, r] * C[x, y]
+    B
+end
+
+function _update_tensor_forward_c(
+    C::T, B::S
+    ) where {S <: AbstractArray{Float64, 3}, T <: SparseCentralTensor}
+    M11 = C.e11
+    M12 = C.e12
+    M21 = C.e21
+    M22 = C.e22
+
+    @cast MM[(l1, l2), (r1, r2)] := M11[l1,r1] * M21[l2, r1] * M12[l1, r2] * M22[l2, r2]
+    @tensor B[l, x, r] := B[l, y, r] * MM[x, y]
     B
 end
 
@@ -503,16 +531,27 @@ function _update_tensor_backwards(
     for i ∈ reverse(sites)
         if i == 0 break end
         C = M[i]
-        if typeof(C) == SparseCentralTensor
-            M11 = C.e11
-            M12 = C.e12
-            M21 = C.e21
-            M22 = C.e22
-            @cast C[(oc11, oc12, oc21, oc22), (nc11, nc12, nc21, nc22)] := M11[oc11, nc11] * M12[oc12, nc12] * M21[oc21, nc21] * M22[oc22, nc22]
-        end
-        @tensor B[l, x, r] := B[l, y, r] * C[x, y]
+        B = _update_tensor_backwards_n(C, B)
     end
     B
+end
+
+function _update_tensor_backwards_n(
+    C::T, B::S
+    ) where {S <: AbstractArray{Float64, 3}, T <: AbstractArray{Float64, 2}}
+    @tensor B[l, x, r] := B[l, y, r] * C[x, y]
+end
+
+function _update_tensor_backwards_n(
+    C::T, B::S
+    ) where {S <: AbstractArray{Float64, 3}, T <: SparseCentralTensor}
+    M11 = C.e11
+    M12 = C.e12
+    M21 = C.e21
+    M22 = C.e22
+
+    @cast MM[(l1, l2), (r1, r2)] := M11[l1,r1] * M21[l2, r1] * M12[l1, r2] * M22[l2, r2]
+    @tensor B[l, x, r] := B[l, y, r] * MM[x, y]
 end
 
 """
@@ -525,16 +564,27 @@ function _update_tensor_backwards(
     for i ∈ sites
         if i == 0 break end
         C = M[i]
-        if typeof(C) == SparseCentralTensor
-            M11 = C.e11
-            M12 = C.e12
-            M21 = C.e21
-            M22 = C.e22
-            @cast C[(oc11, oc12, oc21, oc22), (nc11, nc12, nc21, nc22)] := M11[oc11, nc11] * M12[oc12, nc12] * M21[oc21, nc21] * M22[oc22, nc22]
-        end
-        @tensor B[l, x, r] := B[l, y, r] * C[y, x]
+        B = _update_tensor_backwards_c(C, B)
     end
     B
+end
+
+function _update_tensor_backwards_c(
+    C::T, B::S
+    ) where {S <: AbstractArray{Float64, 3}, T <: AbstractArray{Float64, 2}}
+    @tensor B[l, x, r] := B[l, y, r] * C[y, x]
+end
+
+function _update_tensor_backwards_c(
+    C::T, B::S
+    ) where {S <: AbstractArray{Float64, 3}, T <: SparseCentralTensor}
+    M11 = C.e11
+    M12 = C.e12
+    M21 = C.e21
+    M22 = C.e22
+
+    @cast MM[(l1, l2), (r1, r2)] := M11[l1,r1] * M21[l2, r1] * M12[l1, r2] * M22[l2, r2]
+    @tensor B[l, x, r] := B[l, y, r] * MM[y, x]
 end
 
 """
@@ -751,7 +801,7 @@ $(TYPEDSIGNATURES)
 function update_env_right(
     RE::S, M::T, trans::Symbol=:c
 ) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
-    update_env_left(RE, M[0], Val(trans))
+    update_env_right(RE, M[0], Val(trans))
 end
 
 function update_env_right(
@@ -764,7 +814,14 @@ end
 function update_env_right(
     RE::S, M::T, ::Val{:c}
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseCentralTensor}
-    @tensor R[nt, nc, nb] := M[nc, oc] * RE[nt, oc, nb]
+    M11 = M.e11
+    M12 = M.e12
+    M21 = M.e21
+    M22 = M.e22
+
+    @cast MM[(l1, l2), (r1, r2)] := M11[l1,r1] * M21[l2, r1] * M12[l1, r2] * M22[l2, r2]
+
+    @tensor R[nt, nc, nb] := MM[nc, oc] * RE[nt, oc, nb]
     R
 end
 
@@ -784,7 +841,14 @@ $(TYPEDSIGNATURES)
 function update_env_right(
     RE::S, M::T, ::Val{:n}
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseCentralTensor}
-    @tensor R[nt, nc, nb] := M[nc, oc] * RE[nt, oc, nb]
+    M11 = M.e11
+    M12 = M.e12
+    M21 = M.e21
+    M22 = M.e22
+
+    @cast MM[(l1, l2), (r1, r2)] := M11[l1,r1] * M21[l2, r1] * M12[l1, r2] * M22[l2, r2]
+
+    @tensor R[nt, nc, nb] := MM[nc, oc] * RE[nt, oc, nb]
     R
 end
 
@@ -873,9 +937,10 @@ function project_ket_on_bra(
     M12 = M.e12
     M21 = M.e21
     M22 = M.e22
-    @cast M[(oc11, oc12, oc21, oc22), (nc11, nc12, nc21, nc22)] := M11[oc11, nc11] * M12[oc12, nc12] * M21[oc21, nc21] * M22[oc22, nc22]
-        
-    @tensor A[x, y, z] := B[x, a, z] * M[y, a]
+
+    @cast MM[(l1, l2), (r1, r2)] := M11[l1,r1] * M21[l2, r1] * M12[l1, r2] * M22[l2, r2]
+   
+    @tensor A[x, y, z] := B[x, a, z] * MM[y, a]
     A
 end
 
@@ -889,9 +954,10 @@ function project_ket_on_bra(
     M12 = M.e12
     M21 = M.e21
     M22 = M.e22
-    @cast M[(oc11, oc12, oc21, oc22), (nc11, nc12, nc21, nc22)] := M11[oc11, nc11] * M12[oc12, nc12] * M21[oc21, nc21] * M22[oc22, nc22]
-        
-    @tensor A[x, y, z] := B[x, a, z] * M[a, y]
+
+    @cast MM[(l1, l2), (r1, r2)] := M11[l1,r1] * M21[l2, r1] * M12[l1, r2] * M22[l2, r2]
+
+    @tensor A[x, y, z] := B[x, a, z] * MM[a, y]
     A
 end
 

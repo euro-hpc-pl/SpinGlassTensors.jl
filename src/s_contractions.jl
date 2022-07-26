@@ -145,6 +145,19 @@ function contract_up(A::AbstractArray{T, 3}, B::SparseSiteTensor) where T
     CC
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
+function contract_up(A::AbstractArray{T, 3}, B::SparseCentralTensor) where T
+    B11 = B.e11
+    B12 = B.e12
+    B21 = B.e21
+    B22 = B.e22
+    @cast BB[(oc11, oc12, oc21, oc22), (nc11, nc12, nc21, nc22)] := B11[oc11, nc11] * B12[oc12, nc12] * B21[oc21, nc21] * B22[oc22, nc22]
+    @tensor C[l, u, r] := BB[u, σ] * A[l, σ, r]
+    C
+end
+
 
 # function contract_up(A::AbstractArray{T, 3}, B::SparsePegasusSquareTensor) where T
 #     contract_up(A, B.M)

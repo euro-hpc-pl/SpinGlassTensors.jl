@@ -280,7 +280,7 @@ function update_env_left(
     Lr_d .*= reshape(CUDA.CuArray(M.loc_exp), 1, 1, :)
 
     pr = M.projs[3]
-    ipr = cuIdentity(eltype(LE), maximum(pr))[pr, :]
+    ipr = cuIdentity(eltype(LE), maximum(pr))[pr, :]  # this can be too big  TODO
 
     @tensor L[x, y, r] := Lr_d[x, y, z] * ipr[z, r]
     Array(permutedims(L, (1, 3, 2)))

@@ -280,15 +280,11 @@ function update_env_left(
     Lr_d .*= reshape(CUDA.CuArray(M.loc_exp), 1, 1, :)
 
     pr = M.projs[3]
-
-    ipr = cuIdentity(eltype(LE), maximum(pr))[pr, :]  # this can be too big  TODO
-
-    #dnzval = CUDA.ones(Int64, maximum(pr))
-    #dcolptr = cu(pr)
-    #drowval = cu(collect(1:maximum(pr)))
-    #ipr = CUSPARSE.CuSparseMatrixCSC(dcolptr, drowval, dnzval, (maximum(pr), maximum(pr))) # problem with Strided.UnsafeStridedView
-
-    @tensor L[x, y, r] := Lr_d[x, y, z] * ipr[z, r]
+    #ipr = cuIdentity(eltype(LE), maximum(pr))[pr, :]  # this can be too big  TODO
+    for (e,j) in enumerate(pr)
+        L[:, :, j] += Lr_d[:, :, e]
+    end
+    #@tensor L[x, y, r] := Lr_d[x, y, z] * ipr[z, r]
     Array(permutedims(L, (1, 3, 2)))
 end
 

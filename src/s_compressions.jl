@@ -280,11 +280,10 @@ function update_env_left(
     Lr_d .*= reshape(CUDA.CuArray(M.loc_exp), 1, 1, :)
 
     pr = M.projs[3]
-    #ipr = cuIdentity(eltype(LE), maximum(pr))[pr, :]  # this can be too big  TODO
-    for (e,j) in enumerate(pr)
-        L[:, :, j] += Lr_d[:, :, e]
+
+    for i in 1:maximum(pr)
+        L[:,:,i] = sum(Lr_d[:, :, pr.==i], dims=3)
     end
-    #@tensor L[x, y, r] := Lr_d[x, y, z] * ipr[z, r]
     Array(permutedims(L, (1, 3, 2)))
 end
 
@@ -352,20 +351,41 @@ function update_env_left(
     Array(permutedims(ret, (1, 3, 2)) ./ maximum(abs.(ret)))
 end
 
-"""
-$(TYPEDSIGNATURES)
-"""
+# """
+# $(TYPEDSIGNATURES)
+# """
+# function update_env_left(
+#     LE::S, A::S, M::T, B::S, ::Val{:c}
+# ) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
+#     L = zeros(size(B, 3), maximum(M.projs[3]), size(A, 3))
+
+#     for (σ, lexp) ∈ enumerate(M.loc_exp)
+#         AA = @inbounds @view A[:, M.projs[4][σ], :]
+#         LL = @inbounds @view LE[:, M.projs[1][σ], :]
+#         BB = @inbounds @view B[:, M.projs[2][σ], :]
+#         @inbounds L[:, M.projs[3][σ], :] += lexp .* (BB' * LL * AA)
+#     end
+#     L ./ maximum(abs.(L))
+# end
+
 function update_env_left(
     LE::S, A::S, M::T, B::S, ::Val{:c}
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
-    L = zeros(size(B, 3), maximum(M.projs[3]), size(A, 3))
-    for (σ, lexp) ∈ enumerate(M.loc_exp)
-        AA = @inbounds @view A[:, M.projs[4][σ], :]
-        LL = @inbounds @view LE[:, M.projs[1][σ], :]
-        BB = @inbounds @view B[:, M.projs[2][σ], :]
-        @inbounds L[:, M.projs[3][σ], :] += lexp .* (BB' * LL * AA)
+    L = CUDA.zeros(eltype(LE), size(B, 3), size(A, 3), maximum(M.projs[3]))
+
+    A_d = permutedims(CUDA.CuArray(A[:, M.projs[4], :]), (1, 3, 2))
+    L_d = permutedims(CUDA.CuArray(LE[:, M.projs[1], :]), (1, 3, 2))
+    B_d = permutedims(CUDA.CuArray(B[:, M.projs[2], :]), (3, 1, 2))
+
+    Lr_d = B_d ⊠ L_d ⊠ A_d
+    Lr_d .*= reshape(CUDA.CuArray(M.loc_exp), 1, 1, :)
+
+    pr = M.projs[3]
+
+    for i in 1:maximum(pr)
+        L[:,:,i] = sum(Lr_d[:, :, pr.==i], dims=3)
     end
-    L ./ maximum(abs.(L))
+    Array(permutedims(L, (1, 3, 2)) ./ maximum(abs.(L)))
 end
 
 """
@@ -622,17 +642,37 @@ $(TYPEDSIGNATURES)
 function update_env_right(
     RE::S, A::S, M::T, B::S, ::Val{:n}
 ) where {T <: SparseSiteTensor, S <: AbstractArray{Float64, 3}}
-    R = zeros(size(A, 1), maximum(M.projs[1]), size(B, 1))
+    R = CUDA.zeros(eltype(RE), size(A, 1), size(B, 1), maximum(M.projs[1]))
 
-    for (σ, lexp) ∈ enumerate(M.loc_exp)
-        AA = @inbounds @view A[:, M.projs[2][σ], :]
-        RR = @inbounds @view RE[:, M.projs[3][σ], :]
-        BB = @inbounds @view B[:, M.projs[4][σ], :]
-        @inbounds R[:, M.projs[1][σ], :] += lexp .* (AA * RR * BB')
+    A_d = permutedims(CUDA.CuArray(A[:, M.projs[2], :]), (1, 3, 2))
+    R_d = permutedims(CUDA.CuArray(RE[:, M.projs[3], :]), (1, 3, 2))
+    B_d = permutedims(CUDA.CuArray(B[:, M.projs[4], :]), (3, 1, 2))
+
+    Rr_d = A_d ⊠ R_d ⊠ B_d
+
+    Rr_d .*= reshape(CUDA.CuArray(M.loc_exp), 1, 1, :)
+    pr = M.projs[1]
+
+    for i in 1:maximum(pr)
+        R[:,:,i] = sum(Rr_d[:, :, pr.==i], dims=3)
     end
-    R
+
+    Array(permutedims(R, (1, 3, 2)))
 end
 
+# function update_env_right(
+#     RE::S, A::S, M::T, B::S, ::Val{:n}
+# ) where {T <: SparseSiteTensor, S <: AbstractArray{Float64, 3}}
+#     R = zeros(size(A, 1), maximum(M.projs[1]), size(B, 1))
+
+#     for (σ, lexp) ∈ enumerate(M.loc_exp)
+#         AA = @inbounds @view A[:, M.projs[2][σ], :]
+#         RR = @inbounds @view RE[:, M.projs[3][σ], :]
+#         BB = @inbounds @view B[:, M.projs[4][σ], :]
+#         @inbounds R[:, M.projs[1][σ], :] += lexp .* (AA * RR * BB')
+#     end
+#     R
+# end
 
 """
 $(TYPEDSIGNATURES)
@@ -683,16 +723,37 @@ $(TYPEDSIGNATURES)
 function update_env_right(
     RE::S, A::S, M::T, B::S, ::Val{:c}
 ) where {T <: SparseSiteTensor, S <: AbstractArray{Float64, 3}}
-    R = zeros(size(A, 1), maximum(M.projs[1]), size(B, 1))
+    R = CUDA.zeros(eltype(RE), size(A, 1), size(B, 1), maximum(M.projs[1]))
 
-    for (σ, lexp) ∈ enumerate(M.loc_exp)
-        AA = @inbounds @view A[:, M.projs[4][σ], :]
-        RR = @inbounds @view RE[:, M.projs[3][σ], :]
-        BB = @inbounds @view B[:, M.projs[2][σ], :]
-        @inbounds R[:, M.projs[1][σ], :] += lexp .* (AA * RR * BB')
+    A_d = permutedims(CUDA.CuArray(A[:, M.projs[4], :]), (1, 3, 2))
+    R_d = permutedims(CUDA.CuArray(RE[:, M.projs[3], :]), (1, 3, 2))
+    B_d = permutedims(CUDA.CuArray(B[:, M.projs[2], :]), (3, 1, 2))
+
+    Rr_d = A_d ⊠ R_d ⊠ B_d
+
+    Rr_d .*= reshape(CUDA.CuArray(M.loc_exp), 1, 1, :)
+    pr = M.projs[1]
+
+    for i in 1:maximum(pr)
+        R[:,:,i] = sum(Rr_d[:, :, pr.==i], dims=3)
     end
-    R
+
+    Array(permutedims(R, (1, 3, 2)))
 end
+
+# function update_env_right(
+#     RE::S, A::S, M::T, B::S, ::Val{:c}
+# ) where {T <: SparseSiteTensor, S <: AbstractArray{Float64, 3}}
+#     R = zeros(size(A, 1), maximum(M.projs[1]), size(B, 1))
+
+#     for (σ, lexp) ∈ enumerate(M.loc_exp)
+#         AA = @inbounds @view A[:, M.projs[4][σ], :]
+#         RR = @inbounds @view RE[:, M.projs[3][σ], :]
+#         BB = @inbounds @view B[:, M.projs[2][σ], :]
+#         @inbounds R[:, M.projs[1][σ], :] += lexp .* (AA * RR * BB')
+#     end
+#     R
+# end
 
 
 """
@@ -969,16 +1030,36 @@ $(TYPEDSIGNATURES)
 function project_ket_on_bra(
     LE::S, B::S, M::T, RE::S, ::Val{:n}
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
-    A = zeros(size(LE, 3), maximum(M.projs[2]), size(RE, 1))
+    A = CUDA.zeros(eltype(LE), size(LE, 3), size(RE, 1), maximum(M.projs[2]))
+    
+    le = permutedims(CUDA.CuArray(LE[:, M.projs[1], :]), (3, 1, 2))
+    b = permutedims(CUDA.CuArray(B[:, M.projs[4], :]), (1, 3, 2))
+    re = permutedims(CUDA.CuArray(RE[:, M.projs[3], :]), (3, 1, 2))
 
-    for (σ, lexp) ∈ enumerate(M.loc_exp)
-        le = @inbounds @view LE[:, M.projs[1][σ], :]
-        b = @inbounds @view B[:, M.projs[4][σ], :]
-        re = @inbounds @view RE[:, M.projs[3][σ], :]
-        @inbounds A[:, M.projs[2][σ], :] += lexp .* (le' * b * re')
+    Ar_d = le ⊠ b ⊠ re
+    Ar_d .*= reshape(CUDA.CuArray(M.loc_exp), 1, 1, :)
+
+    pu = M.projs[2]
+
+    for i in 1:maximum(pu)
+        A[:,:,i] = sum(Ar_d[:, :, pu.==i], dims=3)
     end
-    A
+    Array(permutedims(A, (1, 3, 2)))
 end
+
+# function project_ket_on_bra(
+#     LE::S, B::S, M::T, RE::S, ::Val{:n}
+# ) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
+#     A = zeros(size(LE, 3), maximum(M.projs[2]), size(RE, 1))
+
+#     for (σ, lexp) ∈ enumerate(M.loc_exp)
+#         le = @inbounds @view LE[:, M.projs[1][σ], :]
+#         b = @inbounds @view B[:, M.projs[4][σ], :]
+#         re = @inbounds @view RE[:, M.projs[3][σ], :]
+#         @inbounds A[:, M.projs[2][σ], :] += lexp .* (le' * b * re')
+#     end
+#     A
+# end
 
 
 
@@ -1071,16 +1152,36 @@ $(TYPEDSIGNATURES)
 function project_ket_on_bra(
     LE::S, B::S, M::T, RE::S, ::Val{:c}
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
-    A = zeros(size(LE, 3), maximum(M.projs[4]), size(RE, 1))
+A = CUDA.zeros(eltype(LE), size(LE, 3), size(RE, 1), maximum(M.projs[4]))
+    
+le = permutedims(CUDA.CuArray(LE[:, M.projs[1], :]), (3, 1, 2))
+b = permutedims(CUDA.CuArray(B[:, M.projs[2], :]), (1, 3, 2))
+re = permutedims(CUDA.CuArray(RE[:, M.projs[3], :]), (3, 1, 2))
 
-    for (σ, lexp) ∈ enumerate(M.loc_exp)
-        le = @inbounds @view LE[:, M.projs[1][σ], :]
-        b = @inbounds @view B[:, M.projs[2][σ], :]
-        re = @inbounds @view RE[:, M.projs[3][σ], :]
-        @inbounds A[:, M.projs[4][σ], :] += lexp .* (le' * b * re')
-    end
-    A
+Ar_d = le ⊠ b ⊠ re
+Ar_d .*= reshape(CUDA.CuArray(M.loc_exp), 1, 1, :)
+
+pu = M.projs[4]
+
+for i in 1:maximum(pu)
+    A[:,:,i] = sum(Ar_d[:, :, pu.==i], dims=3)
 end
+Array(permutedims(A, (1, 3, 2)))
+end
+
+# function project_ket_on_bra(
+#     LE::S, B::S, M::T, RE::S, ::Val{:c}
+# ) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
+#     A = zeros(size(LE, 3), maximum(M.projs[4]), size(RE, 1))
+
+#     for (σ, lexp) ∈ enumerate(M.loc_exp)
+#         le = @inbounds @view LE[:, M.projs[1][σ], :]
+#         b = @inbounds @view B[:, M.projs[2][σ], :]
+#         re = @inbounds @view RE[:, M.projs[3][σ], :]
+#         @inbounds A[:, M.projs[4][σ], :] += lexp .* (le' * b * re')
+#     end
+#     A
+# end
 
 """
 $(TYPEDSIGNATURES)

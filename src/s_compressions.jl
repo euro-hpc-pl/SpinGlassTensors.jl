@@ -281,9 +281,25 @@ function update_env_left(
 
     pr = M.projs[3]
 
+    # There is still warning about indexing on GPU
+
+    #=
+    x, y, _ = size(Lr_d)
+
+    csrRowPtr = CuArray(collect(1:length(pr) + 1))
+    csrColInd = CuArray(pr)
+    csrNzVal = CUDA.ones(Float64, length(pr))
+    ipr = CUSPARSE.CuSparseMatrixCSR(csrRowPtr, csrColInd, csrNzVal, (length(pr), maximum(pr)))
+
+    Lr_d = reshape(Lr_d, (x*y, length(pr)))
+    L = Lr_d * ipr
+    L = reshape(L, (x, y, maximum(pr)))
+    =#
+
     for i in 1:maximum(pr)
         L[:,:,i] = sum(Lr_d[:, :, pr.==i], dims=3)
     end
+
     Array(permutedims(L, (1, 3, 2)))
 end
 

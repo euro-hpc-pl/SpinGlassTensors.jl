@@ -7,6 +7,7 @@ export
     Tensor,
     SparseSiteTensor,
     SparseVirtualTensor,
+    SparseVirtualTensor2,
     SparsePegasusSquareTensor,
     SparseCentralTensor,
     IdentityQMps
@@ -29,6 +30,11 @@ $(TYPEDSIGNATURES)
 struct SparseVirtualTensor <: AbstractSparseTensor
     con::Matrix{<:Real}
     projs::NTuple{N, Vector{Int}} where N
+end
+
+struct SparseVirtualTensor2 <: AbstractSparseTensor
+    #con::Matrix{<:Real}
+    #projs::NTuple{N, Vector{Int}} where N
 end
 
 

@@ -7,9 +7,9 @@ export
     Tensor,
     SparseSiteTensor,
     SparseVirtualTensor,
-    SparseVirtualTensor2,
     SparsePegasusSquareTensor,
     SparseCentralTensor,
+    dense_central_tensor,
     IdentityQMps
 
 abstract type AbstractEnvironment end
@@ -23,21 +23,6 @@ struct SparseSiteTensor <: AbstractSparseTensor
     projs::NTuple{N, Vector{Int}} where N
 end
 
-#TODO: potentially change name. Used in SquareStar geometry.
-"""
-$(TYPEDSIGNATURES)
-"""
-struct SparseVirtualTensor <: AbstractSparseTensor
-    con::Matrix{<:Real}
-    projs::NTuple{N, Vector{Int}} where N
-end
-
-struct SparseVirtualTensor2 <: AbstractSparseTensor
-    #con::Matrix{<:Real}
-    #projs::NTuple{N, Vector{Int}} where N
-end
-
-
 struct SparseCentralTensor <: AbstractSparseTensor
     e11::Matrix{<:Real}
     e12::Matrix{<:Real}
@@ -45,6 +30,21 @@ struct SparseCentralTensor <: AbstractSparseTensor
     e22::Matrix{<:Real}
     sizes::NTuple{2, Int}
 end
+
+function dense_central_tensor(ten::SparseCentralTensor)
+    @cast V[(u1, u2), (d1, d2)] := ten.e11[u1, d1] * ten.e21[u2, d1] * ten.e12[u1, d2] * ten.e22[u2, d2]
+    V ./ maximum(V)
+end
+
+#TODO: potentially change name. Used in SquareStar geometry.
+"""
+$(TYPEDSIGNATURES)
+"""
+struct SparseVirtualTensor <: AbstractSparseTensor
+    con::Union{Matrix{<:Real}, SparseCentralTensor}
+    projs::NTuple{N, Vector{Int}} where N
+end
+
 
 """
 $(TYPEDSIGNATURES)

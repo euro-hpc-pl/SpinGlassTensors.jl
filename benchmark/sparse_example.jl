@@ -5,11 +5,12 @@ using SparseArrays
 using TensorOperations
 using TensorCast
 
-T = Float64
-n = 1
-N = 3
+CUDA.allowscalar(false)
 
-a = rand(T, n, n); a[a .< T(9//10)] .= T(0)
+T = Float64
+n = 4096
+
+a = rand(T, n, n); a[a .< T(2//10)] .= T(0)
 a_d = CuSparseMatrixCSC(sparse(a))
 
 
@@ -30,7 +31,7 @@ end
     @matmul c[x, y, z] := sum(s) bb[x, y, s] * a_d[s, z]
 end
 
-@time  a_d * b 
+@time  a_d * b
 nothing
 
 @time begin
@@ -41,7 +42,7 @@ nothing
         end
         a = CuSparseMatrixCSC(a)
 
-        a*b 
+        a*b
     nothing
 end
 =#

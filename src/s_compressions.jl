@@ -280,35 +280,20 @@ function update_env_left(
     Lr_d .*= reshape(CUDA.CuArray(M.loc_exp), 1, 1, :)
 
     pr = M.projs[3]
-    println("pdate_env_left ::Val{:n}")
+    println("update_env_left ::Val{:n}")
     @time begin
+        # This is how sparse matrix is represented internally  
         csrRowPtr = CuArray(collect(1:length(pr) + 1))
         csrColInd = CuArray(pr)
         csrNzVal = CUDA.ones(Float64, length(pr))
         ipr = CUSPARSE.CuSparseMatrixCSR(csrRowPtr, csrColInd, csrNzVal, (maximum(pr), length(pr))) # transposed right here
 
-        Lr_d = permutedims(Lr_d, (3, 1, 2)) #(256, 4, 4)
+        Lr_d = permutedims(Lr_d, (3, 2, 1)) # change dims to make matrix multiplication
         _, y, z = size(Lr_d)
         @cast Lr_d[x, (y, z)] := Lr_d[x, y, z]
 
-        L = ipr * Lr_d  #(16, 16)
-        L = reshape(L, (maximum(pr), y, z))
-
-        #=
-        ipr = spzeros(size(pr, 1), maximum(pr))
-        for (index, i) in enumerate(pr)
-            ipr[index,i] = 1
-        end
-        ipr = CuSparseMatrixCSC(ipr)
-
-        Lr_d = permutedims(Lr_d, (3, 1, 2)) #(256, 4, 4)
-        _, y, z = size(Lr_d)
-        @cast Lr_d[x, (y, z)] := Lr_d[x, y, z] #(256, 16)
-        ipr = permutedims(ipr, (2, 1)) #(16,256)
-        L = ipr * Lr_d  #(16, 16)
-        #@cast L[x, y, z] := L[x, (y, z)] #(16, 4, 4)
-        L = reshape(L, (maximum(pr), y, z))
-        =#
+        L = ipr * Lr_d  
+        L = reshape(L, (:, y, z))
     end
     Array(permutedims(L, (2, 1, 3)))
 end
@@ -408,19 +393,19 @@ function update_env_left(
 
     pr = M.projs[3]
 
-    println("pdate_env_left ::Val{:c}")
+    println("update_env_left ::Val{:c}")
     @time begin
         csrRowPtr = CuArray(collect(1:length(pr) + 1))
         csrColInd = CuArray(pr)
         csrNzVal = CUDA.ones(Float64, length(pr))
         ipr = CUSPARSE.CuSparseMatrixCSR(csrRowPtr, csrColInd, csrNzVal, (maximum(pr), length(pr))) # transposed right here
 
-        Lr_d = permutedims(Lr_d, (3, 1, 2)) #(256, 4, 4)
+        Lr_d = permutedims(Lr_d, (3, 2, 1)) #(256, 4, 4)
         _, y, z = size(Lr_d)
         @cast Lr_d[x, (y, z)] := Lr_d[x, y, z]
 
         L = ipr * Lr_d  #(16, 16)
-        L = reshape(L, (maximum(pr), y, z))
+        L = reshape(L, (:, y, z))
     end
     #=
     for i in 1:maximum(pr)
@@ -695,19 +680,19 @@ function update_env_right(
     Rr_d .*= reshape(CUDA.CuArray(M.loc_exp), 1, 1, :)
     pr = M.projs[1]
 
-    println("pdate_env_right ::Val{:n}")
+    println("update_env_right ::Val{:n}")
     @time begin
         csrRowPtr = CuArray(collect(1:length(pr) + 1))
         csrColInd = CuArray(pr)
         csrNzVal = CUDA.ones(Float64, length(pr))
         ipr = CUSPARSE.CuSparseMatrixCSR(csrRowPtr, csrColInd, csrNzVal, (maximum(pr), length(pr))) # transposed right here
 
-        Rr_d = permutedims(Rr_d, (3, 1, 2)) #(256, 4, 4)
+        Rr_d = permutedims(Rr_d, (3, 2, 1)) 
         _, y, z = size(Rr_d)
         @cast Rr_d[x, (y, z)] := Rr_d[x, y, z]
 
-        R = ipr * Rr_d  #(16, 16)
-        R = reshape(R, (maximum(pr), y, z))
+        R = ipr * Rr_d  
+        R = reshape(R, (:, y, z))
     end
     #=
     for i in 1:maximum(pr)
@@ -790,11 +775,11 @@ function update_env_right(
 
     Rr_d .*= reshape(CUDA.CuArray(M.loc_exp), 1, 1, :)
     pr = M.projs[1]
-
+    #=
     for i in 1:maximum(pr)
         R[:,:,i] = sum(Rr_d[:, :, pr.==i], dims=3)
     end
-
+    =#
     Array(permutedims(R, (1, 3, 2)))
 end
 

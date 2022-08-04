@@ -1,3 +1,5 @@
+using SparseArrays
+
 export
     variational_compress!,
     _left_nbrs_site,
@@ -284,6 +286,7 @@ function update_env_left(
     # There is still warning about indexing on GPU
 
     #=
+    println(size(Lr_d))
     x, y, _ = size(Lr_d)
 
     csrRowPtr = CuArray(collect(1:length(pr) + 1))
@@ -293,14 +296,19 @@ function update_env_left(
 
     Lr_d = reshape(Lr_d, (x*y, length(pr)))
     L = Lr_d * ipr
+    #@tensor L[x, y, r] := Lr_d[x, y, z] * ipr[z, r]
     L = reshape(L, (x, y, maximum(pr)))
-    =#
+=#
 
+
+#=
     for i in 1:maximum(pr)
         L[:,:,i] = sum(Lr_d[:, :, pr.==i], dims=3)
     end
 
     Array(permutedims(L, (1, 3, 2)))
+=#
+
 end
 
 #TODO: This implementation may not be optimal as is not batching matrix multiplication.
@@ -1018,7 +1026,7 @@ function project_ket_on_bra(
     M22 = M.e22
 
     @cast MM[(l1, l2), (r1, r2)] := M11[l1,r1] * M21[l2, r1] * M12[l1, r2] * M22[l2, r2]
-   
+
     @tensor A[x, y, z] := B[x, a, z] * MM[y, a]
     A
 end
@@ -1047,7 +1055,7 @@ function project_ket_on_bra(
     LE::S, B::S, M::T, RE::S, ::Val{:n}
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
     A = CUDA.zeros(eltype(LE), size(LE, 3), size(RE, 1), maximum(M.projs[2]))
-    
+
     le = permutedims(CUDA.CuArray(LE[:, M.projs[1], :]), (3, 1, 2))
     b = permutedims(CUDA.CuArray(B[:, M.projs[4], :]), (1, 3, 2))
     re = permutedims(CUDA.CuArray(RE[:, M.projs[3], :]), (3, 1, 2))
@@ -1169,7 +1177,7 @@ function project_ket_on_bra(
     LE::S, B::S, M::T, RE::S, ::Val{:c}
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
 A = CUDA.zeros(eltype(LE), size(LE, 3), size(RE, 1), maximum(M.projs[4]))
-    
+
 le = permutedims(CUDA.CuArray(LE[:, M.projs[1], :]), (3, 1, 2))
 b = permutedims(CUDA.CuArray(B[:, M.projs[2], :]), (1, 3, 2))
 re = permutedims(CUDA.CuArray(RE[:, M.projs[3], :]), (3, 1, 2))

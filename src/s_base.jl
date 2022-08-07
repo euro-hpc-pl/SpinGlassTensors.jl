@@ -8,6 +8,7 @@ export
     SparseSiteTensor,
     SparseVirtualTensor,
     SparsePegasusSquareTensor,
+    SparseDiagonalTensor,
     SparseCentralTensor,
     dense_central_tensor,
     IdentityQMps
@@ -31,10 +32,23 @@ struct SparseCentralTensor <: AbstractSparseTensor
     sizes::NTuple{2, Int}
 end
 
+Base.size(M::SparseCentralTensor, n::Int) = M.sizes[n]
+Base.size(M::SparseCentralTensor) = M.sizes
+
 function dense_central_tensor(ten::SparseCentralTensor)
     @cast V[(u1, u2), (d1, d2)] := ten.e11[u1, d1] * ten.e21[u2, d1] * ten.e12[u1, d2] * ten.e22[u2, d2]
     V ./ maximum(V)
 end
+
+struct SparseDiagonalTensor <: AbstractSparseTensor
+    e1::Matrix{<:Real}
+    e2::Matrix{<:Real}
+    sizes::NTuple{2, Int}
+end
+
+Base.size(M::SparseDiagonalTensor, n::Int) = M.sizes[n]
+Base.size(M::SparseDiagonalTensor) = M.sizes
+
 
 #TODO: potentially change name. Used in SquareStar geometry.
 """
@@ -60,7 +74,7 @@ end
 """
 $(TYPEDSIGNATURES)
 """
-const Tensor = Union{AbstractArray{Float64}, SparseSiteTensor, SparseVirtualTensor, SparsePegasusSquareTensor, SparseCentralTensor}
+const Tensor = Union{AbstractArray{Float64}, SparseSiteTensor, SparseVirtualTensor, SparsePegasusSquareTensor, SparseCentralTensor, SparseDiagonalTensor}
 
 #TODO: type of sites
 """

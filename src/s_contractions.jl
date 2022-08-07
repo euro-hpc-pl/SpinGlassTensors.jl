@@ -160,6 +160,17 @@ function contract_up(A::AbstractArray{T, 3}, M::SparseCentralTensor) where T
 end
 
 
+"""
+$(TYPEDSIGNATURES)
+"""
+function contract_up(A::AbstractArray{T, 3}, M::SparseDiagonalTensor) where T
+    @cast AA[l, s1, s2, r] := A[l, (s1, s2), r]  (s1 ∈ 1:size(M.e1, 2))
+    @tensor AA[l, q1, q2, r] := M.e1[q1, s1] * M.e2[q2, s2] * AA[l, s1, s2, r]
+    @cast AA[l, (q1, q2), r] := AA[l, q1, q2, r]
+    AA
+end
+
+
 # function contract_up(A::AbstractArray{T, 3}, B::SparsePegasusSquareTensor) where T
 #     contract_up(A, B.M)
 #     # THIS IS ONLY FOR TESTING SVDTruncate
@@ -195,6 +206,10 @@ $(TYPEDSIGNATURES)
 """
 function contract_up(A::AbstractArray{T, 3}, B::SparseVirtualTensor) where T
     h = B.con
+    if typeof(h) == SparseCentralTensor
+        h = dense_central_tensor(h)
+    end
+
     sal, _, sar = size(A)
 
     p_lb, p_l, p_lt, p_rb, p_r, p_rt = B.projs
@@ -214,10 +229,13 @@ $(TYPEDSIGNATURES)
 """
 function contract_down(A::SparseVirtualTensor, B::AbstractArray{T, 3}) where T
     h = A.con
+    if typeof(h) == SparseCentralTensor
+        h = dense_central_tensor(h)
+    end
     sal, _, sar = size(B)
 
     p_lb, p_l, p_lt, p_rb, p_r, p_rt = A.projs
-    @cast B4[x, k, l, y] := B[x, (k, l), y] (k ∈ 1:maximum(p_lb))
+    @cast B4[x, k, l, y] := B[x, (k, l), y] (k ∈ 1:maximum(p_lt))
 
     C = zeros(sal, length(p_l), maximum(p_rt), maximum(p_lt), sar, length(p_r))
     for l ∈ 1:length(p_l), r ∈ 1:length(p_r)

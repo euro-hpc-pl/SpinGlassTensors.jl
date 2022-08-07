@@ -208,12 +208,7 @@ $(TYPEDSIGNATURES)
 function update_env_left(
     LE::S, M::T, ::Val{:n}
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseCentralTensor}
-    M11 = M.e11
-    M12 = M.e12
-    M21 = M.e21
-    M22 = M.e22
-
-    @cast MM[(l1, l2), (r1, r2)] := M11[l1,r1] * M21[l2, r1] * M12[l1, r2] * M22[l2, r2]
+    MM = dense_central_tensor(M)
     @tensor L[nt, nc, nb] :=  LE[nt, oc, nb] * MM[oc, nc]
     L
 end
@@ -234,12 +229,7 @@ $(TYPEDSIGNATURES)
 function update_env_left(
     LE::S, M::T, ::Val{:c}
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseCentralTensor}
-    M11 = M.e11
-    M12 = M.e12
-    M21 = M.e21
-    M22 = M.e22
-
-    @cast MM[(l1, l2), (r1, r2)] := M11[l1,r1] * M21[l2, r1] * M12[l1, r2] * M22[l2, r2]
+    MM = dense_central_tensor(M)
     @tensor L[nt, nc, nb] :=  LE[nt, oc, nb] * MM[oc, nc]
     L
 end
@@ -283,22 +273,19 @@ function update_env_left(
 
     pr = M.projs[3]
 
-    println("update_env_left ::Val{:n}")
-    @time begin
-        # This is how sparse matrix is represented internally  
-        csrRowPtr = CuArray(collect(1:length(pr) + 1))
-        csrColInd = CuArray(pr)
-        csrNzVal = CUDA.ones(Float64, length(pr))
-        ipr = CUSPARSE.CuSparseMatrixCSC(csrRowPtr, csrColInd, csrNzVal, (maximum(pr), length(pr))) # transposed right here
-        Lr_d = permutedims(Lr_d, (3, 2, 1)) # change dims to make matrix multiplication
-        x, y, z = size(Lr_d)
-        @cast Lr_d[x, (y, z)] := Lr_d[x, y, z]
+    # This is how sparse matrix is represented internally  
+    csrRowPtr = CuArray(collect(1:length(pr) + 1))
+    csrColInd = CuArray(pr)
+    csrNzVal = CUDA.ones(Float64, length(pr))
+    ipr = CUSPARSE.CuSparseMatrixCSC(csrRowPtr, csrColInd, csrNzVal, (maximum(pr), length(pr))) # transposed right here
+    Lr_d = permutedims(Lr_d, (3, 2, 1)) # change dims to make matrix multiplication
+    _, sy, sz = size(Lr_d)
+    @cast Lr_d[x, (y, z)] := Lr_d[x, y, z]
 
-        L = ipr * Lr_d  
-        L = reshape(L, (:, y, z))
-    end
+    L = ipr * Lr_d
+    L = reshape(L, (:, sy, sz))
+
     Array(permutedims(L, (3, 1, 2)))
-
 end
 
 #TODO: This implementation may not be optimal as is not batching matrix multiplication.
@@ -333,7 +320,7 @@ function update_env_left(
     pr, pd = M.projs
     p1l, p2l, p1u, p2u = M.bnd_projs
 
-    @time ipr = cuIdentity(eltype(L), maximum(pr))[pr, :]
+    ipr = cuIdentity(eltype(L), maximum(pr))[pr, :]
     lel1, lel2, leu1, leu2 = CUDA.CuArray.(M.bnd_exp)
 
     A_d = permutedims(CUDA.CuArray(A), (1, 3, 2))
@@ -399,25 +386,21 @@ function update_env_left(
     # for i in 1:maximum(pr)
     #     L[:,:,i] = sum(Lr_d[:, :, pr.==i], dims=3)
     # end
-
-    println("update_env_left ::Val{:c}")
-    @time begin
-        csrRowPtr = CuArray(collect(1:length(pr) + 1))
-        csrColInd = CuArray(pr)
-        csrNzVal = CUDA.ones(Float64, length(pr))
-        ipr = CUSPARSE.CuSparseMatrixCSC(csrRowPtr, csrColInd, csrNzVal, (maximum(pr), length(pr))) # transposed right here
-
-        Lr_d = permutedims(Lr_d, (3, 2, 1)) #(256, 4, 4)
-        _, y, z = size(Lr_d)
-        @cast Lr_d[x, (y, z)] := Lr_d[x, y, z]
-
-        L = ipr * Lr_d  #(16, 16)
-        L = reshape(L, (:, y, z))
-    end
-
-    Array(permutedims(L, (3, 1, 2)) ./ maximum(abs.(L)))
     # Array(permutedims(L, (1, 3, 2)) ./ maximum(abs.(L)))
 
+    csrRowPtr = CuArray(collect(1:length(pr) + 1))
+    csrColInd = CuArray(pr)
+    csrNzVal = CUDA.ones(Float64, length(pr))
+    ipr = CUSPARSE.CuSparseMatrixCSC(csrRowPtr, csrColInd, csrNzVal, (maximum(pr), length(pr))) # transposed right here
+
+    Lr_d = permutedims(Lr_d, (3, 2, 1)) #(256, 4, 4)
+    _, sy, sz = size(Lr_d)
+    @cast Lr_d[x, (y, z)] := Lr_d[x, y, z]
+
+    L = ipr * Lr_d  #(16, 16)
+    L = reshape(L, (:, sy, sz))
+
+    Array(permutedims(L, (3, 1, 2)) ./ maximum(abs.(L)))
 end
 
 """
@@ -468,6 +451,10 @@ function update_env_left(
     LE::S, A::S, M::T, B::S, ::Val{:n}
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseVirtualTensor}
     h = M.con
+    if typeof(h) == SparseCentralTensor
+        h = dense_central_tensor(h)
+    end
+
     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
 
     @cast A4[x, k, l, y] := A[x, (k, l), y] (k ∈ 1:maximum(p_rt))
@@ -490,10 +477,14 @@ function update_env_left(
     LE::S, A::S, M::T, B::S, ::Val{:c}
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseVirtualTensor}
     h = M.con
+    if typeof(h) == SparseCentralTensor
+        h = dense_central_tensor(h)
+    end
+
     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
 
-    @cast A4[x, k, l, y] := A[x, (k, l), y] (k ∈ 1:maximum(p_rt))
-    @cast B4[x, k, l, y] := B[x, (k, l), y] (k ∈ 1:maximum(p_lb))
+    @cast A4[x, k, l, y] := A[x, (k, l), y] (k ∈ 1:maximum(p_lb))
+    @cast B4[x, k, l, y] := B[x, (k, l), y] (k ∈ 1:maximum(p_rt))
 
     L = zeros(size(B, 3), length(p_r), size(A, 3))
     for l ∈ 1:length(p_l), r ∈ 1:length(p_r)
@@ -530,14 +521,18 @@ end
 function _update_tensor_forward_n(
     C::T, B::S
     ) where {S <: AbstractArray{Float64, 3}, T <: SparseCentralTensor}
-    M11 = C.e11
-    M12 = C.e12
-    M21 = C.e21
-    M22 = C.e22
-
-    @cast MM[(l1, l2), (r1, r2)] := M11[l1,r1] * M21[l2, r1] * M12[l1, r2] * M22[l2, r2]
+    MM = dense_central_tensor(C)
     @tensor B[l, x, r] := B[l, y, r] * MM[y, x]
     B
+end
+
+function _update_tensor_forward_n(
+    C::T, B::S
+    ) where {S <: AbstractArray{Float64, 3}, T <: SparseDiagonalTensor}
+    @cast BB[l, s1, s2, r] := B[l, (s1, s2), r]  (s1 ∈ 1:size(C.e1, 1))
+    @tensor BB[l, q1, q2, r] := BB[l, s1, s2, r] * C.e1[s1, q1] * C.e2[s2, q2]
+    @cast BB[l, (q1, q2), r] := BB[l, q1, q2, r]
+    BB
 end
 
 """
@@ -565,14 +560,18 @@ end
 function _update_tensor_forward_c(
     C::T, B::S
     ) where {S <: AbstractArray{Float64, 3}, T <: SparseCentralTensor}
-    M11 = C.e11
-    M12 = C.e12
-    M21 = C.e21
-    M22 = C.e22
-
-    @cast MM[(l1, l2), (r1, r2)] := M11[l1,r1] * M21[l2, r1] * M12[l1, r2] * M22[l2, r2]
+    MM = dense_central_tensor(C)
     @tensor B[l, x, r] := B[l, y, r] * MM[x, y]
     B
+end
+
+function _update_tensor_forward_c(
+    C::T, B::S
+    ) where {S <: AbstractArray{Float64, 3}, T <: SparseDiagonalTensor}
+    @cast BB[l, s1, s2, r] := B[l, (s1, s2), r]  (s1 ∈ 1:size(C.e1, 2))
+    @tensor BB[l, q1, q2, r] := C.e1[q1, s1] * C.e2[q2, s2] * BB[l, s1, s2, r]
+    @cast BB[l, (q1, q2), r] := BB[l, q1, q2, r]
+    BB
 end
 
 """
@@ -599,14 +598,20 @@ end
 function _update_tensor_backwards_n(
     C::T, B::S
     ) where {S <: AbstractArray{Float64, 3}, T <: SparseCentralTensor}
-    M11 = C.e11
-    M12 = C.e12
-    M21 = C.e21
-    M22 = C.e22
-
-    @cast MM[(l1, l2), (r1, r2)] := M11[l1,r1] * M21[l2, r1] * M12[l1, r2] * M22[l2, r2]
+    MM = dense_central_tensor(C)
     @tensor B[l, x, r] := B[l, y, r] * MM[x, y]
 end
+
+
+function _update_tensor_backwards_n(
+    C::T, B::S
+    ) where {S <: AbstractArray{Float64, 3}, T <: SparseDiagonalTensor}
+    @cast BB[l, s1, s2, r] := B[l, (s1, s2), r]  (s1 ∈ 1:size(C.e1, 2))
+    @tensor BB[l, q1, q2, r] := C.e1[q1, s1] * C.e2[q2, s2] * BB[l, s1, s2, r]
+    @cast BB[l, (q1, q2), r] := BB[l, q1, q2, r]
+    BB
+end
+
 
 """
 $(TYPEDSIGNATURES)
@@ -632,14 +637,19 @@ end
 function _update_tensor_backwards_c(
     C::T, B::S
     ) where {S <: AbstractArray{Float64, 3}, T <: SparseCentralTensor}
-    M11 = C.e11
-    M12 = C.e12
-    M21 = C.e21
-    M22 = C.e22
-
-    @cast MM[(l1, l2), (r1, r2)] := M11[l1,r1] * M21[l2, r1] * M12[l1, r2] * M22[l2, r2]
+    MM = dense_central_tensor(C)
     @tensor B[l, x, r] := B[l, y, r] * MM[y, x]
 end
+
+function _update_tensor_backwards_c(
+    C::T, B::S
+    ) where {S <: AbstractArray{Float64, 3}, T <: SparseDiagonalTensor}
+    @cast BB[l, s1, s2, r] := B[l, (s1, s2), r]  (s1 ∈ 1:size(C.e1, 1))
+    @tensor BB[l, q1, q2, r] := BB[l, s1, s2, r] * C.e1[s1, q1] * C.e2[s2, q2]
+    @cast BB[l, (q1, q2), r] := BB[l, q1, q2, r]
+    BB
+end
+
 
 """
 $(TYPEDSIGNATURES)
@@ -685,27 +695,23 @@ function update_env_right(
     Rr_d .*= reshape(CUDA.CuArray(M.loc_exp), 1, 1, :)
     pr = M.projs[1]
 
-    println("update_env_right ::Val{:n}")
-    @time begin
-        csrRowPtr = CuArray(collect(1:length(pr) + 1))
-        csrColInd = CuArray(pr)
-        csrNzVal = CUDA.ones(Float64, length(pr))
-        ipr = CUSPARSE.CuSparseMatrixCSC(csrRowPtr, csrColInd, csrNzVal, (maximum(pr), length(pr))) # transposed right here
+    csrRowPtr = CuArray(collect(1:length(pr) + 1))
+    csrColInd = CuArray(pr)
+    csrNzVal = CUDA.ones(Float64, length(pr))
+    ipr = CUSPARSE.CuSparseMatrixCSC(csrRowPtr, csrColInd, csrNzVal, (maximum(pr), length(pr))) # transposed right here
 
-        Rr_d = permutedims(Rr_d, (3, 2, 1)) 
-        _, y, z = size(Rr_d)
-        @cast Rr_d[x, (y, z)] := Rr_d[x, y, z]
+    Rr_d = permutedims(Rr_d, (3, 2, 1)) 
+    _, sy, sz = size(Rr_d)
+    @cast Rr_d[x, (y, z)] := Rr_d[x, y, z]
 
-        R = ipr * Rr_d  
-        R = reshape(R, (:, y, z))
-    end
-    
+    R = ipr * Rr_d
+    R = reshape(R, (:, sy, sz))
     # for i in 1:maximum(pr)
     #     R[:,:,i] = sum(Rr_d[:, :, pr.==i], dims=3)
     # end
-    
-    Array(permutedims(R, (3, 1, 2)))
     # Array(permutedims(R, (1, 3, 2)))
+
+    Array(permutedims(R, (3, 1, 2)))
 end
 
 # function update_env_right(
@@ -782,43 +788,25 @@ function update_env_right(
     Rr_d .*= reshape(CUDA.CuArray(M.loc_exp), 1, 1, :)
     pr = M.projs[1]
 
-    println("update_env_left ::Val{:c}")
-    @time begin
-        csrRowPtr = CuArray(collect(1:length(pr) + 1))
-        csrColInd = CuArray(pr)
-        csrNzVal = CUDA.ones(Float64, length(pr))
-        ipr = CUSPARSE.CuSparseMatrixCSC(csrRowPtr, csrColInd, csrNzVal, (maximum(pr), length(pr))) # transposed right here
+    csrRowPtr = CuArray(collect(1:length(pr) + 1))
+    csrColInd = CuArray(pr)
+    csrNzVal = CUDA.ones(Float64, length(pr))
+    ipr = CUSPARSE.CuSparseMatrixCSC(csrRowPtr, csrColInd, csrNzVal, (maximum(pr), length(pr))) # transposed right here
 
-        Rr_d = permutedims(Rr_d, (3, 2, 1)) #(256, 4, 4)
-        _, y, z = size(Rr_d)
-        @cast Rr_d[x, (y, z)] := Rr_d[x, y, z]
+    Rr_d = permutedims(Rr_d, (3, 2, 1)) #(256, 4, 4)
+    _, sy, sz = size(Rr_d)
+    @cast Rr_d[x, (y, z)] := Rr_d[x, y, z]
 
-        R = ipr * Rr_d  #(16, 16)
-        R = reshape(R, (:, y, z))
-    end
+    R = ipr * Rr_d  #(16, 16)
+    R = reshape(R, (:, sy, sz))
 
-    
     # for i in 1:maximum(pr)
     #     R[:,:,i] = sum(Rr_d[:, :, pr.==i], dims=3)
     # end
-    
-    Array(permutedims(R, (3, 1, 2)))
     # Array(permutedims(R, (1, 3, 2)))
+
+    Array(permutedims(R, (3, 1, 2)))
 end
-
-# function update_env_right(
-#     RE::S, A::S, M::T, B::S, ::Val{:c}
-# ) where {T <: SparseSiteTensor, S <: AbstractArray{Float64, 3}}
-#     R = zeros(size(A, 1), maximum(M.projs[1]), size(B, 1))
-
-#     for (σ, lexp) ∈ enumerate(M.loc_exp)
-#         AA = @inbounds @view A[:, M.projs[4][σ], :]
-#         RR = @inbounds @view RE[:, M.projs[3][σ], :]
-#         BB = @inbounds @view B[:, M.projs[2][σ], :]
-#         @inbounds R[:, M.projs[1][σ], :] += lexp .* (AA * RR * BB')
-#     end
-#     R
-# end
 
 
 """
@@ -871,6 +859,9 @@ function update_env_right(
     RE::S, A::S, M::T, B::S, ::Val{:n}
 ) where {T <: SparseVirtualTensor, S <: AbstractArray{Float64,3}}
     h = M.con
+    if typeof(h) == SparseCentralTensor
+        h = dense_central_tensor(h)
+    end
     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
     @cast A4[x, k, l, y] := A[x, (k, l), y] (k ∈ 1:maximum(p_rt))
     @cast B4[x, k, l, y] := B[x, (k, l), y] (k ∈ 1:maximum(p_lb))
@@ -892,9 +883,12 @@ function update_env_right(
     RE::S, A::S, M::T, B::S, ::Val{:c}
 ) where {T <: SparseVirtualTensor, S <: AbstractArray{Float64, 3}}
     h = M.con
+    if typeof(h) == SparseCentralTensor
+        h = dense_central_tensor(h)
+    end
     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
-    @cast A4[x, k, l, y] := A[x, (k, l), y] (k ∈ 1:maximum(p_rt))
-    @cast B4[x, k, l, y] := B[x, (k, l), y] (k ∈ 1:maximum(p_lb))
+    @cast A4[x, k, l, y] := A[x, (k, l), y] (k ∈ 1:maximum(p_lb))
+    @cast B4[x, k, l, y] := B[x, (k, l), y] (k ∈ 1:maximum(p_rt))
 
     R = zeros(size(A, 1), length(p_l), size(B, 1))
     for l ∈ 1:length(p_l), r ∈ 1:length(p_r)
@@ -942,13 +936,7 @@ end
 function update_env_right(
     RE::S, M::T, ::Val{:c}
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseCentralTensor}
-    M11 = M.e11
-    M12 = M.e12
-    M21 = M.e21
-    M22 = M.e22
-
-    @cast MM[(l1, l2), (r1, r2)] := M11[l1,r1] * M21[l2, r1] * M12[l1, r2] * M22[l2, r2]
-
+    MM = dense_central_tensor(M)
     @tensor R[nt, nc, nb] := MM[nc, oc] * RE[nt, oc, nb]
     R
 end
@@ -969,13 +957,7 @@ $(TYPEDSIGNATURES)
 function update_env_right(
     RE::S, M::T, ::Val{:n}
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseCentralTensor}
-    M11 = M.e11
-    M12 = M.e12
-    M21 = M.e21
-    M22 = M.e22
-
-    @cast MM[(l1, l2), (r1, r2)] := M11[l1,r1] * M21[l2, r1] * M12[l1, r2] * M22[l2, r2]
-
+    MM = dense_central_tensor(M)
     @tensor R[nt, nc, nb] := MM[nc, oc] * RE[nt, oc, nb]
     R
 end
@@ -1061,13 +1043,7 @@ $(TYPEDSIGNATURES)
 function project_ket_on_bra(
     LE::S, B::S, M::T, RE::S, ::Val{:n}
 ) where {T <: SparseCentralTensor, S <: AbstractArray{Float64, 3}}
-    M11 = M.e11
-    M12 = M.e12
-    M21 = M.e21
-    M22 = M.e22
-
-    @cast MM[(l1, l2), (r1, r2)] := M11[l1,r1] * M21[l2, r1] * M12[l1, r2] * M22[l2, r2]
-
+    MM = dense_central_tensor(M)
     @tensor A[x, y, z] := B[x, a, z] * MM[y, a]
     A
 end
@@ -1076,18 +1052,38 @@ end
 $(TYPEDSIGNATURES)
 """
 function project_ket_on_bra(
+    LE::S, B::S, M::T, RE::S, ::Val{:n}
+) where {T <: SparseDiagonalTensor, S <: AbstractArray{Float64, 3}}
+    @cast BB[l, s1, s2, r] := B[l, (s1, s2), r]  (s1 ∈ 1:size(M.e1, 2))
+    @tensor BB[l, q1, q2, r] := M.e1[q1, s1] * M.e2[q2, s2] * BB[l, s1, s2, r]
+    @cast BB[l, (q1, q2), r] := BB[l, q1, q2, r]
+    BB
+end
+
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function project_ket_on_bra(
     LE::S, B::S, M::T, RE::S, ::Val{:c}
 ) where {T <: SparseCentralTensor, S <: AbstractArray{Float64, 3}}
-    M11 = M.e11
-    M12 = M.e12
-    M21 = M.e21
-    M22 = M.e22
-
-    @cast MM[(l1, l2), (r1, r2)] := M11[l1,r1] * M21[l2, r1] * M12[l1, r2] * M22[l2, r2]
-
+    MM = dense_central_tensor(M)
     @tensor A[x, y, z] := B[x, a, z] * MM[a, y]
     A
 end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function project_ket_on_bra(
+    LE::S, B::S, M::T, RE::S, ::Val{:c}
+) where {T <: SparseDiagonalTensor, S <: AbstractArray{Float64, 3}}
+    @cast BB[l, s1, s2, r] := B[l, (s1, s2), r]  (s1 ∈ 1:size(M.e1, 1))
+    @tensor BB[l, q1, q2, r] := BB[l, s1, s2, r] * M.e1[s1, q1] * M.e2[s2, q2]
+    @cast BB[l, (q1, q2), r] := BB[l, q1, q2, r]
+    BB
+end
+
 
 """
 $(TYPEDSIGNATURES)
@@ -1111,21 +1107,18 @@ function project_ket_on_bra(
     # end
     # Array(permutedims(A, (1, 3, 2)))
 
-    println("project_ket_on_bra ::Val{:n}")
-    @time begin
-        csrRowPtr = CuArray(collect(1:length(pu) + 1))
-        csrColInd = CuArray(pu)
-        csrNzVal = CUDA.ones(Float64, length(pu))
-        ipu = CUSPARSE.CuSparseMatrixCSC(csrRowPtr, csrColInd, csrNzVal, (maximum(pu), length(pu))) # transposed right here
+    csrRowPtr = CuArray(collect(1:length(pu) + 1))
+    csrColInd = CuArray(pu)
+    csrNzVal = CUDA.ones(Float64, length(pu))
+    ipu = CUSPARSE.CuSparseMatrixCSC(csrRowPtr, csrColInd, csrNzVal, (maximum(pu), length(pu))) # transposed right here
 
-        Ar_d = permutedims(Ar_d, (3, 2, 1)) #(256, 4, 4)
-        _, y, z = size(Ar_d)
-        @cast Ar_d[x, (y, z)] := Ar_d[x, y, z]
+    Ar_d = permutedims(Ar_d, (3, 2, 1)) #(256, 4, 4)
+    _, sy, sz = size(Ar_d)
+    @cast Ar_d[x, (y, z)] := Ar_d[x, y, z]
 
-        A = ipu * Ar_d  #(16, 16)
-        A = reshape(A, (:, y, z))
-    end
-    
+    A = ipu * Ar_d  #(16, 16)
+    A = reshape(A, (:, sy, sz))
+
     Array(permutedims(A, (3, 1, 2)))
 end
 
@@ -1191,6 +1184,9 @@ function project_ket_on_bra(
     LE::S, B::S, M::T, RE::S, ::Val{:n}
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseVirtualTensor}
     h = M.con
+    if typeof(h) == SparseCentralTensor
+        h = dense_central_tensor(h)
+    end
     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
     @cast B4[x, k, l, y] := B[x, (k, l), y] (k ∈ 1:maximum(p_lb))
 
@@ -1316,8 +1312,11 @@ function project_ket_on_bra(
     LE::S, B::S, M::T, RE::S, ::Val{:c}
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseVirtualTensor}
     h = M.con
+    if typeof(h) == SparseCentralTensor
+        h = dense_central_tensor(h)
+    end
     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
-    @cast B4[x, k, l, y] := B[x, (k, l), y] (k ∈ 1:maximum(p_lb))
+    @cast B4[x, k, l, y] := B[x, (k, l), y] (k ∈ 1:maximum(p_rt))
 
     A = zeros(size(LE, 3), maximum(p_lb), maximum(p_rb), size(RE, 1))
     for l ∈ 1:length(p_l), r ∈ 1:length(p_r)

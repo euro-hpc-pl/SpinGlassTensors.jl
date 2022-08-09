@@ -128,6 +128,30 @@ function contract_down(A::AbstractArray{T, 4}, B::AbstractArray{T, 3}) where T
     C
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
+function contract_down(M::SparseCentralTensor, A::AbstractArray{T, 3}) where T
+    M11 = M.e11
+    M12 = M.e12
+    M21 = M.e21
+    M22 = M.e22
+
+    @cast MM[(l1, l2), (r1, r2)] := M11[l1,r1] * M21[l2, r1] * M12[l1, r2] * M22[l2, r2]
+    @tensor C[l, d, r] := MM[σ, d] * A[l, σ, r]
+    C
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function contract_down(M::SparseDiagonalTensor, A::AbstractArray{T, 3}) where T
+    @cast AA[l, s1, s2, r] := A[l, (s1, s2), r]  (s1 ∈ 1:size(M.e2, 1))
+    @tensor AA[l, s1, s2, r] := M.e1[q1, s1] * M.e2[q2, s2] * AA[l, q2, q1, r]
+    @cast AA[l, (s1, s2), r] := AA[l, s1, s2, r]
+    AA
+end
+
 # TODO: improve performance
 """
 $(TYPEDSIGNATURES)
@@ -164,8 +188,12 @@ end
 $(TYPEDSIGNATURES)
 """
 function contract_up(A::AbstractArray{T, 3}, M::SparseDiagonalTensor) where T
-    @cast AA[l, s1, s2, r] := A[l, (s1, s2), r]  (s1 ∈ 1:size(M.e1, 2))
-    @tensor AA[l, q1, q2, r] := M.e1[q1, s1] * M.e2[q2, s2] * AA[l, s1, s2, r]
+    # @cast AA[l, s1, s2, r] := A[l, (s1, s2), r]  (s1 ∈ 1:size(M.e1, 2))
+    # @tensor AA[l, q1, q2, r] := M.e1[q1, s1] * M.e2[q2, s2] * AA[l, s1, s2, r]
+    # @cast AA[l, (q1, q2), r] := AA[l, q1, q2, r]
+    # AA
+    @cast AA[l, s1, s2, r] := A[l, (s1, s2), r]  (s1 ∈ 1:size(M.e2, 2))
+    @tensor AA[l, q1, q2, r] := M.e1[q1, s1] * M.e2[q2, s2] * AA[l, s2, s1, r]
     @cast AA[l, (q1, q2), r] := AA[l, q1, q2, r]
     AA
 end
@@ -215,10 +243,14 @@ function contract_up(A::AbstractArray{T, 3}, B::SparseVirtualTensor) where T
     p_lb, p_l, p_lt, p_rb, p_r, p_rt = B.projs
     @cast A4[x, k, l, y] := A[x, (k, l), y] (k ∈ 1:maximum(p_lb))
 
-    C = zeros(sal, length(p_l), maximum(p_rt), maximum(p_lt), sar, length(p_r))
+    #C = zeros(sal, length(p_l), maximum(p_rt), maximum(p_lt), sar, length(p_r))
+    C = zeros(sal, length(p_l), maximum(p_lt), maximum(p_rt), sar, length(p_r))
+
     for l ∈ 1:length(p_l), r ∈ 1:length(p_r)
         AA = @inbounds @view A4[:, p_lb[l], p_rb[r], :]
-        @inbounds C[:, l, p_rt[r], p_lt[l], :, r] += h[p_l[l], p_r[r]] .* AA
+        @inbounds C[:, l, p_lt[l], p_rt[r], :, r] += h[p_l[l], p_r[r]] .* AA
+        #@inbounds C[:, l, p_rt[r], p_lt[l], :, r] += h[p_l[l], p_r[r]] .* AA
+
     end
     @cast CC[(x, y), (t1, t2), (b, a)] := C[x, y, t1, t2, b, a]
     CC
@@ -237,9 +269,13 @@ function contract_down(A::SparseVirtualTensor, B::AbstractArray{T, 3}) where T
     p_lb, p_l, p_lt, p_rb, p_r, p_rt = A.projs
     @cast B4[x, k, l, y] := B[x, (k, l), y] (k ∈ 1:maximum(p_lt))
 
-    C = zeros(sal, length(p_l), maximum(p_rt), maximum(p_lt), sar, length(p_r))
+    C = zeros(sal, length(p_l), maximum(p_lt), maximum(p_rt), sar, length(p_r))
+    #C = zeros(sal, length(p_l), maximum(p_rt), maximum(p_lt), sar, length(p_r))
+
     for l ∈ 1:length(p_l), r ∈ 1:length(p_r)
+        #BB = @inbounds @view B4[:, p_rt[r], p_lt[l], :]
         BB = @inbounds @view B4[:, p_lt[l], p_rt[r], :]
+
         @inbounds C[:, l, p_rb[r], p_lb[l], :, r] += h[p_l[l], p_r[r]] .* BB
     end
     @cast CC[(x, y), (t1, t2), (b, a)] := C[x, y, t1, t2, b, a]

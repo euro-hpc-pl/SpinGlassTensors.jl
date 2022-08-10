@@ -262,12 +262,12 @@ function contract_down(A::SparseVirtualTensor, B::AbstractArray{T, 3}) where T
     p_lb, p_l, p_lt, p_rb, p_r, p_rt = A.projs
     @cast B4[x, k, l, y] := B[x, (k, l), y] (k ∈ 1:maximum(p_lt))
 
-    C = zeros(sal, length(p_l), maximum(p_lt), maximum(p_rt), sar, length(p_r))
+    C = zeros(sal, length(p_l), maximum(p_lb), maximum(p_rb), sar, length(p_r))
 
     for l ∈ 1:length(p_l), r ∈ 1:length(p_r)
         BB = @inbounds @view B4[:, p_lt[l], p_rt[r], :]
 
-        @inbounds C[:, l, p_rb[r], p_lb[l], :, r] += h[p_l[l], p_r[r]] .* BB
+        @inbounds C[:, l, p_lb[l], p_rb[r], :, r] += h[p_l[l], p_r[r]] .* BB
     end
     @cast CC[(x, y), (t1, t2), (b, a)] := C[x, y, t1, t2, b, a]
     CC

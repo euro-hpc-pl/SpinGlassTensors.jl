@@ -468,17 +468,6 @@ function update_env_left(
     end
     L
 
-    # @cast A4[x, k, l, y] := A[x, (k, l), y] (k ∈ 1:maximum(p_rt))
-    # @cast B4[x, k, l, y] := B[x, (k, l), y] (k ∈ 1:maximum(p_lb))
-
-    # L = zeros(size(B, 3), length(p_r), size(A, 3))
-    # for l ∈ 1:length(p_l), r ∈ 1:length(p_r)
-    #     AA = @inbounds @view A4[:, p_rt[r], p_lt[l], :]
-    #     LL = @inbounds @view LE[:, l, :]
-    #     BB = @inbounds @view B4[:, p_lb[l], p_rb[r], :]
-    #     @inbounds L[:, r, :] += h[p_l[l], p_r[r]] .* (BB' * LL * AA)
-    # end
-    # L
 end
 
 """
@@ -496,14 +485,12 @@ function update_env_left(
 
     @cast A4[x, k, l, y] := A[x, (k, l), y] (k ∈ 1:maximum(p_lb))
     @cast B4[x, k, l, y] := B[x, (k, l), y] (k ∈ 1:maximum(p_lt))
-    #@cast B4[x, k, l, y] := B[x, (k, l), y] (k ∈ 1:maximum(p_rt))
 
     L = zeros(size(B, 3), length(p_r), size(A, 3))
     for l ∈ 1:length(p_l), r ∈ 1:length(p_r)
         AA = @inbounds @view A4[:, p_lb[l], p_rb[r], :]
         LL = @inbounds @view LE[:, l, :]
         BB = @inbounds @view B4[:, p_lt[l], p_rt[r], :]
-        #BB = @inbounds @view B4[:, p_rt[r], p_lt[l], :]
         @inbounds L[:, r, :] += h[p_l[l], p_r[r]] .* (BB' * LL * AA)
     end
     L
@@ -545,7 +532,7 @@ function _update_tensor_forward_n(
     @cast BB[l, s1, s2, r] := B[l, (s1, s2), r]  (s1 ∈ 1:size(C.e1, 1))
     @tensor CC[l, q2, q1, r] := BB[l, s1, s2, r] * C.e1[s1, q1] * C.e2[s2, q2]
     @cast CC[l, (q2, q1), r] := CC[l, q2, q1, r]
-    BB
+    CC
 end
 
 """
@@ -619,15 +606,10 @@ end
 function _update_tensor_backwards_n(
     C::T, B::S
     ) where {S <: AbstractArray{Float64, 3}, T <: SparseDiagonalTensor}
-    
-    @cast BB[l, s1, s2, r] := B[l, (s1, s2), r]  (s1 ∈ 1:size(C.e2, 2))
-    @tensor BB[l, q1, q2, r] := BB[l, s2, s1, r] * C.e1[q1, s1] * C.e2[q2, s2]
-    @cast BB[l, (q1, q2), r] := BB[l, q1, q2, r]
-
-    # @cast BB[l, s1, s2, r] := B[l, (s1, s2), r]  (s1 ∈ 1:size(C.e1, 2))
-    # @tensor BB[l, q1, q2, r] := C.e1[q1, s1] * C.e2[q2, s2] * BB[l, s2, s1, r]
-    # @cast BB[l, (q1, q2), r] := BB[l, q1, q2, r]
-    BB
+    @cast BB[l, s2, s1, r] := B[l, (s2, s1), r]  (s2 ∈ 1:size(C.e2, 2))
+    @tensor CC[l, q1, q2, r] := C.e1[q1, s1] * C.e2[q2, s2] * BB[l, s2, s1, r]
+    @cast CC[l, (q1, q2), r] := CC[l, q1, q2, r]
+    CC
 end
 
 
@@ -662,14 +644,10 @@ end
 function _update_tensor_backwards_c(
     C::T, B::S
     ) where {S <: AbstractArray{Float64, 3}, T <: SparseDiagonalTensor}
-    @cast BB[l, s1, s2, r] := B[l, (s1, s2), r]  (s1 ∈ 1:size(C.e2, 1))
-    @tensor BB[l, s1, s2, r] := C.e1[q1, s1] * C.e2[q2, s2] * BB[l, q2, q1, r]
-    @cast BB[l, (s1, s2), r] := BB[l, s1, s2, r]
-
-    # @cast BB[l, s1, s2, r] := B[l, (s1, s2), r]  (s1 ∈ 1:size(C.e1, 1))
-    # @tensor BB[l, q1, q2, r] := BB[l, s1, s2, r] * C.e1[s1, q1] * C.e2[s2, q2]
-    # @cast BB[l, (q1, q2), r] := BB[l, q1, q2, r]
-    BB
+    @cast BB[l, s1, s2, r] := B[l, (s1, s2), r]  (s1 ∈ 1:size(C.e1, 1))
+    @tensor CC[l, q2, q1, r] := BB[l, s1, s2, r] * C.e1[s1, q1] * C.e2[s2, q2]
+    @cast CC[l, (q2, q1), r] := CC[l, q2, q1, r]
+    CC
 end
 
 
@@ -886,13 +864,11 @@ function update_env_right(
     end
     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
     @cast A4[x, k, l, y] := A[x, (k, l), y] (k ∈ 1:maximum(p_lt))
-    #@cast A4[x, k, l, y] := A[x, (k, l), y] (k ∈ 1:maximum(p_rt))
     @cast B4[x, k, l, y] := B[x, (k, l), y] (k ∈ 1:maximum(p_lb))
 
     R = zeros(size(A, 1), length(p_l), size(B, 1))
     for l ∈ 1:length(p_l), r ∈ 1:length(p_r)
         AA = @inbounds @view A4[:, p_lt[l], p_rt[r], :]
-        #AA = @inbounds @view A4[:, p_rt[r], p_lt[l], :]
         RR = @inbounds @view RE[:, r, :]
         BB = @inbounds @view B4[:, p_lb[l], p_rb[r], :]
         @inbounds R[:, l, :] += h[p_l[l], p_r[r]] * (AA * RR * BB')
@@ -912,7 +888,6 @@ function update_env_right(
     end
     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
     @cast A4[x, k, l, y] := A[x, (k, l), y] (k ∈ 1:maximum(p_lb))
-    #@cast B4[x, k, l, y] := B[x, (k, l), y] (k ∈ 1:maximum(p_rt))
     @cast B4[x, k, l, y] := B[x, (k, l), y] (k ∈ 1:maximum(p_lt))
 
     R = zeros(size(A, 1), length(p_l), size(B, 1))
@@ -920,7 +895,6 @@ function update_env_right(
         AA = @inbounds @view A4[:, p_lb[l], p_rb[r], :]
         RR = @inbounds @view RE[:, r, :]
         BB = @inbounds @view B4[:, p_lt[l], p_rt[r], :]
-        #BB = @inbounds @view B4[:, p_rt[r], p_lt[l], :]
         @inbounds R[:, l, :] += h[p_l[l], p_r[r]] * (AA * RR * BB')
     end
     R
@@ -1080,13 +1054,10 @@ $(TYPEDSIGNATURES)
 function project_ket_on_bra(
     LE::S, B::S, M::T, RE::S, ::Val{:n}
 ) where {T <: SparseDiagonalTensor, S <: AbstractArray{Float64, 3}}
-    @cast BB[l, s1, s2, r] := B[l, (s1, s2), r]  (s1 ∈ 1:size(M.e2, 2))
-    @tensor BB[l, q1, q2, r] := BB[l, s2, s1, r] * M.e1[q1, s1] * M.e2[q2, s2]
-    @cast BB[l, (q1, q2), r] := BB[l, q1, q2, r]
-    # @cast BB[l, s1, s2, r] := B[l, (s1, s2), r]  (s1 ∈ 1:size(M.e1, 2))
-    # @tensor BB[l, q1, q2, r] := M.e1[q1, s1] * M.e2[q2, s2] * BB[l, s1, s2, r]
-    # @cast BB[l, (q1, q2), r] := BB[l, q1, q2, r]
-    BB
+    @cast BB[l, s2, s1, r] := B[l, (s2, s1), r]  (s2 ∈ 1:size(M.e2, 2))
+    @tensor CC[l, q1, q2, r] := M.e1[q1, s1] * M.e2[q2, s2] * BB[l, s2, s1, r]
+    @cast CC[l, (q1, q2), r] := CC[l, q1, q2, r]   
+    CC
 end
 
 
@@ -1107,14 +1078,10 @@ $(TYPEDSIGNATURES)
 function project_ket_on_bra(
     LE::S, B::S, M::T, RE::S, ::Val{:c}
 ) where {T <: SparseDiagonalTensor, S <: AbstractArray{Float64, 3}}
-    @cast BB[l, s1, s2, r] := B[l, (s1, s2), r]  (s1 ∈ 1:size(M.e2, 1))
-    @tensor BB[l, s1, s2, r] := M.e1[q1, s1] * M.e2[q2, s2] * BB[l, q2, q1, r]
-    @cast BB[l, (s1, s2), r] := BB[l, s1, s2, r]
-
-    # @cast BB[l, s1, s2, r] := B[l, (s1, s2), r]  (s1 ∈ 1:size(M.e1, 1))
-    # @tensor BB[l, q1, q2, r] := BB[l, s1, s2, r] * M.e1[s1, q1] * M.e2[s2, q2]
-    # @cast BB[l, (q1, q2), r] := BB[l, q1, q2, r]
-    BB
+    @cast BB[l, s1, s2, r] := B[l, (s1, s2), r]  (s1 ∈ 1:size(M.e1, 1))
+    @tensor CC[l, q2, q1, r] := BB[l, s1, s2, r] * M.e1[s1, q1] * M.e2[s2, q2]
+    @cast CC[l, (q2, q1), r] := CC[l, q2, q1, r]    
+    CC
 end
 
 
@@ -1224,14 +1191,12 @@ function project_ket_on_bra(
     @cast B4[x, k, l, y] := B[x, (k, l), y] (k ∈ 1:maximum(p_lb))
 
     A = zeros(size(LE, 3), maximum(p_lt), maximum(p_rt), size(RE, 1))
-    #A = zeros(size(LE, 3), maximum(p_rt), maximum(p_lt), size(RE, 1))
 
     for l ∈ 1:length(p_l), r ∈ 1:length(p_r)
         le = @inbounds @view LE[:, l, :]
         b = @inbounds @view B4[:, p_lb[l], p_rb[r], :]
         re = @inbounds @view RE[:, r, :]
         @inbounds A[:,  p_lt[l], p_rt[r], :] += h[p_l[l], p_r[r]] .* (le' * b * re')
-        #@inbounds A[:,  p_rt[r], p_lt[l], :] += h[p_l[l], p_r[r]] .* (le' * b * re')
 
     end
     @cast AA[l, (ũ, u), r] := A[l, ũ, u, r]
@@ -1354,13 +1319,11 @@ function project_ket_on_bra(
     end
     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
     @cast B4[x, k, l, y] := B[x, (k, l), y] (k ∈ 1:maximum(p_lt))
-    #@cast B4[x, k, l, y] := B[x, (k, l), y] (k ∈ 1:maximum(p_rt))
 
     A = zeros(size(LE, 3), maximum(p_lb), maximum(p_rb), size(RE, 1))
     for l ∈ 1:length(p_l), r ∈ 1:length(p_r)
         le = @inbounds @view LE[:, l, :]
         b = @inbounds @view B4[:, p_lt[l], p_rt[r], :]
-        #b = @inbounds @view B4[:, p_rt[r], p_lt[l], :]
         re = @inbounds @view RE[:, r, :]
         @inbounds  A[:, p_lb[l], p_rb[r], :] += h[p_l[l], p_r[r]] .* (le' * b * re')
     end

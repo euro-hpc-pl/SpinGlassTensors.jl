@@ -542,13 +542,9 @@ end
 function _update_tensor_forward_n(
     C::T, B::S
     ) where {S <: AbstractArray{Float64, 3}, T <: SparseDiagonalTensor}
-    
-    @cast BB[l, s1, s2, r] := B[l, (s1, s2), r]  (s1 ∈ 1:size(C.e2, 1))
-    @tensor BB[l, s1, s2, r] := C.e1[q1, s1] * C.e2[q2, s2] * BB[l, q2, q1, r]
-    @cast BB[l, (s1, s2), r] := BB[l, s1, s2, r]
-    # @cast BB[l, s1, s2, r] := B[l, (s1, s2), r]  (s1 ∈ 1:size(C.e1, 1))
-    # @tensor BB[l, q1, q2, r] := BB[l, s1, s2, r] * C.e1[s1, q1] * C.e2[s2, q2]
-    # @cast BB[l, (q1, q2), r] := BB[l, q1, q2, r]
+    @cast BB[l, s1, s2, r] := B[l, (s1, s2), r]  (s1 ∈ 1:size(C.e1, 1))
+    @tensor CC[l, q2, q1, r] := BB[l, s1, s2, r] * C.e1[s1, q1] * C.e2[s2, q2]
+    @cast CC[l, (q2, q1), r] := CC[l, q2, q1, r]
     BB
 end
 
@@ -578,20 +574,17 @@ function _update_tensor_forward_c(
     C::T, B::S
     ) where {S <: AbstractArray{Float64, 3}, T <: SparseCentralTensor}
     MM = dense_central_tensor(C)
-    @tensor B[l, x, r] := B[l, y, r] * MM[x, y]
+    @tensor B[l, x, r] := MM[x, y] * B[l, y, r]
     B
 end
 
 function _update_tensor_forward_c(
     C::T, B::S
     ) where {S <: AbstractArray{Float64, 3}, T <: SparseDiagonalTensor}
-    @cast BB[l, s1, s2, r] := B[l, (s1, s2), r]  (s1 ∈ 1:size(C.e2, 2))
-    @tensor BB[l, q1, q2, r] := BB[l, s2, s1, r] * C.e1[q1, s1] * C.e2[q2, s2]
-    @cast BB[l, (q1, q2), r] := BB[l, q1, q2, r]
-    # @cast BB[l, s1, s2, r] := B[l, (s1, s2), r]  (s1 ∈ 1:size(C.e1, 2))
-    # @tensor BB[l, q1, q2, r] := C.e1[q1, s1] * C.e2[q2, s2] * BB[l, s1, s2, r]
-    # @cast BB[l, (q1, q2), r] := BB[l, q1, q2, r]
-    BB
+    @cast BB[l, s2, s1, r] := B[l, (s2, s1), r]  (s2 ∈ 1:size(C.e2, 2))
+    @tensor CC[l, q1, q2, r] := C.e1[q1, s1] * C.e2[q2, s2] * BB[l, s2, s1, r]
+    @cast CC[l, (q1, q2), r] := CC[l, q1, q2, r]
+    CC
 end
 
 """

@@ -99,6 +99,15 @@ end
 """
 $(TYPEDSIGNATURES)
 """
+function contract_left(A::AbstractArray{T, 3}, M::SparseCentralTensor) where T
+    B = dense_central_tensor(M)
+    @matmul C[(x, y), u, r] := sum(σ) B[y, σ] * A[(x, σ), u, r] (σ ∈ 1:size(B, 2))
+    C
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
 function contract_up(A::AbstractArray{T, 3}, B::AbstractArray{T, 2}) where T
     @tensor C[l, u, r] := B[u, σ] * A[l, σ, r]
     C
@@ -132,12 +141,7 @@ end
 $(TYPEDSIGNATURES)
 """
 function contract_down(M::SparseCentralTensor, A::AbstractArray{T, 3}) where T
-    M11 = M.e11
-    M12 = M.e12
-    M21 = M.e21
-    M22 = M.e22
-
-    @cast MM[(l1, l2), (r1, r2)] := M11[l1,r1] * M21[l2, r1] * M12[l1, r2] * M22[l2, r2]
+    MM = dense_central_tensor(M)
     @tensor C[l, d, r] := MM[σ, d] * A[l, σ, r]
     C
 end
@@ -173,12 +177,7 @@ end
 $(TYPEDSIGNATURES)
 """
 function contract_up(A::AbstractArray{T, 3}, M::SparseCentralTensor) where T
-    M11 = M.e11
-    M12 = M.e12
-    M21 = M.e21
-    M22 = M.e22
-
-    @cast MM[(l1, l2), (r1, r2)] := M11[l1,r1] * M21[l2, r1] * M12[l1, r2] * M22[l2, r2]
+    MM = dense_central_tensor(M)
     @tensor C[l, u, r] := MM[u, σ] * A[l, σ, r]
     C
 end

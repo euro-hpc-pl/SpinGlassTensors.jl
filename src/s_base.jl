@@ -7,7 +7,6 @@ export
     Tensor,
     SparseSiteTensor,
     SparseVirtualTensor,
-    SparsePegasusSquareTensor,
     SparseDiagonalTensor,
     SparseCentralTensor,
     dense_central_tensor,
@@ -60,21 +59,11 @@ struct SparseVirtualTensor <: AbstractSparseTensor
 end
 
 
-"""
-$(TYPEDSIGNATURES)
-"""
-struct SparsePegasusSquareTensor <: AbstractSparseTensor
-    projs::Vector{Vector{Int}}
-    loc_exp::Matrix{<:Real}
-    bnd_exp::Vector{Matrix{<:Real}}
-    bnd_projs::Vector{Vector{Int}}
-    sizes::NTuple{4, Int}
-end
 
 """
 $(TYPEDSIGNATURES)
 """
-const Tensor = Union{AbstractArray{Float64}, SparseSiteTensor, SparseVirtualTensor, SparsePegasusSquareTensor, SparseCentralTensor, SparseDiagonalTensor}
+const Tensor = Union{AbstractArray{Float64}, SparseSiteTensor, SparseVirtualTensor, SparseCentralTensor, SparseDiagonalTensor}
 
 #TODO: type of sites
 """

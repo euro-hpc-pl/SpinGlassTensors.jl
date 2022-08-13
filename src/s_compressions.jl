@@ -262,37 +262,44 @@ $(TYPEDSIGNATURES)
 function update_env_left(
     LE::S, A::S, M::T, B::S, ::Val{:n}
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
-    L = CUDA.zeros(eltype(LE), size(B, 3), size(A, 3), maximum(M.projs[3]))
 
-    A_d = permutedims(CUDA.CuArray(A[:, M.projs[2], :]), (1, 3, 2))
-    L_d = permutedims(CUDA.CuArray(LE[:, M.projs[1], :]), (1, 3, 2))
-    B_d = permutedims(CUDA.CuArray(B[:, M.projs[4], :]), (3, 1, 2))
+    total_size = length(M.projs[1])
+    batch_size = min(2^20, total_size)
+    from = 1
 
-    Lr_d = B_d ⊠ L_d ⊠ A_d
-    Lr_d .*= reshape(CUDA.CuArray(M.loc_exp), 1, 1, :)
+    L = CUDA.zeros(eltype(LE),  maximum(M.projs[3]), size(B, 3), size(A, 3))
+    while from <= total_size
+        to = min(total_size, from + batch_size - 1)
 
-    pr = M.projs[3]
+        A_d = permutedims(CUDA.CuArray(A[:, M.projs[2][from : to], :]), (1, 3, 2))
+        L_d = permutedims(CUDA.CuArray(LE[:, M.projs[1][from : to], :]), (1, 3, 2))
+        B_d = permutedims(CUDA.CuArray(B[:, M.projs[4][from : to], :]), (3, 1, 2))
 
-    # This is how sparse matrix is represented internally  
-    csrRowPtr = CuArray(collect(1:length(pr) + 1))
-    csrColInd = CuArray(pr)
-    csrNzVal = CUDA.ones(Float64, length(pr))
-    ipr = CUSPARSE.CuSparseMatrixCSC(csrRowPtr, csrColInd, csrNzVal, (maximum(pr), length(pr))) # transposed right here
-    Lr_d = permutedims(Lr_d, (3, 2, 1)) # change dims to make matrix multiplication
-    _, sy, sz = size(Lr_d)
-    @cast Lr_d[x, (y, z)] := Lr_d[x, y, z]
+        Lr_d = B_d ⊠ L_d ⊠ A_d
+        Lr_d .*= reshape(CUDA.CuArray(M.loc_exp[from:to]), 1, 1, :)
 
-    L = ipr * Lr_d
-    L = reshape(L, (:, sy, sz))
+        pr = M.projs[3][from:to]
 
-    Array(permutedims(L, (3, 1, 2)))
+        # This is how sparse matrix is represented internally
+        csrRowPtr = CuArray(collect(1:length(pr) + 1))
+        csrColInd = CuArray(pr)
+        csrNzVal = CUDA.ones(Float64, length(pr))
+        ipr = CUSPARSE.CuSparseMatrixCSC(csrRowPtr, csrColInd, csrNzVal, (maximum(M.projs[3]), length(pr))) # transposed right here
+        sb, st, _ = size(Lr_d)
+        @cast Lr_d[(x, y), z] := Lr_d[x, y, z]
+        L = L .+ reshape(ipr * Lr_d', (:, sb, st))
+        from = to + 1
+    end
+
+    Array(permutedims(L, (2, 1, 3)))
 end
 
 
 function update_env_left(
     LE::S, A::S, M::T, B::S, ::Val{:c}
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
-    L = CUDA.zeros(eltype(LE), size(B, 3), size(A, 3), maximum(M.projs[3]))
+
+    L = CUDA.zeros(eltype(LE), maximum(M.projs[3]), size(B, 3), size(A, 3))
 
     A_d = permutedims(CUDA.CuArray(A[:, M.projs[4], :]), (1, 3, 2))
     L_d = permutedims(CUDA.CuArray(LE[:, M.projs[1], :]), (1, 3, 2))
@@ -313,11 +320,11 @@ function update_env_left(
     csrNzVal = CUDA.ones(Float64, length(pr))
     ipr = CUSPARSE.CuSparseMatrixCSC(csrRowPtr, csrColInd, csrNzVal, (maximum(pr), length(pr))) # transposed right here
 
-    Lr_d = permutedims(Lr_d, (3, 2, 1)) #(256, 4, 4)
+    Lr_d = permutedims(Lr_d, (3, 2, 1))
     _, sy, sz = size(Lr_d)
     @cast Lr_d[x, (y, z)] := Lr_d[x, y, z]
 
-    L = ipr * Lr_d  #(16, 16)
+    L = ipr * Lr_d
     L = reshape(L, (:, sy, sz))
 
     Array(permutedims(L, (3, 1, 2)) ./ maximum(abs.(L)))

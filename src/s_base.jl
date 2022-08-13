@@ -10,6 +10,7 @@ export
     SparseDiagonalTensor,
     SparseCentralTensor,
     dense_central_tensor,
+    cuda_dense_central_tensor,
     IdentityQMps
 
 abstract type AbstractEnvironment end
@@ -38,6 +39,16 @@ function dense_central_tensor(ten::SparseCentralTensor)
     @cast V[(u1, u2), (d1, d2)] := ten.e11[u1, d1] * ten.e21[u2, d1] * ten.e12[u1, d2] * ten.e22[u2, d2]
     V ./ maximum(V)
 end
+
+function cuda_dense_central_tensor(ten::SparseCentralTensor)
+    e11 = CUDA.CuArray(ten.e11)
+    e12 = CUDA.CuArray(ten.e12)
+    e21 = CUDA.CuArray(ten.e21)
+    e22 = CUDA.CuArray(ten.e22)
+    @cast V[(u1, u2), (d1, d2)] := e11[u1, d1] * e21[u2, d1] * e12[u1, d2] * e22[u2, d2]
+    V ./ maximum(V)
+end
+
 
 struct SparseDiagonalTensor <: AbstractSparseTensor
     e1::Matrix{<:Real}

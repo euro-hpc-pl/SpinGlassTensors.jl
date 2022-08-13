@@ -196,7 +196,7 @@ end
 $(TYPEDSIGNATURES)
 """
 function update_env_left(
-    LE::S, M::T, ::Val{:n}
+    LE::S, M::T, ::Union{Val{:n}, Val{:c}}
 ) where {S <: AbstractArray{Float64, 3}, T <: AbstractArray{Float64, 2}}
     @tensor L[nt, nc, nb] :=  LE[nt, oc, nb] * M[oc, nc]
     L
@@ -206,28 +206,7 @@ end
 $(TYPEDSIGNATURES)
 """
 function update_env_left(
-    LE::S, M::T, ::Val{:n}
-) where {S <: AbstractArray{Float64, 3}, T <: SparseCentralTensor}
-    MM = dense_central_tensor(M)
-    @tensor L[nt, nc, nb] :=  LE[nt, oc, nb] * MM[oc, nc]
-    L
-end
-
-"""
-$(TYPEDSIGNATURES)
-"""
-function update_env_left(
-    LE::S, M::T, ::Val{:c}
-) where {S <: AbstractArray{Float64, 3}, T <: AbstractArray{Float64, 2}}
-    @tensor L[nt, nc, nb] :=  LE[nt, oc, nb] * M[oc, nc]
-    L
-end
-
-"""
-$(TYPEDSIGNATURES)
-"""
-function update_env_left(
-    LE::S, M::T, ::Val{:c}
+    LE::S, M::T, ::Union{Val{:n}, Val{:c}}
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseCentralTensor}
     MM = dense_central_tensor(M)
     @tensor L[nt, nc, nb] :=  LE[nt, oc, nb] * MM[oc, nc]
@@ -692,7 +671,7 @@ end
 $(TYPEDSIGNATURES)
 """
 function update_env_right(
-    RE::S, A₀::S1, M::T, B₀::S, trans::Symbol=:n
+    RE::S, A₀::S1, M::T, B₀::S, trans::Symbol
 ) where {T <: AbstractDict, S <: AbstractArray{Float64, 3}, S1 <: AbstractArray{Float64, 3}}
     sites = sort(collect(keys(M)))
     A = _update_tensor_forward(A₀, M, sites, Val(trans))
@@ -709,31 +688,16 @@ $(TYPEDSIGNATURES)
            --
 """
 function update_env_right(
-    RE::S, M::T, trans::Symbol=:c
+    RE::S, M::T, trans::Symbol
 ) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
     update_env_right(RE, M[0], Val(trans))
 end
 
-function update_env_right(
-    RE::S, M::T, ::Val{:c}
-) where {S <: AbstractArray{Float64, 3}, T <: AbstractArray{Float64, 2}}
-    @tensor R[nt, nc, nb] := M[nc, oc] * RE[nt, oc, nb]
-    R
-end
-
-function update_env_right(
-    RE::S, M::T, ::Val{:c}
-) where {S <: AbstractArray{Float64, 3}, T <: SparseCentralTensor}
-    MM = dense_central_tensor(M)
-    @tensor R[nt, nc, nb] := MM[nc, oc] * RE[nt, oc, nb]
-    R
-end
-
 """
 $(TYPEDSIGNATURES)
 """
 function update_env_right(
-    RE::S, M::T, ::Val{:n}
+    RE::S, M::T, ::Union{Val{:n}, Val{:c}}
 ) where {S <: AbstractArray{Float64, 3}, T <: AbstractArray{Float64, 2}}
     @tensor R[nt, nc, nb] := M[nc, oc] * RE[nt, oc, nb]
     R
@@ -743,7 +707,7 @@ end
 $(TYPEDSIGNATURES)
 """
 function update_env_right(
-    RE::S, M::T, ::Val{:n}
+    RE::S, M::T, ::Union{Val{:n}, Val{:c}}
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseCentralTensor}
     MM = dense_central_tensor(M)
     @tensor R[nt, nc, nb] := MM[nc, oc] * RE[nt, oc, nb]
@@ -753,7 +717,7 @@ end
 """
 $(TYPEDSIGNATURES)
 """
-function project_ket_on_bra(env::Environment, site::Site, trans::Symbol=:n)
+function project_ket_on_bra(env::Environment, site::Site, trans::Symbol)
     project_ket_on_bra(
         env.env[(site, :left)],
         env.ket[site],
@@ -811,19 +775,10 @@ $(TYPEDSIGNATURES)
 function project_ket_on_bra(
     LE::S, B::S, M::T, RE::S, ::Val{:n}
 ) where {T <: AbstractArray{Float64, 2}, S <: AbstractArray{Float64, 3}}
-    @tensor A[x, y, z] := B[x, a, z] * M[y, a]
+    @tensor A[x, y, z] := M[y, a] * B[x, a, z]
     A
 end
 
-"""
-$(TYPEDSIGNATURES)
-"""
-function project_ket_on_bra(
-    LE::S, B::S, M::T, RE::S, ::Val{:c}
-) where {T <: AbstractArray{Float64, 2}, S <: AbstractArray{Float64, 3}}
-    @tensor A[x, y, z] := B[x, a, z] * M[a, y]
-    A
-end
 
 """
 $(TYPEDSIGNATURES)
@@ -832,7 +787,7 @@ function project_ket_on_bra(
     LE::S, B::S, M::T, RE::S, ::Val{:n}
 ) where {T <: SparseCentralTensor, S <: AbstractArray{Float64, 3}}
     MM = dense_central_tensor(M)
-    @tensor A[x, y, z] := B[x, a, z] * MM[y, a]
+    @tensor A[x, y, z] := MM[y, a] * B[x, a, z]
     A
 end
 
@@ -844,10 +799,19 @@ function project_ket_on_bra(
 ) where {T <: SparseDiagonalTensor, S <: AbstractArray{Float64, 3}}
     @cast BB[l, s2, s1, r] := B[l, (s2, s1), r]  (s2 ∈ 1:size(M.e2, 2))
     @tensor CC[l, q1, q2, r] := M.e1[q1, s1] * M.e2[q2, s2] * BB[l, s2, s1, r]
-    @cast CC[l, (q1, q2), r] := CC[l, q1, q2, r]   
+    @cast CC[l, (q1, q2), r] := CC[l, q1, q2, r]
     CC
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
+function project_ket_on_bra(
+    LE::S, B::S, M::T, RE::S, ::Val{:c}
+) where {T <: AbstractArray{Float64, 2}, S <: AbstractArray{Float64, 3}}
+    @tensor A[x, y, z] := B[x, a, z] * M[a, y]
+    A
+end
 
 """
 $(TYPEDSIGNATURES)
@@ -868,7 +832,7 @@ function project_ket_on_bra(
 ) where {T <: SparseDiagonalTensor, S <: AbstractArray{Float64, 3}}
     @cast BB[l, s1, s2, r] := B[l, (s1, s2), r]  (s1 ∈ 1:size(M.e1, 1))
     @tensor CC[l, q2, q1, r] := BB[l, s1, s2, r] * M.e1[s1, q1] * M.e2[s2, q2]
-    @cast CC[l, (q2, q1), r] := CC[l, q2, q1, r]    
+    @cast CC[l, (q2, q1), r] := CC[l, q2, q1, r]
     CC
 end
 
@@ -1035,7 +999,7 @@ end
 """
 $(TYPEDSIGNATURES)
 """
-function measure_env(env::Environment, site::Site, trans::Symbol=:n)
+function measure_env(env::Environment, site::Site, trans::Symbol)
     L = update_env_left(
         env.env[(site, :left)], env.bra[site], env.mpo[site], env.ket[site], trans
     )

@@ -1,5 +1,3 @@
-using SparseArrays
-
 export
     variational_compress!,
     _left_nbrs_site,
@@ -601,7 +599,7 @@ function update_env_right(
     csrNzVal = CUDA.ones(Float64, length(pr))
     ipr = CUSPARSE.CuSparseMatrixCSC(csrRowPtr, csrColInd, csrNzVal, (maximum(pr), length(pr))) # transposed right here
 
-    Rr_d = permutedims(Rr_d, (3, 2, 1)) 
+    Rr_d = permutedims(Rr_d, (3, 2, 1))
     _, sy, sz = size(Rr_d)
     @cast Rr_d[x, (y, z)] := Rr_d[x, y, z]
 
@@ -1015,7 +1013,7 @@ function project_ket_on_bra(
         csrColInd = CuArray(pt)
         csrNzVal = CUDA.ones(Float64, length(pt))
         ipt = CUSPARSE.CuSparseMatrixCSC(csrRowPtr, csrColInd, csrNzVal, (maximum(p_lt) * maximum(p_rt), length(pt))) # transposed right here
-    
+
         @cast LBR_d[(l, r), s12] := LBR_d[l, r, s12]
         A = A .+ ipt * LBR_d'
 

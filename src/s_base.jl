@@ -11,7 +11,8 @@ export
     SparseCentralTensor,
     dense_central_tensor,
     cuda_dense_central_tensor,
-    IdentityQMps
+    IdentityQMps,
+    SparsePegasusSquareTensor
 
 abstract type AbstractEnvironment end
 abstract type AbstractSparseTensor end
@@ -23,6 +24,18 @@ struct SparseSiteTensor <: AbstractSparseTensor
     loc_exp::Vector{<:Real}
     projs::NTuple{N, Vector{Int}} where N
 end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+struct SparsePegasusSquareTensor <: AbstractSparseTensor
+    projs::Vector{Vector{Int}}
+    loc_exp::Matrix{<:Real}
+    bnd_exp::Vector{Matrix{<:Real}}
+    bnd_projs::Vector{Vector{Int}}
+    sizes::NTuple{4, Int}
+end
+
 
 struct SparseCentralTensor <: AbstractSparseTensor
     e11::Matrix{<:Real}
@@ -74,7 +87,8 @@ end
 """
 $(TYPEDSIGNATURES)
 """
-const Tensor = Union{AbstractArray{Float64}, SparseSiteTensor, SparseVirtualTensor, SparseCentralTensor, SparseDiagonalTensor}
+const Tensor = Union{AbstractArray{Float64}, SparseSiteTensor, SparseVirtualTensor, SparsePegasusSquareTensor, SparseCentralTensor, SparseDiagonalTensor}
+
 
 #TODO: type of sites
 """

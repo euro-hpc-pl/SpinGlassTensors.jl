@@ -1296,7 +1296,13 @@ function _gauges_right_sweep!!!(ψ_top::QMps, ψ_bot::QMps, all_gauges::Dict)
         @tensor ρ_t[r, s] := T[i, r, j] * conj(T)[i, s, j]
         @tensor ρ_b[r, s] := B[i, r, j] * conj(B)[i, s, j]
 
-        gauge = (diag(ρ_b) ./ diag(ρ_t)) .^ (1 / 4) # optimize
+        dρ_b = diag(ρ_b)
+        dρ_t = diag(ρ_t)
+        ep = 1e-12
+        dρ_b[dρ_b .< ep] .= 1.0
+        dρ_t[dρ_t .< ep] .= 1.0
+
+        gauge = (dρ_b ./ dρ_t) .^ (1 / 4) # optimize
         gauge_inv = 1.0 ./ gauge
         all_gauges[i] .*= gauge # update
 
@@ -1331,7 +1337,14 @@ function _gauges_left_sweep!!!(ψ_top::QMps, ψ_bot::QMps, all_gauges::Dict)
         @tensor ρ_t[r, s] := T[i, r, j] * conj(T)[i, s, j]
         @tensor ρ_b[r, s] := B[i, r, j] * conj(B)[i, s, j]
 
-        gauge = (diag(ρ_b) ./ diag(ρ_t)) .^ (1 / 4) # optimize
+        dρ_b = diag(ρ_b)
+        dρ_t = diag(ρ_t)
+        ep = 1e-12
+        dρ_b[dρ_b .< ep] .= 1.0
+        dρ_t[dρ_t .< ep] .= 1.0
+
+        gauge = (dρ_b ./ dρ_t) .^ (1 / 4) # optimize
+
         gauge_inv = 1.0 ./ gauge
         all_gauges[i] .*= gauge # update
 

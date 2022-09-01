@@ -20,6 +20,8 @@ abstract type AbstractSparseTensor end
 const Site = Union{Int, Rational{Int}}
 const Sites = NTuple{N, Site} where N
 
+
+
 struct SparseSiteTensor <: AbstractSparseTensor
     loc_exp::Vector{<:Real}
     projs::NTuple{N, Vector{Int}} where N

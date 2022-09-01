@@ -2,9 +2,13 @@ export
     Tensor,
     SparseTensor
 
-abstract type AbstractSparseTensor end
-abstract type AbstractTensor end
-abstract type AbstracTensorType end
+for T ∈ (:SparseTensor, :Tensor, :TensorType)
+    @eval begin
+        AT = Symbol(:Abstract, $T)
+        abstract type $AT end
+        export $AT
+    end
+end
 
 const Proj = Vector{Vector{Int}}
 
@@ -91,6 +95,8 @@ struct SparseTensor{T <: AbstracTensorType} <: AbstractSparseTensor
     end
 end
 
+Base.eltype(ten::SparseTensor{T}) where {T} = eltype(ten)
+
 struct Tensor{T <: Number} <: AbstractTensor
     size::Dims
     data::Array{T}
@@ -111,7 +117,9 @@ struct CuTensor{T <: Number} <: AbstractTensor
     CuTensor(ten::SparseTensor{Central}) = Tensor(CUDA.CuArray.(ten.data)...)
 end
 
-const Tensors = Union{SparseTensor, Tensor, CuTensor}
+const DenseTensor = Union{Tensor, CuTensor}
+const DenseOrSparseTensor = Union{SparseTensor, Tensors}
 
-Base.size(M::Tensors, n::Int) = M.sizes[n]
-Base.size(M::Tensors) = M.size
+Base.eltype(ten::DenseTensor) = eltype(ten.data)
+Base.size(M::DenseOrSparseTensor, n::Int) = M.sizes[n]
+Base.size(M::DenseOrSparseTensor) = M.size

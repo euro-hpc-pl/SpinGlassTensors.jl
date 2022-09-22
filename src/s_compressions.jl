@@ -1129,6 +1129,37 @@ function project_ket_on_bra(
     Array(permutedims(A, (3, 1, 2)))
 end
 
+# """
+# $(TYPEDSIGNATURES)
+# """
+# function project_ket_on_bra(
+#     LE::S, B::S, M::T, RE::S, ::Val{:n}
+# ) where {S <: AbstractArray{Float64, 3}, T <: SparseVirtualTensor}
+#     h = M.con
+#     if typeof(h) == SparseCentralTensor
+#         h = dense_central_tensor(h)
+#     end
+#     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
+
+#     @cast B4[x, k, l, y] := B[x, (k, l), y] (k ∈ 1:maximum(p_lb))
+
+#     p_lb = projector_to_dense(p_lb)
+#     p_l = projector_to_dense(p_l)
+#     p_lt = projector_to_dense(p_lt)
+#     @cast pl[bp, oc, tp, c] := p_lb[bp, c] * p_l[oc, c] * p_lt[tp, c]
+#     @tensor LL[b, bp, oc, t, tp] := LE[b, c, t] * pl[bp, oc, tp, c]
+
+#     p_rb = projector_to_dense(p_rb)
+#     p_r = projector_to_dense(p_r)
+#     p_rt = projector_to_dense(p_rt)
+#     @cast pr[bp, oc, tp, c] := p_rb[bp, c] * p_r[oc, c] * p_rt[tp, c]
+#     @tensor RR[t, tp, oc, b, bp] := RE[t, c, b] * pr[bp, oc, tp, c]
+
+#     @tensor LR[t, tp, tpr, tr] := LL[b, bp, oc, t, tp] * RR[tr, tpr, ncr, br, bpr] * B4[b, bp, bpr, br] * h[oc, ncr]
+#     @cast LR[l, (x, y), r] := LR[l, x, y, r]
+    
+#     LR ./ maximum(abs.(LR))
+# end
 
 """
 $(TYPEDSIGNATURES)
@@ -1242,6 +1273,7 @@ for i in 1:maximum(pu)
 end
 Array(permutedims(A, (1, 3, 2)))
 end
+
 
 
 """

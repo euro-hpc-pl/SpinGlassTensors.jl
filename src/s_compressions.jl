@@ -242,6 +242,44 @@ end
 """
 $(TYPEDSIGNATURES)
 """
+function projectors_to_sparse(p_lb :: Array{Int, 1}, p_l :: Array{Int, 1}, p_lt :: Array{Int, 1})
+
+    I_temp = Vector{Int64}()
+    V_temp = Vector{Int64}()
+    I = Vector{Int64}()
+    V = Vector{Int64}()
+    count = 0
+    for i ∈ p_lb
+        for j ∈ p_l
+            count += 1
+            if i == j
+                push!(I_temp, count)
+                push!(V_temp, i)
+            end
+        end     
+    end
+    temp = sparsevec(I_temp, V_temp, length(p_lb)*length(p_l))
+
+    count = 0
+    for i ∈ temp
+        for j ∈ p_lt
+            count += 1
+            if i == j
+                push!(I, count)
+                push!(V, i)
+            end
+        end     
+    end
+    rowInd = I
+    colInd = V
+    Values = ones(Float64, maximum(V))
+    ps = sparse(rowInd, colInd, Values)
+    ps
+
+end
+"""
+$(TYPEDSIGNATURES)
+"""
 function update_env_left(
     LE::S, A::S, M::T, B::S, ::Val{:n}
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
@@ -328,12 +366,12 @@ function update_env_left(
     p_lb = projector_to_dense(p_lb)
     p_l = projector_to_dense(p_l)
     p_lt = projector_to_dense(p_lt)
-    @cast pl[bp, oc, tp, c] := p_lb[bp, c] * p_l[oc, c] * p_lt[tp, c]
+    @cast pl[bp, oc, tp, c] := p_lb[bp, c] * p_l[oc, c] * p_lt[tp, c] 
     @tensor LL[b, bp, oc, t, tp] := LE[b, c, t] * pl[bp, oc, tp, c]
 
     #  ps = projectors_to_sparse(p_lb, p_l, p_lt) -> sparse[oc, nc]
     #  Ltemp = ps[nc, c] * LE[b, c, t]
-    #  @cast Ltemp[nb, nbp, nc, nt, ntp] := A[nb, (nbp, nc, ntp), nt] (nbp ∈ 1:maximum(p_lb), nc ∈ 1:maximum(p_l))
+    #  @cast Ltemp[nb, nbp, nc, nt, ntp] := Ltemp[nb, (nbp, nc, ntp), nt] (nbp ∈ 1:maximum(p_lb), nc ∈ 1:maximum(p_l))
 
     @tensor Ltemp[nb, nbp, nc, nt, ntp] := LL[b, bp, oc, t, tp] * A4[t, tp, ntp, nt] * B4[b, bp, nbp, nb] * h[oc, nc]
 

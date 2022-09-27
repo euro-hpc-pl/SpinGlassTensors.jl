@@ -1,3 +1,5 @@
+using SparseArrays
+
 export
     variational_compress!,
     _left_nbrs_site,
@@ -345,6 +347,60 @@ function update_env_left(
     Array(permutedims(L, (3, 1, 2)) ./ maximum(abs.(L)))
 end
 
+
+# """
+# $(TYPEDSIGNATURES)
+# """
+# function update_env_left(
+#     LE::S, A::S, M::T, B::S, ::Val{:n}
+# ) where {S <: AbstractArray{Float64, 3}, T <: SparseVirtualTensor}
+#     h = M.con
+#     if typeof(h) == SparseCentralTensor
+#         h = dense_central_tensor(h)
+#     end
+#     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
+
+#     @cast A4[x, k, l, y] := A[x, (k, l), y] (k ∈ 1:maximum(p_lt))
+#     @cast B4[x, k, l, y] := B[x, (k, l), y] (k ∈ 1:maximum(p_lb))
+
+#     ps = projectors_to_sparse(p_lb, p_l, p_lt)
+#     println("ps", size(ps))
+#     println("LE",size(LE))
+#     (a,b,c) = size(LE)
+#     @cast LEn[y, (x, z)] := LE[x, y, z]
+#     println("LE",size(LEn))
+#     Ltemp = ps * LEn
+#     println("Ltemp",size(Ltemp))
+#     println(Ltemp)
+
+#     @cast Ltemp[nb, nbp, nc, nt, ntp] := Ltemp[(nbp, nc, ntp), (nb, nt)] (nbp ∈ 1:maximum(p_lb), nc ∈ 1:maximum(p_l), nb ∈ 1:a)
+#     println("Ltemp2", size(Ltemp))
+#     println(Ltemp)
+
+#     p_lb = projector_to_dense(p_lb)
+#     p_l = projector_to_dense(p_l)
+#     p_lt = projector_to_dense(p_lt)
+#     @cast pl[bp, oc, tp, c] := p_lb[bp, c] * p_l[oc, c] * p_lt[tp, c] 
+#     @tensor LL[b, bp, oc, t, tp] := LE[b, c, t] * pl[bp, oc, tp, c]
+#     println("LL", size(LL))
+#     println(LL)
+#     #@cast pl[bp, oc, tp, c] := p_lb[bp, c] * p_l[oc, c] * p_lt[tp, c] 
+#     #@tensor LL[b, bp, oc, t, tp] := LE[b, c, t] * pl[bp, oc, tp, c]
+
+#     #  ps = projectors_to_sparse(p_lb, p_l, p_lt) -> sparse[oc, nc]
+#     #  Ltemp = ps[nc, c] * LE[b, c, t]
+#     #  @cast Ltemp[nb, nbp, nc, nt, ntp] := Ltemp[nb, (nbp, nc, ntp), nt] (nbp ∈ 1:maximum(p_lb), nc ∈ 1:maximum(p_l))
+    
+#     @tensor Ltempnew[nb, nbp, nc, nt, ntp] := Ltemp[b, bp, oc, t, tp] * A4[t, tp, ntp, nt] * B4[b, bp, nbp, nb] * h[oc, nc]
+
+#     p_rb = projector_to_dense(p_rb)
+#     p_r = projector_to_dense(p_r)
+#     p_rt = projector_to_dense(p_rt)
+#     @cast pr[bp, oc, tp, c] := p_rb[bp, c] * p_r[oc, c] * p_rt[tp, c]
+#     @tensor Lnew[nb, cc, nt] := Ltempnew[nb, nbp, nc, nt, ntp] * pr[nbp, nc, ntp, cc]
+
+#     Lnew ./ maximum(abs.(Lnew))
+# end
 
 """
 $(TYPEDSIGNATURES)

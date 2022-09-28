@@ -1311,101 +1311,135 @@ end
 # """
 # $(TYPEDSIGNATURES)
 # """
-# function project_ket_on_bra(
-#     LE::S, B::S, M::T, RE::S, ::Val{:n}
-# ) where {S <: AbstractArray{Float64, 3}, T <: SparseVirtualTensor}
-#     h = M.con
-#     if typeof(h) == SparseCentralTensor
-#         h = dense_central_tensor(h)
-#     end
-#     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
-
-#     @cast B4[x, k, l, y] := B[x, (k, l), y] (k ∈ 1:maximum(p_lb))
-
-#     p_lb = projector_to_dense(p_lb)
-#     p_l = projector_to_dense(p_l)
-#     p_lt = projector_to_dense(p_lt)
-#     @cast pl[bp, oc, tp, c] := p_lb[bp, c] * p_l[oc, c] * p_lt[tp, c]
-#     @tensor LL[b, bp, oc, t, tp] := LE[b, c, t] * pl[bp, oc, tp, c]
-
-#     p_rb = projector_to_dense(p_rb)
-#     p_r = projector_to_dense(p_r)
-#     p_rt = projector_to_dense(p_rt)
-#     @cast pr[bp, oc, tp, c] := p_rb[bp, c] * p_r[oc, c] * p_rt[tp, c]
-#     @tensor RR[t, tp, oc, b, bp] := RE[t, c, b] * pr[bp, oc, tp, c]
-
-#     @tensor LR[t, tp, tpr, tr] := LL[b, bp, oc, t, tp] * RR[tr, tpr, ncr, br, bpr] * B4[b, bp, bpr, br] * h[oc, ncr]
-#     @cast LR[l, (x, y), r] := LR[l, x, y, r]
-    
-#     LR ./ maximum(abs.(LR))
-# end
-
-"""
-$(TYPEDSIGNATURES)
-"""
 function project_ket_on_bra(
     LE::S, B::S, M::T, RE::S, ::Val{:n}
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseVirtualTensor}
     h = M.con
     if typeof(h) == SparseCentralTensor
-        h = cuda_dense_central_tensor(h)
-    else
-        h = CUDA.CuArray(h)
+        h = dense_central_tensor(h)
     end
     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
 
-    A = CUDA.zeros(eltype(LE), maximum(p_lt) * maximum(p_rt), size(LE, 3) * size(RE, 1))
+    @cast B4[x, k, l, y] := B[x, (k, l), y] (k ∈ 1:maximum(p_lb))
 
-    total_size = length(p_r)
-    batch_size = min(2^6, total_size)
-    from = 1
-    while from <= total_size
-        to = min(total_size, from + batch_size - 1)
+    p_lb = projector_to_dense(p_lb)
+    p_l = projector_to_dense(p_l)
+    p_lt = projector_to_dense(p_lt)
+    @cast pl[bp, oc, tp, c] := p_lb[bp, c] * p_l[oc, c] * p_lt[tp, c]
+    @tensor LL[b, bp, oc, t, tp] := LE[b, c, t] * pl[bp, oc, tp, c]
 
-        @cast B4[x, k, l, y] := B[x, (k, l), y] (k ∈ 1:maximum(p_lb))
-        B_d = permutedims(CUDA.CuArray(B4[:, p_lb, p_rb[from:to], :]), (1, 4, 2, 3))
-        @cast B_d[l, r, (s1, s2)] := B_d[l, r, s1, s2]
+    p_rb = projector_to_dense(p_rb)
+    p_r = projector_to_dense(p_r)
+    p_rt = projector_to_dense(p_rt)
+    @cast pr[bp, oc, tp, c] := p_rb[bp, c] * p_r[oc, c] * p_rt[tp, c]
+    @tensor RR[t, tp, oc, b, bp] := RE[t, c, b] * pr[bp, oc, tp, c]
 
-        L_d = permutedims(CUDA.CuArray(LE), (3, 1, 2))
-        h_d = CUDA.CuArray(h[p_l, p_r[from:to]])
-        @cast Lh_d[l, r, (s1, s2)] := L_d[l, r, s1] * h_d[s1, s2]
+    @tensor LR[tl, tlp, trp, tr] := LL[bl, blp, cl, tl, tlp] * RR[tr, trp, cr, br, brp] * B4[bl, blp, brp, br] * h[cl, cr] order = (cl, bl, blp, brp, br, cr)
+    @cast LR[l, (x, y), r] := LR[l, x, y, r]
 
-        R_d = permutedims(CUDA.CuArray(RE[:, from:to, :]), (3, 1, 2))
-        oo = CUDA.ones(eltype(R_d), length(p_l))
-        @cast R_d[l, r, (s1, s2)] := R_d[l, r, s2] * oo[s1]
-
-        LBR_d = Lh_d ⊠ B_d ⊠ R_d
-
-        p1, p2 = p_lt, p_rt[from:to]
-        pt = reshape(reshape(p1, :, 1) .+ maximum(p1) .* reshape(p2 .- 1, 1, :), :)
-        # pt = outer_projector(p_lt, p_rt[from:to])  cannot use it here
-
-        csrRowPtr = CuArray(collect(1:length(pt) + 1))
-        csrColInd = CuArray(pt)
-        csrNzVal = CUDA.ones(Float64, length(pt))
-        ipt = CUSPARSE.CuSparseMatrixCSC(csrRowPtr, csrColInd, csrNzVal, (maximum(p_lt) * maximum(p_rt), length(pt))) # transposed right here
-
-        @cast LBR_d[(l, r), s12] := LBR_d[l, r, s12]
-        A = A .+ ipt * LBR_d'
-
-        from = to + 1
-    end
-    @cast A[p12, l, r] := A[p12, (l, r)] (l ∈ 1:size(LE, 3))
-    Array(permutedims(A, (2, 1, 3)) ./ maximum(abs.(A)))
-    # @cast B4[x, k, l, y] := B[x, (k, l), y] (k ∈ 1:maximum(p_lb))
-
-    # A = zeros(size(LE, 3), maximum(p_lt), maximum(p_rt), size(RE, 1))
-
-    # for l ∈ 1:length(p_l), r ∈ 1:length(p_r)
-    #     le = @inbounds @view LE[:, l, :]
-    #     b = @inbounds @view B4[:, p_lb[l], p_rb[r], :]
-    #     re = @inbounds @view RE[:, r, :]
-    #     @inbounds A[:,  p_lt[l], p_rt[r], :] += h[p_l[l], p_r[r]] .* (le' * b * re')
-
-    # end
-    # @cast AA[l, (ũ, u), r] := A[l, ũ, u, r]
-    # AA
+    LR ./ maximum(abs.(LR))
 end
+
+
+
+# """
+# $(TYPEDSIGNATURES)
+# """
+function project_ket_on_bra(
+    LE::S, B::S, M::T, RE::S, ::Val{:c}
+) where {S <: AbstractArray{Float64, 3}, T <: SparseVirtualTensor}
+    h = M.con
+    if typeof(h) == SparseCentralTensor
+        h = dense_central_tensor(h)
+    end
+    p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
+
+    @cast B4[x, k, l, y] := B[x, (k, l), y] (k ∈ 1:maximum(p_lt))
+
+    pp_lb = projector_to_dense(p_lt)
+    pp_l = projector_to_dense(p_l)
+    pp_lt = projector_to_dense(p_lb)
+    @cast pl[bp, oc, tp, c] := pp_lb[bp, c] * pp_l[oc, c] * pp_lt[tp, c]
+    @tensor LL[b, bp, oc, t, tp] := LE[b, c, t] * pl[bp, oc, tp, c]
+
+    pp_rb = projector_to_dense(p_rt)
+    pp_r = projector_to_dense(p_r)
+    pp_rt = projector_to_dense(p_rb)
+    @cast pr[bp, oc, tp, c] := pp_rb[bp, c] * pp_r[oc, c] * pp_rt[tp, c]
+    @tensor RR[t, tp, oc, b, bp] := RE[t, c, b] * pr[bp, oc, tp, c]
+
+    @tensor LR[tl, tlp, trp, tr] := LL[bl, blp, cl, tl, tlp] * RR[tr, trp, cr, br, brp] * B4[bl, blp, brp, br] * h[cl, cr] order = (cl, bl, blp, brp, br, cr)
+    @cast LR[l, (x, y), r] := LR[l, x, y, r]
+
+    LR ./ maximum(abs.(LR))
+end
+
+# """
+# $(TYPEDSIGNATURES)
+# """
+# function project_ket_on_bra(
+#     LE::S, B::S, M::T, RE::S, ::Val{:n}
+# ) where {S <: AbstractArray{Float64, 3}, T <: SparseVirtualTensor}
+#     h = M.con
+#     if typeof(h) == SparseCentralTensor
+#         h = cuda_dense_central_tensor(h)
+#     else
+#         h = CUDA.CuArray(h)
+#     end
+#     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
+
+#     A = CUDA.zeros(eltype(LE), maximum(p_lt) * maximum(p_rt), size(LE, 3) * size(RE, 1))
+
+#     total_size = length(p_r)
+#     batch_size = min(2^6, total_size)
+#     from = 1
+#     while from <= total_size
+#         to = min(total_size, from + batch_size - 1)
+
+#         @cast B4[x, k, l, y] := B[x, (k, l), y] (k ∈ 1:maximum(p_lb))
+#         B_d = permutedims(CUDA.CuArray(B4[:, p_lb, p_rb[from:to], :]), (1, 4, 2, 3))
+#         @cast B_d[l, r, (s1, s2)] := B_d[l, r, s1, s2]
+
+#         L_d = permutedims(CUDA.CuArray(LE), (3, 1, 2))
+#         h_d = CUDA.CuArray(h[p_l, p_r[from:to]])
+#         @cast Lh_d[l, r, (s1, s2)] := L_d[l, r, s1] * h_d[s1, s2]
+
+#         R_d = permutedims(CUDA.CuArray(RE[:, from:to, :]), (3, 1, 2))
+#         oo = CUDA.ones(eltype(R_d), length(p_l))
+#         @cast R_d[l, r, (s1, s2)] := R_d[l, r, s2] * oo[s1]
+
+#         LBR_d = Lh_d ⊠ B_d ⊠ R_d
+
+#         p1, p2 = p_lt, p_rt[from:to]
+#         pt = reshape(reshape(p1, :, 1) .+ maximum(p1) .* reshape(p2 .- 1, 1, :), :)
+#         # pt = outer_projector(p_lt, p_rt[from:to])  cannot use it here
+
+#         csrRowPtr = CuArray(collect(1:length(pt) + 1))
+#         csrColInd = CuArray(pt)
+#         csrNzVal = CUDA.ones(Float64, length(pt))
+#         ipt = CUSPARSE.CuSparseMatrixCSC(csrRowPtr, csrColInd, csrNzVal, (maximum(p_lt) * maximum(p_rt), length(pt))) # transposed right here
+
+#         @cast LBR_d[(l, r), s12] := LBR_d[l, r, s12]
+#         A = A .+ ipt * LBR_d'
+
+#         from = to + 1
+#     end
+#     @cast A[p12, l, r] := A[p12, (l, r)] (l ∈ 1:size(LE, 3))
+#     Array(permutedims(A, (2, 1, 3)) ./ maximum(abs.(A)))
+#     # @cast B4[x, k, l, y] := B[x, (k, l), y] (k ∈ 1:maximum(p_lb))
+
+#     # A = zeros(size(LE, 3), maximum(p_lt), maximum(p_rt), size(RE, 1))
+
+#     # for l ∈ 1:length(p_l), r ∈ 1:length(p_r)
+#     #     le = @inbounds @view LE[:, l, :]
+#     #     b = @inbounds @view B4[:, p_lb[l], p_rb[r], :]
+#     #     re = @inbounds @view RE[:, r, :]
+#     #     @inbounds A[:,  p_lt[l], p_rt[r], :] += h[p_l[l], p_r[r]] .* (le' * b * re')
+
+#     # end
+#     # @cast AA[l, (ũ, u), r] := A[l, ũ, u, r]
+#     # AA
+# end
 
 """
 $(TYPEDSIGNATURES)
@@ -1455,71 +1489,71 @@ end
 
 
 
-"""
-$(TYPEDSIGNATURES)
-"""
-function project_ket_on_bra(
-    LE::S, B::S, M::T, RE::S, ::Val{:c}
-) where {S <: AbstractArray{Float64, 3}, T <: SparseVirtualTensor}
-    h = M.con
-    if typeof(h) == SparseCentralTensor
-        h = dense_central_tensor(h)
-    else
-        h = CUDA.CuArray(h)
-    end
-    p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
+# """
+# $(TYPEDSIGNATURES)
+# """
+# function project_ket_on_bra(
+#     LE::S, B::S, M::T, RE::S, ::Val{:c}
+# ) where {S <: AbstractArray{Float64, 3}, T <: SparseVirtualTensor}
+#     h = M.con
+#     if typeof(h) == SparseCentralTensor
+#         h = dense_central_tensor(h)
+#     else
+#         h = CUDA.CuArray(h)
+#     end
+#     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
 
-    A = CUDA.zeros(eltype(LE), maximum(p_lb) * maximum(p_rb), size(LE, 3) * size(RE, 1))
+#     A = CUDA.zeros(eltype(LE), maximum(p_lb) * maximum(p_rb), size(LE, 3) * size(RE, 1))
 
-    total_size = length(p_r)
-    batch_size = min(2^6, total_size)
-    from = 1
-    while from <= total_size
-        to = min(total_size, from + batch_size - 1)
+#     total_size = length(p_r)
+#     batch_size = min(2^6, total_size)
+#     from = 1
+#     while from <= total_size
+#         to = min(total_size, from + batch_size - 1)
 
-        @cast B4[x, k, l, y] := B[x, (k, l), y] (k ∈ 1:maximum(p_lt))
-        B_d = permutedims(CUDA.CuArray(B4[:, p_lt, p_rt[from:to], :]), (1, 4, 2, 3))
-        @cast B_d[l, r, (s1, s2)] := B_d[l, r, s1, s2]
+#         @cast B4[x, k, l, y] := B[x, (k, l), y] (k ∈ 1:maximum(p_lt))
+#         B_d = permutedims(CUDA.CuArray(B4[:, p_lt, p_rt[from:to], :]), (1, 4, 2, 3))
+#         @cast B_d[l, r, (s1, s2)] := B_d[l, r, s1, s2]
 
-        L_d = permutedims(CUDA.CuArray(LE), (3, 1, 2))
-        h_d = CUDA.CuArray(h[p_l, p_r[from:to]])
-        @cast Lh_d[l, r, (s1, s2)] := L_d[l, r, s1] * h_d[s1, s2]
+#         L_d = permutedims(CUDA.CuArray(LE), (3, 1, 2))
+#         h_d = CUDA.CuArray(h[p_l, p_r[from:to]])
+#         @cast Lh_d[l, r, (s1, s2)] := L_d[l, r, s1] * h_d[s1, s2]
 
-        R_d = permutedims(CUDA.CuArray(RE[:, from:to, :]), (3, 1, 2))
-        oo = CUDA.ones(eltype(R_d), length(p_l))
-        @cast R_d[l, r, (s1, s2)] := R_d[l, r, s2] * oo[s1]
+#         R_d = permutedims(CUDA.CuArray(RE[:, from:to, :]), (3, 1, 2))
+#         oo = CUDA.ones(eltype(R_d), length(p_l))
+#         @cast R_d[l, r, (s1, s2)] := R_d[l, r, s2] * oo[s1]
 
-        LBR_d = Lh_d ⊠ B_d ⊠ R_d
+#         LBR_d = Lh_d ⊠ B_d ⊠ R_d
 
-        p1, p2 = p_lb, p_rb[from:to]
-        pb = reshape(reshape(p1, :, 1) .+ maximum(p1) .* reshape(p2 .- 1, 1, :), :)
-        # pb = outer_projector(p_lb, p_rb[from:to]) # cannot use here
+#         p1, p2 = p_lb, p_rb[from:to]
+#         pb = reshape(reshape(p1, :, 1) .+ maximum(p1) .* reshape(p2 .- 1, 1, :), :)
+#         # pb = outer_projector(p_lb, p_rb[from:to]) # cannot use here
 
-        csrRowPtr = CuArray(collect(1:length(pb) + 1))
-        csrColInd = CuArray(pb)
-        csrNzVal = CUDA.ones(Float64, length(pb))
-        ipb = CUSPARSE.CuSparseMatrixCSC(csrRowPtr, csrColInd, csrNzVal, (maximum(p_lb) * maximum(p_rb), length(pb))) # transposed right here
+#         csrRowPtr = CuArray(collect(1:length(pb) + 1))
+#         csrColInd = CuArray(pb)
+#         csrNzVal = CUDA.ones(Float64, length(pb))
+#         ipb = CUSPARSE.CuSparseMatrixCSC(csrRowPtr, csrColInd, csrNzVal, (maximum(p_lb) * maximum(p_rb), length(pb))) # transposed right here
 
-        @cast LBR_d[(l, r), s12] := LBR_d[l, r, s12]
-        A = A .+ ipb * LBR_d'
+#         @cast LBR_d[(l, r), s12] := LBR_d[l, r, s12]
+#         A = A .+ ipb * LBR_d'
 
-        from = to + 1
-    end
-    @cast A[p12, l, r] := A[p12, (l, r)] (l ∈ 1:size(LE, 3))
-    Array(permutedims(A, (2, 1, 3)) ./ maximum(abs.(A)))
+#         from = to + 1
+#     end
+#     @cast A[p12, l, r] := A[p12, (l, r)] (l ∈ 1:size(LE, 3))
+#     Array(permutedims(A, (2, 1, 3)) ./ maximum(abs.(A)))
 
-    # @cast B4[x, k, l, y] := B[x, (k, l), y] (k ∈ 1:maximum(p_lt))
+#     # @cast B4[x, k, l, y] := B[x, (k, l), y] (k ∈ 1:maximum(p_lt))
 
-    # A = zeros(size(LE, 3), maximum(p_lb), maximum(p_rb), size(RE, 1))
-    # for l ∈ 1:length(p_l), r ∈ 1:length(p_r)
-    #     le = @inbounds @view LE[:, l, :]
-    #     b = @inbounds @view B4[:, p_lt[l], p_rt[r], :]
-    #     re = @inbounds @view RE[:, r, :]
-    #     @inbounds  A[:, p_lb[l], p_rb[r], :] += h[p_l[l], p_r[r]] .* (le' * b * re')
-    # end
-    # @cast AA[l, (ũ, u), r] := A[l, ũ, u, r]
-    # AA
-end
+#     # A = zeros(size(LE, 3), maximum(p_lb), maximum(p_rb), size(RE, 1))
+#     # for l ∈ 1:length(p_l), r ∈ 1:length(p_r)
+#     #     le = @inbounds @view LE[:, l, :]
+#     #     b = @inbounds @view B4[:, p_lt[l], p_rt[r], :]
+#     #     re = @inbounds @view RE[:, r, :]
+#     #     @inbounds  A[:, p_lb[l], p_rb[r], :] += h[p_l[l], p_r[r]] .* (le' * b * re')
+#     # end
+#     # @cast AA[l, (ũ, u), r] := A[l, ũ, u, r]
+#     # AA
+# end
 
 """
 $(TYPEDSIGNATURES)

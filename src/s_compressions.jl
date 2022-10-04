@@ -131,21 +131,7 @@ function update_env_left!(env::Environment, site::Site, trans::Symbol=:n)
     if site <= first(env.bra.sites) return end
 
     ls = _left_nbrs_site(site, env.bra.sites)
-    if typeof(env.bra[ls]) <: CUDA.CuArray
-        env_env = CUDA.CuArray(env.env[(ls, :left)])
-        env_bra = env.bra[ls]
-        env_ket = CUDA.CuArray(env.ket[ls])
-    elseif typeof(env.ket[ls]) <: CUDA.CuArray
-        env_env = CUDA.CuArray(env.env[(ls, :left)])
-        env_ket = env.ket[ls]
-        env_bra = CUDA.CuArray(env.bra[ls])
-    else
-        env_env = env.env[(ls, :left)]
-        env_ket = env.ket[ls]
-        env_bra = env.bra[ls]
-    end
-
-    LL = update_env_left(env_env, env_bra, env.mpo[ls], env_ket, trans)
+    LL = update_env_left(env.env[(ls, :left)], env.bra[ls], env.mpo[ls], env.ket[ls], trans)
 
     rs = _right_nbrs_site(ls, env.mpo.sites)
     while rs < site
@@ -766,9 +752,6 @@ end
 function _update_tensor_forward_n(
     C::T, B::S
     ) where {S <: AbstractArray{Float64, 3}, T <: AbstractArray{Float64, 2}}
-    if typeof(B) <: CUDA.CuArray
-        C = CUDA.CuArray(C)
-    end
     @tensor B[l, x, r] := B[l, y, r] * C[y, x]
     B
 end
@@ -786,14 +769,7 @@ function _update_tensor_forward_n(
     C::T, B::S
     ) where {S <: AbstractArray{Float64, 3}, T <: SparseDiagonalTensor}
     @cast BB[l, s1, s2, r] := B[l, (s1, s2), r]  (s1 ∈ 1:size(C.e1, 1))
-    if typeof(BB) <: CUDA.CuArray
-        C_e1 = CUDA.CuArray(C.e1)
-        C_e2 = CUDA.CuArray(C.e2)
-    else
-        C_e1 = C.e1
-        C_e2 = C.e2
-    end
-    @tensor CC[l, q2, q1, r] := BB[l, s1, s2, r] * C_e1[s1, q1] * C_e2[s2, q2]
+    @tensor CC[l, q2, q1, r] := BB[l, s1, s2, r] * C.e1[s1, q1] * C.e2[s2, q2]
     @cast CC[l, (q2, q1), r] := CC[l, q2, q1, r]
     CC
 end
@@ -833,14 +809,7 @@ function _update_tensor_forward_c(
     C::T, B::S
     ) where {S <: AbstractArray{Float64, 3}, T <: SparseDiagonalTensor}
     @cast BB[l, s2, s1, r] := B[l, (s2, s1), r]  (s2 ∈ 1:size(C.e2, 2))
-    if typeof(BB) <: CUDA.CuArray
-        C_e1 = CUDA.CuArray(C.e1)
-        C_e2 = CUDA.CuArray(C.e2)
-    else
-        C_e1 = C.e1
-        C_e2 = C.e2
-    end
-    @tensor CC[l, q1, q2, r] := C_e1[q1, s1] * C_e2[q2, s2] * BB[l, s2, s1, r]
+    @tensor CC[l, q1, q2, r] := C.e1[q1, s1] * C.e2[q2, s2] * BB[l, s2, s1, r]
     @cast CC[l, (q1, q2), r] := CC[l, q1, q2, r]
     CC
 end
@@ -863,9 +832,6 @@ end
 function _update_tensor_backwards_n(
     C::T, B::S
     ) where {S <: AbstractArray{Float64, 3}, T <: AbstractArray{Float64, 2}}
-    if typeof(B) <: CUDA.CuArray
-        C = CUDA.CuArray(C)
-    end
     @tensor B[l, x, r] := B[l, y, r] * C[x, y]
 end
 
@@ -883,14 +849,7 @@ function _update_tensor_backwards_n(
     C::T, B::S
     ) where {S <: AbstractArray{Float64, 3}, T <: SparseDiagonalTensor}
     @cast BB[l, s2, s1, r] := B[l, (s2, s1), r]  (s2 ∈ 1:size(C.e2, 2))
-    if typeof(BB) <: CUDA.CuArray
-        C_e1 = CUDA.CuArray(C.e1)
-        C_e2 = CUDA.CuArray(C.e2)
-    else
-        C_e1 = C.e1
-        C_e2 = C.e2
-    end
-    @tensor CC[l, q1, q2, r] := C_e1[q1, s1] * C_e2[q2, s2] * BB[l, s2, s1, r]
+    @tensor CC[l, q1, q2, r] := C.e1[q1, s1] * C.e2[q2, s2] * BB[l, s2, s1, r]
     @cast CC[l, (q1, q2), r] := CC[l, q1, q2, r]
     CC
 end
@@ -1444,14 +1403,6 @@ function update_env_right(
     sites = sort(collect(keys(M)))
     A = _update_tensor_forward(A₀, M, sites, Val(trans))
     B = _update_tensor_backwards(B₀, M, sites, Val(trans))
-    if typeof(A) <: CUDA.CuArray
-        RE = CUDA.CuArray(RE)
-        B = CUDA.CuArray(B)
-    end
-    if typeof(B) <: CUDA.CuArray
-        RE = CUDA.CuArray(RE)
-        A = CUDA.CuArray(A)
-    end
     update_env_right(RE, A, M[0], B, Val(trans))
 end
 
@@ -2089,6 +2040,12 @@ function project_ket_on_bra(
             LE = CUDA.CuArray(LE)
             RE = CUDA.CuArray(RE)
         end
+        println("-------------------") 
+        println(typeof(LE))
+        println(typeof(TT))
+        println(typeof(v))
+        println(typeof(RE))
+        println("-------------------") 
         TT = project_ket_on_bra(LE, TT, v, RE, Val(:n)) 
     end
     TT

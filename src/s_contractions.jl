@@ -109,9 +109,6 @@ end
 $(TYPEDSIGNATURES)
 """
 function contract_up(A::AbstractArray{T, 3}, B::AbstractArray{T, 2}) where T
-    if typeof(A) <: CUDA.CuArray
-        B = CUDA.CuArray(B)
-    end
     @tensor C[l, u, r] := B[u, σ] * A[l, σ, r]
     C
 end
@@ -120,9 +117,6 @@ end
 $(TYPEDSIGNATURES)
 """
 function contract_down(A::AbstractArray{T, 2}, B::AbstractArray{T, 3}) where T
-    if typeof(B) <: CUDA.CuArray
-        A = CUDA.CuArray(A)
-    end
     @tensor C[l, d, r] := A[σ, d] * B[l, σ, r]
     C
 end

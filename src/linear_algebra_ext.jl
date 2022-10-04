@@ -9,11 +9,6 @@ function qr_fact(M::AbstractMatrix, Dcut::Int=typemax(Int), tol::Float64=1E-16, 
     q, r = _qr_fix(qr(M, args...))
     if Dcut > size(q, 2) return q, r end
     U, Σ, V = svd(r, Dcut, tol)
-    println("___________")
-    println(typeof(U))
-    println(typeof(Σ))
-    println(typeof(V))
-    println("___________")
     q * U, Σ .* V'
 end
 
@@ -32,21 +27,6 @@ function _qr_fix(QR_fact::T) where T <: LinearAlgebra.QRCompactWY
     d = diag(QR_fact.R)
     L = length(d)
     ph = zeros(L, L)
-    for i ∈ 1:L
-        @inbounds ph[i, i] = ifelse(
-            isapprox(d[i], 0, atol=1e-14), 1, d[i] / abs(d[i])
-        )
-    end
-    QR_fact.Q * ph, diag(ph) .* QR_fact.R
-end
-
-"""
-$(TYPEDSIGNATURES)
-"""
-function _qr_fix(QR_fact::T) where T <: CUDA.CUSOLVER.CuQR
-    d = diag(QR_fact.R)
-    L = length(d)
-    ph = CUDA.zeros(L, L)
     for i ∈ 1:L
         @inbounds ph[i, i] = ifelse(
             isapprox(d[i], 0, atol=1e-14), 1, d[i] / abs(d[i])

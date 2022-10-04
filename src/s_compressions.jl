@@ -459,6 +459,7 @@ function update_env_left(
     # Ltempnew = permutedims(CUDA.CuArray(L), (3, 2, 1, 5, 4))
 
     #Ltempnew[nb, nbp, nc, nt, ntp] := Ltemp[b, bp, oc, t, tp] * A4[t, tp, ntp, nt] * B4[b, bp, nbp, nb] * h[oc, nc]
+ 
     @tensor Ltempnew[nb, nbp, nc, nt, ntp] := Ltemp[b, bp, oc, t, tp] * A4[t, tp, ntp, nt] * B4[b, bp, nbp, nb] * h[oc, nc]
 
     a = size(Ltempnew, 1)
@@ -637,7 +638,7 @@ function update_env_left(
     # @cast L[nc, nbp, nb, ntp, nt] := L[(nc, nbp, nb), (ntp, nt)] (nc ∈ 1:n, nbp ∈ 1:nbpb, nb ∈ 1:nbb, ntp ∈ 1:ntpa, nt ∈ 1:nta)
     # Ltempnew = permutedims(CUDA.CuArray(L), (3, 2, 1, 5, 4))
 
-    @tensor Ltemp[nb, ntp, nc, nt, nbp] := LL[b, bp, oc, t, tp] * A4[t, bp, ntp, nt] * B4[b, tp, nbp, nb] * h[oc, nc]
+    @tensor Ltempnew[nb, ntp, nc, nt, nbp] := Ltemp[b, bp, oc, t, tp] * A4[t, bp, ntp, nt] * B4[b, tp, nbp, nb] * h[oc, nc]
 
     a = size(Ltempnew, 1)
     Ltempnew = CUDA.CuArray(Ltempnew)
@@ -1479,6 +1480,11 @@ $(TYPEDSIGNATURES)
 function project_ket_on_bra(
     LE::S, B::S, M::T, RE::S, ::Val{:n}
 ) where {T <: AbstractArray{Float64, 4}, S <: AbstractArray{Float64, 3}}
+    if typeof(B) <: CUDA.CuArray
+        LE = CUDA.CuArray(LE)
+        RE = CUDA.CuArray(RE)
+        M = CUDA.CuArray(M)
+    end
     @tensor A[x, y, z] := LE[k, l, x] * B[k, m, o] *
                           M[l, y, n, m] * RE[z, n, o] order = (k, l, m, n, o)
     A
@@ -1490,6 +1496,13 @@ $(TYPEDSIGNATURES)
 function project_ket_on_bra(
     LE::S, B::S, C::S, M::T, N::T, RE::S, ::Val{:n}
 ) where {T <: AbstractArray{Float64, 4}, S <: AbstractArray{Float64, 3}}
+    if typeof(B) <: CUDA.CuArray
+        LE = CUDA.CuArray(LE)
+        RE = CUDA.CuArray(RE)
+        M = CUDA.CuArray(M)
+        C =  CUDA.CuArray(C)
+        N =  CUDA.CuArray(N)
+    end
     @tensor A[x, y, z, r] := LE[k, l, x] * B[k, m, o] *
                           M[l, y, n, m] * C[o, s, q] *
                           N[n, z, p, s] * RE[r, p, q] order = (k, l, m, n, o, s, p, q)
@@ -1502,6 +1515,9 @@ $(TYPEDSIGNATURES)
 function project_ket_on_bra(
     LE::S, B::S, M::T, RE::S, ::Val{:n}
 ) where {T <: AbstractArray{Float64, 2}, S <: AbstractArray{Float64, 3}}
+    if typeof(B) <: CUDA.CuArray
+        M = CUDA.CuArray(M)
+    end
     @tensor A[x, y, z] := M[y, a] * B[x, a, z]
     A
 end
@@ -1523,10 +1539,17 @@ end
 $(TYPEDSIGNATURES)
 """
 function project_ket_on_bra(
-    LE::S, B::S, M::T, RE::S, ::Val{:n}
+    LE::S, B::S, M::T, RE::S, ::Val{:n} #TODO
 ) where {T <: SparseDiagonalTensor, S <: AbstractArray{Float64, 3}}
     @cast BB[l, s2, s1, r] := B[l, (s2, s1), r]  (s2 ∈ 1:size(M.e2, 2))
-    @tensor CC[l, q1, q2, r] := M.e1[q1, s1] * M.e2[q2, s2] * BB[l, s2, s1, r]
+    if typeof(BB) <: CUDA.CuArray
+        M_e1 = CUDA.CuArray(M.e1)
+        M_e2 = CUDA.CuArray(M.e2)
+    else
+        M_e1 = M.e1
+        M_e2 = M.e2
+    end
+    @tensor CC[l, q1, q2, r] := M_e1[q1, s1] * M_e2[q2, s2] * BB[l, s2, s1, r]
     @cast CC[l, (q1, q2), r] := CC[l, q1, q2, r]
     CC
 end
@@ -1537,6 +1560,9 @@ $(TYPEDSIGNATURES)
 function project_ket_on_bra(
     LE::S, B::S, M::T, RE::S, ::Val{:c}
 ) where {T <: AbstractArray{Float64, 2}, S <: AbstractArray{Float64, 3}}
+    if typeof(B) <: CUDA.CuArray
+        M = CUDA.CuArray(M)
+    end
     @tensor A[x, y, z] := B[x, a, z] * M[a, y]
     A
 end
@@ -1560,7 +1586,14 @@ function project_ket_on_bra(
     LE::S, B::S, M::T, RE::S, ::Val{:c}
 ) where {T <: SparseDiagonalTensor, S <: AbstractArray{Float64, 3}}
     @cast BB[l, s1, s2, r] := B[l, (s1, s2), r]  (s1 ∈ 1:size(M.e1, 1))
-    @tensor CC[l, q2, q1, r] := BB[l, s1, s2, r] * M.e1[s1, q1] * M.e2[s2, q2]
+    if typeof(BB) <: CUDA.CuArray
+        M_e1 = CUDA.CuArray(M.e1)
+        M_e2 = CUDA.CuArray(M.e2)
+    else
+        M_e1 = M.e1
+        M_e2 = M.e2
+    end
+    @tensor CC[l, q2, q1, r] := BB[l, s1, s2, r] * M_e1[s1, q1] * M_e2[s2, q2]
     @cast CC[l, (q2, q1), r] := CC[l, q2, q1, r]
     CC
 end
@@ -1603,75 +1636,6 @@ function project_ket_on_bra(
     Array(permutedims(A, (3, 1, 2)))
 end
 
-# """
-# $(TYPEDSIGNATURES)
-# """
-function project_ket_on_bra(
-    LE::S, B::S, M::T, RE::S, ::Val{:n}
-) where {S <: AbstractArray{Float64, 3}, T <: SparseVirtualTensor}
-    h = M.con
-    if typeof(h) == SparseCentralTensor
-        h = dense_central_tensor(h)
-    end
-    p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
-
-    @cast B4[x, k, l, y] := B[x, (k, l), y] (k ∈ 1:maximum(p_lb))
-
-    pls = projectors_to_sparse(p_lb, p_l, p_lt)
-    (a,b,c) = size(LE)
-    LE = permutedims(LE, (2, 1, 3))
-    @cast LEn[x, (y, z)] := LE[x, y, z]
-    LL = pls * LEn 
-    @cast LL[nbp, nc, ntp, nb, nt] := LL[(nbp, nc, ntp), (nb, nt)] (nbp ∈ 1:maximum(p_lb), nc ∈ 1:maximum(p_l), nb ∈ 1:a)
-    LL = permutedims(LL, (4, 1, 2, 5, 3))
-
-    prs = projectors_to_sparse(p_rb, p_r, p_rt)
-    (a,b,c) = size(RE)
-    RE = permutedims(RE, (2, 3, 1))
-    @cast REn[x, (y, z)] := RE[x, y, z]
-    RR = prs * REn 
-    @cast RR[nbp, nc, ntp, nb, nt] := RR[(nbp, nc, ntp), (nb, nt)] (nbp ∈ 1:maximum(p_rb), nc ∈ 1:maximum(p_r), nt ∈ 1:a)
-    RR = permutedims(RR, (5, 3, 2, 4, 1))
-
-    @tensor LR[tl, tlp, trp, tr] := LL[bl, blp, cl, tl, tlp] * RR[tr, trp, cr, br, brp] * B4[bl, blp, brp, br] * h[cl, cr] order = (cl, bl, blp, brp, br, cr)
-    @cast LR[l, (x, y), r] := LR[l, x, y, r]
-
-    LR ./ maximum(abs.(LR))
-end
-
-function project_ket_on_bra(
-    LE::S, B::S, M::T, RE::S, ::Val{:c}
-) where {S <: AbstractArray{Float64, 3}, T <: SparseVirtualTensor}
-    h = M.con
-    if typeof(h) == SparseCentralTensor
-        h = dense_central_tensor(h)
-    end
-    p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
-
-    @cast B4[x, k, l, y] := B[x, (k, l), y] (k ∈ 1:maximum(p_lt))
-
-    pls = projectors_to_sparse(p_lt, p_l, p_lb)
-    (a,b,c) = size(LE)
-    LE = permutedims(LE, (2, 1, 3))
-    @cast LEn[x, (y, z)] := LE[x, y, z]
-    LL = pls * LEn 
-    @cast LL[nbp, nc, ntp, nb, nt] := LL[(nbp, nc, ntp), (nb, nt)] (nbp ∈ 1:maximum(p_lt), nc ∈ 1:maximum(p_l), nb ∈ 1:a)
-    LL = permutedims(LL, (4, 1, 2, 5, 3))
-
-    prs = projectors_to_sparse(p_rt, p_r, p_rb)
-    (a,b,c) = size(RE)
-    RE = permutedims(RE, (2, 3, 1))
-    @cast REn[x, (y, z)] := RE[x, y, z]
-    RR = prs * REn 
-    @cast RR[nbp, nc, ntp, nb, nt] := RR[(nbp, nc, ntp), (nb, nt)] (nbp ∈ 1:maximum(p_rt), nc ∈ 1:maximum(p_r), nt ∈ 1:a)
-    RR = permutedims(RR, (5, 3, 2, 4, 1))
-
-    @tensor LR[tl, tlp, trp, tr] := LL[bl, blp, cl, tl, tlp] * RR[tr, trp, cr, br, brp] * B4[bl, blp, brp, br] * h[cl, cr] order = (cl, bl, blp, brp, br, cr)
-    @cast LR[l, (x, y), r] := LR[l, x, y, r]
-
-    LR ./ maximum(abs.(LR))
-end
-
 # # """
 # # $(TYPEDSIGNATURES)
 # # """
@@ -1680,30 +1644,27 @@ end
 # ) where {S <: AbstractArray{Float64, 3}, T <: SparseVirtualTensor}
 #     h = M.con
 #     if typeof(h) == SparseCentralTensor
-#         h = cuda_dense_central_tensor(h)
-#     else
-#         h = CUDA.CuArray(h)
+#         h = dense_central_tensor(h)
 #     end
 #     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
 
-#     B = CUDA.CuArray(B)
 #     @cast B4[x, k, l, y] := B[x, (k, l), y] (k ∈ 1:maximum(p_lb))
 
 #     pls = projectors_to_sparse(p_lb, p_l, p_lt)
 #     (a,b,c) = size(LE)
-#     LE = permutedims(CUDA.CuArray(LE), (2, 1, 3))
+#     LE = permutedims(LE, (2, 1, 3))
 #     @cast LEn[x, (y, z)] := LE[x, y, z]
 #     LL = pls * LEn 
 #     @cast LL[nbp, nc, ntp, nb, nt] := LL[(nbp, nc, ntp), (nb, nt)] (nbp ∈ 1:maximum(p_lb), nc ∈ 1:maximum(p_l), nb ∈ 1:a)
-#     LL = permutedims(CUDA.CuArray(LL), (4, 1, 2, 5, 3))
+#     LL = permutedims(LL, (4, 1, 2, 5, 3))
 
 #     prs = projectors_to_sparse(p_rb, p_r, p_rt)
 #     (a,b,c) = size(RE)
-#     RE = permutedims(CUDA.CuArray(RE), (2, 3, 1))
+#     RE = permutedims(RE, (2, 3, 1))
 #     @cast REn[x, (y, z)] := RE[x, y, z]
 #     RR = prs * REn 
 #     @cast RR[nbp, nc, ntp, nb, nt] := RR[(nbp, nc, ntp), (nb, nt)] (nbp ∈ 1:maximum(p_rb), nc ∈ 1:maximum(p_r), nt ∈ 1:a)
-#     RR = permutedims(CUDA.CuArray(RR), (5, 3, 2, 4, 1))
+#     RR = permutedims(RR, (5, 3, 2, 4, 1))
 
 #     @tensor LR[tl, tlp, trp, tr] := LL[bl, blp, cl, tl, tlp] * RR[tr, trp, cr, br, brp] * B4[bl, blp, brp, br] * h[cl, cr] order = (cl, bl, blp, brp, br, cr)
 #     @cast LR[l, (x, y), r] := LR[l, x, y, r]
@@ -1716,36 +1677,108 @@ end
 # ) where {S <: AbstractArray{Float64, 3}, T <: SparseVirtualTensor}
 #     h = M.con
 #     if typeof(h) == SparseCentralTensor
-#         h = cuda_dense_central_tensor(h)
-#     else
-#         h = CUDA.CuArray(h)
+#         h = dense_central_tensor(h)
 #     end
 #     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
 
-#     B = CUDA.CuArray(B)
 #     @cast B4[x, k, l, y] := B[x, (k, l), y] (k ∈ 1:maximum(p_lt))
 
 #     pls = projectors_to_sparse(p_lt, p_l, p_lb)
 #     (a,b,c) = size(LE)
-#     LE = permutedims(CUDA.CuArray(LE), (2, 1, 3))
+#     LE = permutedims(LE, (2, 1, 3))
 #     @cast LEn[x, (y, z)] := LE[x, y, z]
 #     LL = pls * LEn 
 #     @cast LL[nbp, nc, ntp, nb, nt] := LL[(nbp, nc, ntp), (nb, nt)] (nbp ∈ 1:maximum(p_lt), nc ∈ 1:maximum(p_l), nb ∈ 1:a)
-#     LL = permutedims(CUDA.CuArray(LL), (4, 1, 2, 5, 3))
+#     LL = permutedims(LL, (4, 1, 2, 5, 3))
 
 #     prs = projectors_to_sparse(p_rt, p_r, p_rb)
 #     (a,b,c) = size(RE)
-#     RE = permutedims(CUDA.CuArray(RE), (2, 3, 1))
+#     RE = permutedims(RE, (2, 3, 1))
 #     @cast REn[x, (y, z)] := RE[x, y, z]
 #     RR = prs * REn 
 #     @cast RR[nbp, nc, ntp, nb, nt] := RR[(nbp, nc, ntp), (nb, nt)] (nbp ∈ 1:maximum(p_rt), nc ∈ 1:maximum(p_r), nt ∈ 1:a)
-#     RR = permutedims(CUDA.CuArray(RR), (5, 3, 2, 4, 1))
+#     RR = permutedims(RR, (5, 3, 2, 4, 1))
 
 #     @tensor LR[tl, tlp, trp, tr] := LL[bl, blp, cl, tl, tlp] * RR[tr, trp, cr, br, brp] * B4[bl, blp, brp, br] * h[cl, cr] order = (cl, bl, blp, brp, br, cr)
 #     @cast LR[l, (x, y), r] := LR[l, x, y, r]
 
 #     LR ./ maximum(abs.(LR))
 # end
+
+# """
+# $(TYPEDSIGNATURES)
+# """
+function project_ket_on_bra(
+    LE::S, B::S, M::T, RE::S, ::Val{:n}
+) where {S <: AbstractArray{Float64, 3}, T <: SparseVirtualTensor}
+    h = M.con
+    if typeof(h) == SparseCentralTensor
+        h = cuda_dense_central_tensor(h)
+    else
+        h = CUDA.CuArray(h)
+    end
+    p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
+
+    B = CUDA.CuArray(B)
+    @cast B4[x, k, l, y] := B[x, (k, l), y] (k ∈ 1:maximum(p_lb))
+
+    pls = projectors_to_sparse(p_lb, p_l, p_lt)
+    (a,b,c) = size(LE)
+    LE = permutedims(CUDA.CuArray(LE), (2, 1, 3))
+    @cast LEn[x, (y, z)] := LE[x, y, z]
+    LL = pls * LEn 
+    @cast LL[nbp, nc, ntp, nb, nt] := LL[(nbp, nc, ntp), (nb, nt)] (nbp ∈ 1:maximum(p_lb), nc ∈ 1:maximum(p_l), nb ∈ 1:a)
+    LL = permutedims(CUDA.CuArray(LL), (4, 1, 2, 5, 3))
+
+    prs = projectors_to_sparse(p_rb, p_r, p_rt)
+    (a,b,c) = size(RE)
+    RE = permutedims(CUDA.CuArray(RE), (2, 3, 1))
+    @cast REn[x, (y, z)] := RE[x, y, z]
+    RR = prs * REn 
+    @cast RR[nbp, nc, ntp, nb, nt] := RR[(nbp, nc, ntp), (nb, nt)] (nbp ∈ 1:maximum(p_rb), nc ∈ 1:maximum(p_r), nt ∈ 1:a)
+    RR = permutedims(CUDA.CuArray(RR), (5, 3, 2, 4, 1))
+
+    @tensor LR[tl, tlp, trp, tr] := LL[bl, blp, cl, tl, tlp] * RR[tr, trp, cr, br, brp] * B4[bl, blp, brp, br] * h[cl, cr] order = (cl, bl, blp, brp, br, cr)
+    @cast LR[l, (x, y), r] := LR[l, x, y, r]
+
+    LR ./ maximum(abs.(LR))
+end
+
+function project_ket_on_bra(
+    LE::S, B::S, M::T, RE::S, ::Val{:c}
+) where {S <: AbstractArray{Float64, 3}, T <: SparseVirtualTensor}
+    h = M.con
+    if typeof(h) == SparseCentralTensor
+        h = cuda_dense_central_tensor(h)
+    else
+        h = CUDA.CuArray(h)
+    end
+    p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
+
+    B = CUDA.CuArray(B)
+    @cast B4[x, k, l, y] := B[x, (k, l), y] (k ∈ 1:maximum(p_lt))
+
+    pls = projectors_to_sparse(p_lt, p_l, p_lb)
+    (a,b,c) = size(LE)
+    LE = permutedims(CUDA.CuArray(LE), (2, 1, 3))
+    @cast LEn[x, (y, z)] := LE[x, y, z]
+    LL = pls * LEn 
+    @cast LL[nbp, nc, ntp, nb, nt] := LL[(nbp, nc, ntp), (nb, nt)] (nbp ∈ 1:maximum(p_lt), nc ∈ 1:maximum(p_l), nb ∈ 1:a)
+    LL = permutedims(CUDA.CuArray(LL), (4, 1, 2, 5, 3))
+
+    prs = projectors_to_sparse(p_rt, p_r, p_rb)
+    (a,b,c) = size(RE)
+    RE = permutedims(CUDA.CuArray(RE), (2, 3, 1))
+    @cast REn[x, (y, z)] := RE[x, y, z]
+    RR = prs * REn 
+    @cast RR[nbp, nc, ntp, nb, nt] := RR[(nbp, nc, ntp), (nb, nt)] (nbp ∈ 1:maximum(p_rt), nc ∈ 1:maximum(p_r), nt ∈ 1:a)
+    RR = permutedims(CUDA.CuArray(RR), (5, 3, 2, 4, 1))
+
+    @tensor LR[tl, tlp, trp, tr] := LL[bl, blp, cl, tl, tlp] * RR[tr, trp, cr, br, brp] * B4[bl, blp, brp, br] * h[cl, cr] order = (cl, bl, blp, brp, br, cr)
+    @cast LR[l, (x, y), r] := LR[l, x, y, r]
+
+    LR ./ maximum(abs.(LR))
+end
 
 # # """
 # # $(TYPEDSIGNATURES)
@@ -2002,7 +2035,19 @@ function project_ket_on_bra(
 ) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
     C = sort(collect(M), by = x -> x[1])
     TT = B₀
-    for (_, v) ∈ reverse(C) TT = project_ket_on_bra(LE, TT, v, RE, Val(:n)) end
+    for (_, v) ∈ reverse(C)
+        if typeof(TT) <: CUDA.CuArray
+            LE = CUDA.CuArray(LE)
+            RE = CUDA.CuArray(RE)
+        end
+        println("-------------------") 
+        println(typeof(LE))
+        println(typeof(TT))
+        println(typeof(v))
+        println(typeof(RE))
+        println("-------------------") 
+        TT = project_ket_on_bra(LE, TT, v, RE, Val(:n)) 
+    end
     TT
 end
 

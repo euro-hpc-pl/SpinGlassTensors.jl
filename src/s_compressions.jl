@@ -1741,7 +1741,7 @@ function project_ket_on_bra(
     @tensor LR[tl, tlp, trp, tr] := LL[bl, blp, cl, tl, tlp] * RR[tr, trp, cr, br, brp] * B4[bl, blp, brp, br] * h[cl, cr] order = (cl, bl, blp, brp, br, cr)
     @cast LR[l, (x, y), r] := LR[l, x, y, r]
 
-    LR ./ maximum(abs.(LR))
+    Array(LR ./ maximum(abs.(LR)))
 end
 
 function project_ket_on_bra(
@@ -1777,7 +1777,7 @@ function project_ket_on_bra(
     @tensor LR[tl, tlp, trp, tr] := LL[bl, blp, cl, tl, tlp] * RR[tr, trp, cr, br, brp] * B4[bl, blp, brp, br] * h[cl, cr] order = (cl, bl, blp, brp, br, cr)
     @cast LR[l, (x, y), r] := LR[l, x, y, r]
 
-    LR ./ maximum(abs.(LR))
+    Array(LR ./ maximum(abs.(LR)))
 end
 
 # # """
@@ -2040,12 +2040,6 @@ function project_ket_on_bra(
             LE = CUDA.CuArray(LE)
             RE = CUDA.CuArray(RE)
         end
-        println("-------------------") 
-        println(typeof(LE))
-        println(typeof(TT))
-        println(typeof(v))
-        println(typeof(RE))
-        println("-------------------") 
         TT = project_ket_on_bra(LE, TT, v, RE, Val(:n)) 
     end
     TT

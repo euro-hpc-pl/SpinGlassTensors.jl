@@ -355,28 +355,47 @@ function update_env_left(
     L = CUDA.zeros(eltype(LE),  maximum(M.projs[3]), size(B, 3), size(A, 3))
     while from <= total_size
         to = min(total_size, from + batch_size - 1)
-
-        A_d = permutedims(CUDA.CuArray(A[:, M.projs[2][from : to], :]), (1, 3, 2))
-        L_d = permutedims(CUDA.CuArray(LE[:, M.projs[1][from : to], :]), (1, 3, 2))
-        B_d = permutedims(CUDA.CuArray(B[:, M.projs[4][from : to], :]), (3, 1, 2))
-
-        Lr_d = B_d ⊠ L_d ⊠ A_d
-        Lr_d .*= reshape(CUDA.CuArray(M.loc_exp[from:to]), 1, 1, :)
-
+        @time begin
+            println("permutedims: ")
+            A_d = permutedims(CUDA.CuArray(A[:, M.projs[2][from : to], :]), (1, 3, 2))
+            L_d = permutedims(CUDA.CuArray(LE[:, M.projs[1][from : to], :]), (1, 3, 2))
+            B_d = permutedims(CUDA.CuArray(B[:, M.projs[4][from : to], :]), (3, 1, 2))
+        end
+        @time begin
+            println("⊠ operation: ")
+            Lr_d = B_d ⊠ L_d ⊠ A_d
+        end
+        @time begin
+            println("reshape: ")
+            Lr_d .*= reshape(CUDA.CuArray(M.loc_exp[from:to]), 1, 1, :)
+        end
         pr = M.projs[3][from:to]
 
         # This is how sparse matrix is represented internally
-        csrRowPtr = CuArray(collect(1:length(pr) + 1))
-        csrColInd = CuArray(pr)
-        csrNzVal = CUDA.ones(Float64, length(pr))
-        ipr = CUSPARSE.CuSparseMatrixCSC(csrRowPtr, csrColInd, csrNzVal, (maximum(M.projs[3]), length(pr))) # transposed right here
+        @time begin
+            println("CuArray: ")
+            csrRowPtr = CuArray(collect(1:length(pr) + 1))
+            csrColInd = CuArray(pr)
+            csrNzVal = CUDA.ones(Float64, length(pr))
+        end
+        @time begin
+            println("CuSparse: ")
+            ipr = CUSPARSE.CuSparseMatrixCSC(csrRowPtr, csrColInd, csrNzVal, (maximum(M.projs[3]), length(pr))) # transposed right here
+        end
         sb, st, _ = size(Lr_d)
-        @cast Lr_d[(x, y), z] := Lr_d[x, y, z]
-        L = L .+ reshape(ipr * Lr_d', (:, sb, st))
+        @time begin
+            println("cast and reshape: ")
+            @cast Lr_d[(x, y), z] := Lr_d[x, y, z]
+            L = L .+ reshape(ipr * Lr_d', (:, sb, st))
+        end
         from = to + 1
     end
+    @time begin
+        println("result gpu => cpu: ")
+        res = Array(permutedims(L, (2, 1, 3)))
+    end
 
-    Array(permutedims(L, (2, 1, 3)))
+    res
 end
 
 
@@ -420,31 +439,52 @@ function update_env_left(
         h = CUDA.CuArray(h)
     end
     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
-
-    @cast A4[x, k, l, y] := A[x, (k, l), y] (k ∈ 1:maximum(p_lt))
-    @cast B4[x, k, l, y] := B[x, (k, l), y] (k ∈ 1:maximum(p_lb))
+    @time begin
+        println("cast (virtual): ")
+        @cast A4[x, k, l, y] := A[x, (k, l), y] (k ∈ 1:maximum(p_lt))
+        @cast B4[x, k, l, y] := B[x, (k, l), y] (k ∈ 1:maximum(p_lb))
+    end
     A4 = CUDA.CuArray(A4)
     B4 = CUDA.CuArray(B4)
-
-    ps = projectors_to_cusparse(p_lb, p_l, p_lt)
+    @time begin
+        println("projectors to sparse (virtual): ")
+        ps = projectors_to_cusparse(p_lb, p_l, p_lt)
+    end
     (a,b,c) = size(LE)
-    LE = permutedims(CUDA.CuArray(LE), (2, 1, 3))
-    @cast LEn[x, (y, z)] := LE[x, y, z]
-    Ltemp = ps * LEn 
+    @time begin
+        println("cast, permutedims, multiplication (virtual): ")
+        LE = permutedims(CUDA.CuArray(LE), (2, 1, 3))
+        @cast LEn[x, (y, z)] := LE[x, y, z]
+        Ltemp = ps * LEn 
+    end
 
-    @cast Ltemp[nbp, nc, ntp, nb, nt] := Ltemp[(nbp, nc, ntp), (nb, nt)] (nbp ∈ 1:maximum(p_lb), nc ∈ 1:maximum(p_l), nb ∈ 1:a)
-    Ltemp = permutedims(CUDA.CuArray(Ltemp), (4, 1, 2, 5, 3))
- 
-    @tensor Ltempnew[nb, nbp, nc, nt, ntp] := Ltemp[b, bp, oc, t, tp] * A4[t, tp, ntp, nt] * B4[b, bp, nbp, nb] * h[oc, nc]
-
+    @time begin
+        println("cast, permutedims (virtual): ")
+        @cast Ltemp[nbp, nc, ntp, nb, nt] := Ltemp[(nbp, nc, ntp), (nb, nt)] (nbp ∈ 1:maximum(p_lb), nc ∈ 1:maximum(p_l), nb ∈ 1:a)
+        Ltemp = permutedims(CUDA.CuArray(Ltemp), (4, 1, 2, 5, 3))
+    end
+    @time begin
+        println("tensor (virtual): ")
+        @tensor Ltempnew[nb, nbp, nc, nt, ntp] := Ltemp[b, bp, oc, t, tp] * A4[t, tp, ntp, nt] * B4[b, bp, nbp, nb] * h[oc, nc]
+    end
     a = size(Ltempnew, 1)
-    prs = projectors_to_cusparse_transposed(p_rb, p_r, p_rt) 
-    Ltempnew = permutedims(CUDA.CuArray(Ltempnew), (2, 3, 5, 1, 4)) #[(nbp, nc, ntp), (nb, nt)]
-    @cast Ltempnew[(nbp, nc, ntp), (nb, nt)] :=  Ltempnew[nbp,  nc, ntp, nb, nt] 
-    Lnew = prs * Ltempnew  #[cc, (nb, nt)]  
-    Lnew = permutedims(CUDA.CuArray(Lnew), (2, 1))  #[(nb, nt), cc]
-    @cast Lnew[nb, nt, cc] := Lnew[(nb, nt), cc] (nb ∈ 1:a)
-    Array(permutedims(Lnew, (1, 3, 2)) ./ maximum(abs.(Lnew)))
+    @time begin
+        println("projectors_to_cusparse_transposed (virtual): ")
+        prs = projectors_to_cusparse_transposed(p_rb, p_r, p_rt) 
+    end
+    @time begin
+        println("last operations (virtual): ")
+        Ltempnew = permutedims(CUDA.CuArray(Ltempnew), (2, 3, 5, 1, 4)) #[(nbp, nc, ntp), (nb, nt)]
+        @cast Ltempnew[(nbp, nc, ntp), (nb, nt)] :=  Ltempnew[nbp,  nc, ntp, nb, nt] 
+        Lnew = prs * Ltempnew  #[cc, (nb, nt)]  
+        Lnew = permutedims(CUDA.CuArray(Lnew), (2, 1))  #[(nb, nt), cc]
+        @cast Lnew[nb, nt, cc] := Lnew[(nb, nt), cc] (nb ∈ 1:a)
+    end
+    @time begin
+        println("result gpu => cpu (virtual): ")
+        res = Array(permutedims(Lnew, (1, 3, 2)) ./ maximum(abs.(Lnew)))
+    end
+    res
 end
 
 

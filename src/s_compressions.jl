@@ -1107,29 +1107,48 @@ function project_ket_on_bra(
     end
     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
 
-    B = CUDA.CuArray(B)
-    @cast B4[x, k, l, y] := B[x, (k, l), y] (k ∈ 1:maximum(p_lb))
-
-    pls = projectors_to_cusparse(p_lb, p_l, p_lt)
+    @time begin
+        println("project_ket_on_bra cast:")
+        B = CUDA.CuArray(B)
+        @cast B4[x, k, l, y] := B[x, (k, l), y] (k ∈ 1:maximum(p_lb))
+    end
+    @time begin
+        println("project_ket_on_bra projectors to cusparse:")
+        pls = projectors_to_cusparse(p_lb, p_l, p_lt)
+    end
     (a,b,c) = size(LE)
-    LE = permutedims(CUDA.CuArray(LE), (2, 1, 3))
-    @cast LEn[x, (y, z)] := LE[x, y, z]
-    LL = pls * LEn 
-    @cast LL[nbp, nc, ntp, nb, nt] := LL[(nbp, nc, ntp), (nb, nt)] (nbp ∈ 1:maximum(p_lb), nc ∈ 1:maximum(p_l), nb ∈ 1:a)
-    LL = permutedims(CUDA.CuArray(LL), (4, 1, 2, 5, 3))
-
-    prs = projectors_to_cusparse(p_rb, p_r, p_rt)
+    @time begin
+        println("project_ket_on_bra permutedims, cast, multiplication:")
+        LE = permutedims(CUDA.CuArray(LE), (2, 1, 3))
+        @cast LEn[x, (y, z)] := LE[x, y, z]
+        LL = pls * LEn 
+    end
+    @time begin
+        println("project_ket_on_bra cast, permutedims:")
+        @cast LL[nbp, nc, ntp, nb, nt] := LL[(nbp, nc, ntp), (nb, nt)] (nbp ∈ 1:maximum(p_lb), nc ∈ 1:maximum(p_l), nb ∈ 1:a)
+        LL = permutedims(CUDA.CuArray(LL), (4, 1, 2, 5, 3))
+    end
+    @time begin
+        println("project_ket_on_bra projectors_to_cusparse 2:")
+        prs = projectors_to_cusparse(p_rb, p_r, p_rt)
+    end
     (a,b,c) = size(RE)
-    RE = permutedims(CUDA.CuArray(RE), (2, 3, 1))
+    @time begin
+        println("project_ket_on_bra multiplication, cast, permutedims:")    RE = permutedims(CUDA.CuArray(RE), (2, 3, 1))
     @cast REn[x, (y, z)] := RE[x, y, z]
-    RR = prs * REn 
-    @cast RR[nbp, nc, ntp, nb, nt] := RR[(nbp, nc, ntp), (nb, nt)] (nbp ∈ 1:maximum(p_rb), nc ∈ 1:maximum(p_r), nt ∈ 1:a)
-    RR = permutedims(CUDA.CuArray(RR), (5, 3, 2, 4, 1))
-
-    @tensor LR[tl, tlp, trp, tr] := LL[bl, blp, cl, tl, tlp] * RR[tr, trp, cr, br, brp] * B4[bl, blp, brp, br] * h[cl, cr] order = (cl, bl, blp, brp, br, cr)
-    @cast LR[l, (x, y), r] := LR[l, x, y, r]
-
-    Array(LR ./ maximum(abs.(LR)))
+        RR = prs * REn 
+        @cast RR[nbp, nc, ntp, nb, nt] := RR[(nbp, nc, ntp), (nb, nt)] (nbp ∈ 1:maximum(p_rb), nc ∈ 1:maximum(p_r), nt ∈ 1:a)
+        RR = permutedims(CUDA.CuArray(RR), (5, 3, 2, 4, 1))
+    end
+    @time begin
+        println("project_ket_on_bra tensor, cast:")
+        @tensor LR[tl, tlp, trp, tr] := LL[bl, blp, cl, tl, tlp] * RR[tr, trp, cr, br, brp] * B4[bl, blp, brp, br] * h[cl, cr] order = (cl, bl, blp, brp, br, cr)
+        @cast LR[l, (x, y), r] := LR[l, x, y, r]
+    end
+    @time begin
+        println("project_ket_on_bra gpu => cpu:")
+        res = Array(LR ./ maximum(abs.(LR)))
+    end
 end
 
 function project_ket_on_bra(

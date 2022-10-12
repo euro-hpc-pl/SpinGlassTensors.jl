@@ -8,7 +8,9 @@ export
     canonise_truncate!,
     variational_sweep!,
     Environment,
-    optimize_gauges_for_overlaps!!
+    optimize_gauges_for_overlaps!!,
+    projectors_to_cusparse,
+    projectors_to_cusparse_transposed
 
 """
 $(TYPEDSIGNATURES)

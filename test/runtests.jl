@@ -11,14 +11,14 @@ using Test
 idx(σ::Int) = (σ == -1) ? 1 : σ + 1
 
 my_tests = [
-    "base.jl",
-    "memoization.jl",
-    "contractions.jl",
-    "compressions.jl",
+    #"base.jl",
+    #"memoization.jl",
+    #"contractions.jl",
+    #"compressions.jl",
     "s_compressions.jl",
     #"ss_compressions.jl", # two site compression problem
     "s_contractions.jl",
-    "identities.jl"
+    #"identities.jl"
 ]
 
 

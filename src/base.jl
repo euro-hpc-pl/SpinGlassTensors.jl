@@ -1,49 +1,96 @@
 export
     AbstractTensorNetwork,
-    bond_dimension,
-    is_left_normalized,
-    is_right_normalized,
-    verify_bonds,
-    verify_physical_dims,
-    tensor,
-    rank,
-    physical_dim,
+    AbstractMPS,
+    AbstractMPO,
+    QMps,
+    QMpo,
+    local_dims,
+    Site,
+    Sites,
     State,
-    dropindices
+    Tensor,
+    SparseSiteTensor,
+    SparseVirtualTensor,
+    SparseDiagonalTensor,
+    SparseCentralTensor,
+    dense_central_tensor,
+    cuda_dense_central_tensor,
+    IdentityQMps,
+    SparsePegasusSquareTensor
 
-const State = Union{Vector, NTuple}
+
 abstract type AbstractTensorNetwork{T} end
+abstract type AbstractMPS end
+abstract type AbstractMPO end
+abstract type AbstractEnvironment end
+abstract type AbstractSparseTensor end
 
-# PEPSRow to be removed
-for (T, N) ∈ ((:PEPSRow, 5), (:MPO, 4), (:MPS, 3))
-    AT = Symbol(:Abstract, T)
-    @eval begin
-        export $AT
-        export $T
+const Site = Union{Int, Rational{Int}}
+const Sites = NTuple{N, Site} where N
+const State = Union{Vector, NTuple}
 
-        abstract type $AT{T} <: AbstractTensorNetwork{T} end
 
-        struct $T{T <: Number} <: $AT{T}
-            tensors::Vector{Array{T, $N}}
-        end
 
-        # consturctors
-        $T(::Type{T}, L::Int) where {T} = $T(Vector{Array{T, $N}}(undef, L))
-        $T(L::Int) = $T(Float64, L)
+struct SparseSiteTensor <: AbstractSparseTensor
+    loc_exp::Vector{<:Real}
+    projs::NTuple{N, Vector{Int}} where N
+end
 
-        @inline function Base.setindex!(
-            a::$AT, A::AbstractArray{<:Number, $N}, i::Int
-        )
-            a.tensors[i] = A
-        end
-        @inline bond_dimension(a::$AT) = maximum(size.(a.tensors, $N))
-        Base.hash(a::$T, h::UInt) = hash(a.tensors, h)
-        @inline Base.:(==)(a::$T, b::$T) = a.tensors == b.tensors
-        @inline Base.:(≈)(a::$T, b::$T)  = a.tensors ≈ b.tensors
-        Base.copy(a::$T) = $T(copy(a.tensors))
+"""
+$(TYPEDSIGNATURES)
+"""
+struct SparsePegasusSquareTensor <: AbstractSparseTensor
+    projs::Vector{Vector{Int}}
+    loc_exp::Matrix{<:Real}
+    bnd_exp::Vector{Matrix{<:Real}}
+    bnd_projs::Vector{Vector{Int}}
+    sizes::NTuple{4, Int}
+end
 
-        @inline Base.eltype(::$AT{T}) where {T} = T
-    end
+
+struct SparseCentralTensor <: AbstractSparseTensor
+    e11::Matrix{<:Real}
+    e12::Matrix{<:Real}
+    e21::Matrix{<:Real}
+    e22::Matrix{<:Real}
+    sizes::NTuple{2, Int}
+end
+
+Base.size(M::SparseCentralTensor, n::Int) = M.sizes[n]
+Base.size(M::SparseCentralTensor) = M.sizes
+
+function dense_central_tensor(ten::SparseCentralTensor)
+    @cast V[(u1, u2), (d1, d2)] := ten.e11[u1, d1] * ten.e21[u2, d1] * ten.e12[u1, d2] * ten.e22[u2, d2]
+    V ./ maximum(V)
+end
+
+function cuda_dense_central_tensor(ten::SparseCentralTensor)
+    e11 = CUDA.CuArray(ten.e11)
+    e12 = CUDA.CuArray(ten.e12)
+    e21 = CUDA.CuArray(ten.e21)
+    e22 = CUDA.CuArray(ten.e22)
+    @cast V[(u1, u2), (d1, d2)] := e11[u1, d1] * e21[u2, d1] * e12[u1, d2] * e22[u2, d2]
+    V ./ maximum(V)
+end
+
+
+struct SparseDiagonalTensor <: AbstractSparseTensor
+    e1::Matrix{<:Real}
+    e2::Matrix{<:Real}
+    sizes::NTuple{2, Int}
+end
+
+Base.size(M::SparseDiagonalTensor, n::Int) = M.sizes[n]
+Base.size(M::SparseDiagonalTensor) = M.sizes
+
+
+#TODO: potentially change name. Used in SquareStar geometry.
+"""
+$(TYPEDSIGNATURES)
+"""
+struct SparseVirtualTensor <: AbstractSparseTensor
+    con::Union{Matrix{<:Real}, SparseCentralTensor}
+    projs::NTuple{N, Vector{Int}} where N
 end
 
 """
@@ -51,215 +98,94 @@ $(TYPEDSIGNATURES)
 """
 @inline Base.getindex(a::AbstractTensorNetwork, i) = getindex(a.tensors, i)
 
-"""
-$(TYPEDSIGNATURES)
-"""
-@inline Base.iterate(a::AbstractTensorNetwork) = iterate(a.tensors)
+
 
 """
 $(TYPEDSIGNATURES)
 """
-@inline Base.iterate(a::AbstractTensorNetwork, state) = iterate(a.tensors, state)
+const Tensor = Union{AbstractArray{Float64}, SparseSiteTensor, SparseVirtualTensor, SparsePegasusSquareTensor, SparseCentralTensor, SparseDiagonalTensor}
 
+
+#TODO: type of sites
 """
 $(TYPEDSIGNATURES)
 """
-@inline Base.lastindex(a::AbstractTensorNetwork) = lastindex(a.tensors)
-
-"""
-$(TYPEDSIGNATURES)
-"""
-@inline Base.length(a::AbstractTensorNetwork) = length(a.tensors)
-
-"""
-$(TYPEDSIGNATURES)
-"""
-@inline Base.size(a::AbstractTensorNetwork) = (length(a.tensors), )
-
-"""
-$(TYPEDSIGNATURES)
-"""
-@inline Base.eachindex(a::AbstractTensorNetwork) = eachindex(a.tensors)
-
-"""
-$(TYPEDSIGNATURES)
-"""
-@inline LinearAlgebra.rank(ψ::AbstractMPS) = Tuple(size(A, 2) for A ∈ ψ)
-
-"""
-$(TYPEDSIGNATURES)
-"""
-@inline physical_dim(ψ::AbstractMPS, i::Int) = size(ψ[i], 2)
-
-"""
-$(TYPEDSIGNATURES)
-"""
-@inline MPS(A::AbstractArray) = MPS(A, :right)
-
-"""
-$(TYPEDSIGNATURES)
-"""
-@inline function MPS(A::AbstractArray, s::Symbol, Dcut::Int=typemax(Int))
-    @assert s ∈ (:left, :right)
-    if s == :right
-        ψ = _right_sweep(A)
-        _left_sweep!(ψ, Dcut)
-    else
-        ψ = _left_sweep(A)
-        _right_sweep!(ψ, Dcut)
-    end
-    ψ
+struct QMps <: AbstractTensorNetwork{Number}
+    tensors::Dict{Site, Tensor}
+    sites::Vector{Site}
+    QMps(tensors::Dict{<:Site, <:Tensor}) = new(tensors, sort(collect(keys(tensors))))
 end
 
 """
 $(TYPEDSIGNATURES)
 """
-@inline dropindices(ψ::AbstractMPS, i::Int=2) = (dropdims(A, dims=i) for A ∈ ψ)
-
-"""
-$(TYPEDSIGNATURES)
-"""
-function MPS(states::Vector{Vector{T}}) where {T <: Number}
-    state_arrays = [reshape(copy(v), (1, length(v), 1)) for v ∈ states]
-    MPS(state_arrays)
-end
-
-"""
-$(TYPEDSIGNATURES)
-"""
-function (::Type{T})(ψ::AbstractMPS) where {T <: AbstractMPO}
-    _verify_square(ψ)
-    T([@cast W[x, σ, y, η] |= A[x, (σ, η), y] (σ ∈ 1:isqrt(size(A, 2))) for A in ψ])
-end
-
-"""
-$(TYPEDSIGNATURES)
-"""
-function (::Type{T})(O::AbstractMPO) where {T <: AbstractMPS}
-    T([@cast A[x, (σ, η), y] := W[x, σ, y, η] for W in O])
-end
-
-"""
-$(TYPEDSIGNATURES)
-"""
-function Base.randn(::Type{MPS{T}}, D::Int, rank::Union{Vector, NTuple}) where {T}
-    MPS([
-        randn(T, 1, first(rank), D),
-        randn.(T, D, rank[begin+1:end-1], D)...,
-        rand(T, D, last(rank), 1)
-    ])
-end
-
-"""
-$(TYPEDSIGNATURES)
-"""
-function Base.randn(::Type{MPS{T}}, L::Int, D::Int, d::Int) where {T}
-    MPS([
-        randn(T, 1, d, D), (randn(T, D, d, D) for _ in 2:L-1)..., randn(T, D, d, 1)
-    ])
-end
-
-"""
-$(TYPEDSIGNATURES)
-"""
-Base.randn(::Type{MPS}, args...) = randn(MPS{Float64}, args...)
-
-"""
-$(TYPEDSIGNATURES)
-"""
-function Base.randn(::Type{MPO{T}}, L::Int, D::Int, d::Int) where {T}
-    MPO(randn(MPS{T}, L, D, d^2))
-end
-
-"""
-$(TYPEDSIGNATURES)
-"""
-function Base.randn(::Type{MPO{T}}, D::Int, rank::Union{Vector, NTuple}) where {T}
-    MPO(randn(MPS{T}, D, rank .^ 2))
-end
-
-"""
-$(TYPEDSIGNATURES)
-"""
-Base.randn(::Type{MPO}, args...) = randn(MPO{Float64}, args...)
-
-"""
-$(TYPEDSIGNATURES)
-"""
-function is_left_normalized(ψ::MPS)
-    all(
-       I(size(A, 3)) ≈ @tensor Id[x, y] := conj(A[α, σ, x]) * A[α, σ, y] order = (α, σ)
-       for A ∈ ψ
-    )
-end
-
-"""
-$(TYPEDSIGNATURES)
-"""
-function is_right_normalized(ϕ::MPS)
-    all(
-        I(size(B, 1)) ≈ @tensor Id[x, y] := B[x, σ, α] * conj(B[y, σ, α]) order = (α, σ)
-        for B in ϕ
-    )
-end
-
-"""
-$(TYPEDSIGNATURES)
-"""
-function _verify_square(ψ::AbstractMPS)
-    dims = physical_dim.(Ref(ψ), eachindex(ψ))
-    @assert isqrt.(dims) .^ 2 == dims "Incorrect MPS dimensions"
-end
-
-"""
-$(TYPEDSIGNATURES)
-"""
-function verify_physical_dims(ψ::AbstractMPS, dims::NTuple)
-    for i ∈ eachindex(ψ)
-        @assert physical_dim(ψ, i) == dims[i] "Incorrect physical dim at site $(i)."
+struct QMpo <: AbstractTensorNetwork{Number}
+    tensors::Dict{Site, Dict{Site, Tensor}}
+    sites::Vector{Site}
+    function QMpo(tensors::Dict{<:Site, <:Dict{<:Site, <:Tensor}})
+        new(tensors, sort(collect(keys(tensors))))
     end
 end
 
+#TODO: rethink this function
 """
 $(TYPEDSIGNATURES)
 """
-function verify_bonds(ψ::AbstractMPS)
-    L = length(ψ)
-
-    @assert size(ψ[1], 1) == 1 "Incorrect size on the left boundary."
-    @assert size(ψ[end], 3) == 1 "Incorrect size on the right boundary."
-
-    for i ∈ 1:L-1
-        @assert size(ψ[i], 3) == size(ψ[i+1], 1) "Incorrect link between $i and $(i+1)."
-    end
-end
-
-"""
-$(TYPEDSIGNATURES)
-"""
-function Base.show(io::IO, ψ::AbstractTensorNetwork)
-    L = length(ψ)
-    dims = [size(A) for A ∈ ψ]
-
-    println(io, "Matrix product state on $L sites:")
-    _show_sizes(io, dims)
-    println(io, "   ")
-end
-
-"""
-$(TYPEDSIGNATURES)
-"""
-function _show_sizes(io::IO, dims::Vector, sep::String=" x ", Lcut::Int=8)
-    L = length(dims)
-    if L > Lcut
-        for i ∈ 1:Lcut
-            print(io, " ", dims[i], sep)
+function local_dims(mpo::QMpo, dir::Symbol)
+    @assert dir ∈ (:down, :up)
+    lds = Dict{Site, Int}()
+    for site ∈ mpo.sites
+        mkeys = sort(collect(keys(mpo[site])))
+        if any(length(size(mpo[site][k])) > 2 for k ∈ mkeys)
+            if dir == :down
+                ss = size(mpo[site][last(mkeys)])
+                push!(lds, site => length(ss) == 4 ? ss[4] : ss[2])
+            else
+                ss = size(mpo[site][first(mkeys)])
+                push!(lds, site => length(ss) == 4 ? ss[2] : ss[1])
+            end
         end
-        print(io, " ... × ", dims[end])
-    else
-        for i ∈ 1:(L-1)
-            print(io, dims[i], sep)
-        end
-        println(io, dims[end])
     end
+    lds
 end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function IdentityQMps(loc_dims::Dict, Dmax::Int=1)
+    id = Dict{Site, Tensor}(site => zeros(Dmax, ld, Dmax) for (site, ld) ∈ loc_dims)
+    site_min, ld_min = minimum(loc_dims)
+    site_max, ld_max = maximum(loc_dims)
+    if site_min == site_max
+        id[site_min] = zeros(1, ld_min, 1)
+    else
+        id[site_min] = zeros(1, ld_min, Dmax)
+        id[site_max] = zeros(Dmax, ld_max, 1)
+    end
+        for (site, ld) ∈ loc_dims id[site][1, :, 1] .= 1 / sqrt(ld) end
+    QMps(id)
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+@inline Base.size(tens::AbstractSparseTensor) = maximum.(tens.projs)
+
+"""
+$(TYPEDSIGNATURES)
+"""
+@inline function Base.setindex!(
+    ket::AbstractTensorNetwork, A::AbstractArray, i::Site
+)
+    ket.tensors[i] = A
+end
+
+# """
+# $(TYPEDSIGNATURES)
+# """
+# QMps(ϕ::AbstractMPS) = QMps(Dict(i => A for (i, A) ∈ enumerate(ϕ)))
+
+# """
+# $(TYPEDSIGNATURES)
+# """
+# QMpo(ϕ::AbstractMPO) = QMpo(Dict(i => Dict(0 => A) for (i, A) ∈ enumerate(ϕ)))

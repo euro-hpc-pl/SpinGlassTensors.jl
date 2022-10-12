@@ -14,4 +14,10 @@ module SpinGlassTensors
     include("linear_algebra_ext.jl")
     include("compressions.jl")
     include("contractions.jl")
+    include("sparse_central_tensor.jl")
+    include("sparse_diagonal_tensor.jl")
+    include("sparse_pegasus_square_tensor.jl")
+    include("sparse_site_tensor.jl")
+    include("sparse_virtual_tensor.jl")
+
 end # module

@@ -64,19 +64,19 @@ function LinearAlgebra.dot(ϕ::QMps, ψ::QMpo)
     QMps(D)
 end
 
-"""
-$(TYPEDSIGNATURES)
-"""
-function LinearAlgebra.dot(W::MPO, ϕ::QMps)
-    QMps(Dict(i => contract_up(ϕ[i], A) for (i, A) ∈ enumerate(W)))
-end
+# """
+# $(TYPEDSIGNATURES)
+# """
+# function LinearAlgebra.dot(W::MPO, ϕ::QMps)
+#     QMps(Dict(i => contract_up(ϕ[i], A) for (i, A) ∈ enumerate(W)))
+# end
 
-"""
-$(TYPEDSIGNATURES)
-"""
-function LinearAlgebra.dot(ϕ::QMps, W::MPO)
-    QMps(Dict(i => contract_down(A, ϕ[i]) for (i, A) ∈ enumerate(W)))
-end
+# """
+# $(TYPEDSIGNATURES)
+# """
+# function LinearAlgebra.dot(ϕ::QMps, W::MPO)
+#     QMps(Dict(i => contract_down(A, ϕ[i]) for (i, A) ∈ enumerate(W)))
+# end
 
 """
 $(TYPEDSIGNATURES)

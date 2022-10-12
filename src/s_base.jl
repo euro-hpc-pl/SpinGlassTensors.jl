@@ -1,9 +1,13 @@
 export
+    AbstractTensorNetwork,
+    AbstractMPS,
+    AbstractMPO,
     QMps,
     QMpo,
     local_dims,
     Site,
     Sites,
+    State,
     Tensor,
     SparseSiteTensor,
     SparseVirtualTensor,
@@ -14,11 +18,16 @@ export
     IdentityQMps,
     SparsePegasusSquareTensor
 
+
+abstract type AbstractTensorNetwork{T} end
+abstract type AbstractMPS end
+abstract type AbstractMPO end
 abstract type AbstractEnvironment end
 abstract type AbstractSparseTensor end
 
 const Site = Union{Int, Rational{Int}}
 const Sites = NTuple{N, Site} where N
+const State = Union{Vector, NTuple}
 
 
 
@@ -83,6 +92,11 @@ struct SparseVirtualTensor <: AbstractSparseTensor
     con::Union{Matrix{<:Real}, SparseCentralTensor}
     projs::NTuple{N, Vector{Int}} where N
 end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+@inline Base.getindex(a::AbstractTensorNetwork, i) = getindex(a.tensors, i)
 
 
 
@@ -166,12 +180,12 @@ $(TYPEDSIGNATURES)
     ket.tensors[i] = A
 end
 
-"""
-$(TYPEDSIGNATURES)
-"""
-QMps(ϕ::AbstractMPS) = QMps(Dict(i => A for (i, A) ∈ enumerate(ϕ)))
+# """
+# $(TYPEDSIGNATURES)
+# """
+# QMps(ϕ::AbstractMPS) = QMps(Dict(i => A for (i, A) ∈ enumerate(ϕ)))
 
-"""
-$(TYPEDSIGNATURES)
-"""
-QMpo(ϕ::AbstractMPO) = QMpo(Dict(i => Dict(0 => A) for (i, A) ∈ enumerate(ϕ)))
+# """
+# $(TYPEDSIGNATURES)
+# """
+# QMpo(ϕ::AbstractMPO) = QMpo(Dict(i => Dict(0 => A) for (i, A) ∈ enumerate(ϕ)))

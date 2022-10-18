@@ -1,109 +1,67 @@
-@testset "contractions" begin
-
-D = 10
-d = 3
-sites = 5
-T = ComplexF64
-
-ψ = randn(MPS{T}, sites, D, d)
-ϕ = randn(MPS{T}, sites, D, d)
-mpo_ψ = randn(MPO{T}, sites, D, d)
-mpo = randn(MPO{T}, 2, 2, 2)
-
-
-Id = fill(I(d), length(ψ))
-
-Id_m = MPO(fill(ones(1,1,1,d), length(ϕ)))
-
-@testset "dot products" begin
-    @testset "is equal to itself" begin
-        @test dot(ψ, ψ) ≈ dot(ψ, ψ)
-    end
-
-    @testset "change of arguments results in conjugation" begin
-        @test dot(ψ, ϕ) ≈ conj(dot(ϕ, ψ))
-        @test dot(ψ, Id, ϕ) ≈ conj(dot(ϕ, Id, ψ))
-    end
-
-    @testset "dot with identity equal to dot of two MPS" begin
-        @test dot(ψ, Id, ϕ) ≈ dot(ψ, ϕ)
-    end
-
-    @testset "norm is 2-norm" begin
-        @test norm(ψ) ≈ sqrt(abs(dot(ψ, ψ)))
-    end
-
-    @testset "renormalizations" begin
-        ψ[end] *= 1 / norm(ψ)
-        @test dot(ψ, ψ) ≈ 1
-
-        ϕ[1] *= 1 / norm(ϕ)
-        @test dot(ϕ, ϕ) ≈ 1
-    end
-
-    @testset "dot products of MPO" begin
-        mpo1 = dot(mpo, mpo)
-
-        @testset "has correct sisze" begin
-            @test size(mpo1[1]) == (1, 2, 4, 2)
-            @test size(mpo1[2]) == (4, 2, 1, 2)
-        end
-    end
-
-end
-
-@testset "left environment returns correct overlap" begin
-    L = left_env(ϕ, ψ)
-    @test L[end][1] ≈ dot(ϕ, ψ)
-end
-
-
-@testset "right environment returns correct overlap" begin
-    R = right_env(ϕ, ψ)
-    @test R[1][end] ≈ dot(ϕ, ψ)
-end
-
-
-@testset "Cauchy-Schwarz inequality of MPS is OK" begin
-    @test abs(dot(ϕ, ψ)) <= norm(ϕ) * norm(ψ)
-end
-
-
-@testset "left_env correctly contracts MPS for a given configuration" begin
-    D = 10
+@testset "Contraction" begin
+    D = 2
     d = 2
-    sites = 5
-    T = ComplexF64
-
-    ψ = randn(MPS{T}, sites, D, d)
-    state = 2 * (rand(sites) .< 0.5) .- 1
-
-    C = I
-    for (A, σ) ∈ zip(ψ, state) C *= A[:, idx(σ), :] end
-    
-    @test tr(C) ≈ left_env(ψ, map(idx, state))[]
-end
-
-
-@testset "right_env correctly contracts MPO with MPS for a given configuration" begin
-    D = 10
-    d = 2
-    sites = 5
+    sites = collect(1:2)
     T = Float64
 
-    ψ = randn(MPS{T}, sites, D, d)
-    W = randn(MPO{T}, sites, D, d)
+    ψ = random_QMps(sites, D, d)
+    ϕ = random_QMps(sites, D, d)
+    O1 = random_QMpo(sites, D, d)
 
-    σ = 2 * (rand(sites) .< 0.5) .- 1
+    @testset "dot products of MPS" begin
+        @testset "is equal to itself" begin
+            @test dot(ψ, ψ) ≈ dot(ψ, ψ)
+        end
 
-    ϕ = MPS(T, sites)
-    for (i, A) ∈ enumerate(W)
-        m = idx(σ[i])
-        @cast B[x, s, y] := A[x, $m, y, s]
-        ϕ[i] = B
+        @testset "change of arguments results in conjugation" begin
+            @test dot(ψ, ϕ) ≈ conj(dot(ϕ, ψ))
+        end
+
+        @testset "norm is 2-norm" begin
+            @test norm(ψ) ≈ sqrt(abs(dot(ψ, ψ)))
+        end
+
+        @testset "renormalizations" begin
+            ψ.tensors[ψ.sites[end]] *= 1 / norm(ψ)
+            @test dot(ψ, ψ) ≈ 1
+
+            ϕ.tensors[ψ.sites[1]] *= 1 / norm(ϕ)
+            @test dot(ϕ, ϕ) ≈ 1
+        end 
+    end 
+    
+    @testset "dot product of MPS with MPO" begin
+        B = randn(Float64, 4,2,3)
+        A = randn(Float64, 2,2)  
+        C = randn(Float64, 2,2,2,2)
+        O2 = random_QMpo(sites, D, d)
+
+        @testset "contract_left gives correct sizes" begin 
+            @test size(contract_left(B, A)) == (4,2,3)
+        end
+
+        @testset "contract_up gives correct sizes" begin 
+            @test size(contract_up(B, A)) == (4, 2, 3)
+            @test size(contract_up(B, C)) == (8, 2, 6)
+        end
+
+        @testset "contract_down gives correct sizes" begin 
+            @test size(contract_down(A, B)) == (4, 2, 3)
+            @test size(contract_down(C, B)) == (8 ,2, 6)
+        end
+
+        # @testset "dot product of QMpo and QMps" begin
+        #     D = dot(O2, ψ)
+        #     E = dot(O1, ψ)
+        #     @test size(D[1]) == size(E[1]) == (1, 2, 4)
+        #     @test size(D[2]) == size(E[2]) == (4, 2, 1)
+        # end
+
+        @testset "dot product of QMps and QMpo" begin
+            F = dot(ψ, O2)
+            G = dot(ψ, O1)
+            @test size(F[1]) == size(G[1]) == (1, 2, 4)
+            @test size(F[2]) == size(G[2]) == (4, 1, 2)
+        end
     end
-
-    @test dot(ψ, ϕ) ≈ right_env(ψ, W, map(idx, σ))[]
-end
-
 end

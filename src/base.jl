@@ -16,8 +16,13 @@ export
     dense_central_tensor,
     cuda_dense_central_tensor,
     IdentityQMps,
-    SparsePegasusSquareTensor
-
+    SparsePegasusSquareTensor,
+    random_QMps,
+    random_QMpo,
+    bond_dimension,
+    verify_bonds,
+    is_left_normalized,
+    is_right_normalized
 
 abstract type AbstractTensorNetwork{T} end
 abstract type AbstractMPS end
@@ -174,18 +179,136 @@ $(TYPEDSIGNATURES)
 """
 $(TYPEDSIGNATURES)
 """
+@inline Base.size(a::AbstractTensorNetwork) = (length(a.tensors), )
+
+"""
+$(TYPEDSIGNATURES)
+"""
+@inline Base.length(a::AbstractTensorNetwork) = length(a.tensors)
+
+"""
+$(TYPEDSIGNATURES)
+"""
+@inline LinearAlgebra.rank(ψ::QMps) = Tuple(size(A, 2) for A ∈ values(ψ.tensors))
+
+"""
+$(TYPEDSIGNATURES)
+"""
+@inline bond_dimension(ψ::QMps) = maximum(size.(values(ψ.tensors), 3))
+
+"""
+$(TYPEDSIGNATURES)
+"""
+Base.copy(ψ::QMps) = QMps(copy(ψ.tensors))
+
+"""
+$(TYPEDSIGNATURES)
+"""
+@inline Base.:(≈)(a::QMps, b::QMps) = isapprox(a.tensors, b.tensors)
+
+"""
+$(TYPEDSIGNATURES)
+"""
+@inline Base.:(≈)(a::QMpo, b::QMpo) = all([isapprox(a.tensors[i], b.tensors[i]) for i in keys(a.tensors)])
+
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function Base.isapprox(l::Dict, r::Dict)
+    l === r && return true
+    if length(l) != length(r) return false end
+    for pair in l
+        if !in(pair, r, isapprox)
+            return false
+        end
+    end
+    true
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function verify_bonds(ψ::QMps)
+    L = length(ψ.sites)
+
+    @assert size(ψ.tensors[1], 1) == 1 "Incorrect size on the left boundary."
+    @assert size(ψ.tensors[L], 3) == 1 "Incorrect size on the right boundary."
+
+    for i ∈ 1:L-1
+        @assert size(ψ.tensors[i], 3) == size(ψ.tensors[i+1], 1) "Incorrect link between $i and $(i+1)."
+    end
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
 @inline function Base.setindex!(
     ket::AbstractTensorNetwork, A::AbstractArray, i::Site
 )
     ket.tensors[i] = A
 end
 
-# """
-# $(TYPEDSIGNATURES)
-# """
-# QMps(ϕ::AbstractMPS) = QMps(Dict(i => A for (i, A) ∈ enumerate(ϕ)))
+function random_QMps(sites::Vector, D::Int, d::Int)
+    qmps = Dict{Site, Tensor}()
+    for i in sites
+        if i == 1
+            push!(qmps, i => randn(1, d, D))
+        elseif i == last(sites)
+            push!(qmps, i => randn(D, d, 1))
+        else
+            push!(qmps, i => randn(D, d, D))
+        end
+    end
+    QMps(qmps)
+end
 
-# """
-# $(TYPEDSIGNATURES)
-# """
-# QMpo(ϕ::AbstractMPO) = QMpo(Dict(i => Dict(0 => A) for (i, A) ∈ enumerate(ϕ)))
+function random_QMpo(sites::Vector, D::Int, d::Int, sites_aux::Vector=[], d_aux::Int=0)
+    qmpo = Dict{Site, Dict{Site, Tensor}}()
+    qmpo_aux = Dict{Site, Tensor}()
+
+    for i in sites
+        if i == 1
+            push!(qmpo_aux, i => randn(1, d, d, D))
+            [push!(qmpo_aux, j => randn(d_aux, d_aux)) for j in sites_aux]
+            new_qmpo_aux = copy(qmpo_aux)
+            push!(qmpo, i => new_qmpo_aux)
+        elseif i == last(sites)
+            for j in sites_aux
+                push!(qmpo_aux, j => randn(d_aux, d_aux))
+            end
+            push!(qmpo_aux, last(sites) => randn(D, d, d, 1))
+            new_qmpo_aux = copy(qmpo_aux)
+            push!(qmpo, i => new_qmpo_aux)
+        else
+            for j in sites_aux
+                push!(qmpo_aux, j => randn(d_aux, d_aux))
+            end
+            push!(qmpo_aux, i => randn(D, d, d, D))
+            new_qmpo_aux = copy(qmpo_aux)
+            push!(qmpo, i => new_qmpo_aux)
+        end
+        empty!(qmpo_aux)
+    end
+    QMpo(qmpo)
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function is_left_normalized(ψ::QMps)
+    all(
+       I(size(A, 3)) ≈ @tensor Id[x, y] := conj(A[α, σ, x]) * A[α, σ, y] order = (α, σ)
+       for A ∈ values(ψ.tensors)
+    )
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function is_right_normalized(ϕ::QMps)
+    all(
+        I(size(B, 1)) ≈ @tensor Id[x, y] := B[x, σ, α] * conj(B[y, σ, α]) order = (α, σ)
+        for B in values(ϕ.tensors)
+    )
+end

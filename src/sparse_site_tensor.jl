@@ -21,12 +21,7 @@ function update_env_left(
         Lr_d .*= reshape(CUDA.CuArray(M.loc_exp[from:to]), 1, 1, :)
         pr = M.projs[3][from:to]
 
-        # This is how sparse matrix is represented internally
-        csrRowPtr = CuArray(collect(1:length(pr) + 1))
-        csrColInd = CuArray(pr)
-        csrNzVal = CUDA.ones(Float64, length(pr))
-        ipr = CUSPARSE.CuSparseMatrixCSC(csrRowPtr, csrColInd, csrNzVal, (maximum(pr), length(pr))) # transposed right here
-
+        ipr = _cusparse_projector(pr)
         sb, st, _ = size(Lr_d)
         @cast Lr_d[(x, y), z] := Lr_d[x, y, z]
         L[1:maximum(pr), :, :] = L[1:maximum(pr), :, :] .+ reshape(ipr * Lr_d', (:, sb, st))
@@ -50,10 +45,8 @@ function update_env_left(
     Lr_d .*= reshape(CUDA.CuArray(M.loc_exp), 1, 1, :)
 
     pr = M.projs[3]
-    csrRowPtr = CuArray(collect(1:length(pr) + 1))
-    csrColInd = CuArray(pr)
-    csrNzVal = CUDA.ones(Float64, length(pr))
-    ipr = CUSPARSE.CuSparseMatrixCSC(csrRowPtr, csrColInd, csrNzVal, (maximum(pr), length(pr))) # transposed right here
+
+    ipr = _cusparse_projector(pr)
 
     Lr_d = permutedims(Lr_d, (3, 2, 1))
     _, sy, sz = size(Lr_d)
@@ -82,10 +75,7 @@ function update_env_right(
     Rr_d .*= reshape(CUDA.CuArray(M.loc_exp), 1, 1, :)
     pr = M.projs[1]
 
-    csrRowPtr = CuArray(collect(1:length(pr) + 1))
-    csrColInd = CuArray(pr)
-    csrNzVal = CUDA.ones(Float64, length(pr))
-    ipr = CUSPARSE.CuSparseMatrixCSC(csrRowPtr, csrColInd, csrNzVal, (maximum(pr), length(pr))) # transposed right here
+    ipr = _cusparse_projector(pr)
 
     Rr_d = permutedims(Rr_d, (3, 2, 1))
     _, sy, sz = size(Rr_d)
@@ -114,10 +104,7 @@ function update_env_right(
     Rr_d .*= reshape(CUDA.CuArray(M.loc_exp), 1, 1, :)
     pr = M.projs[1]
 
-    csrRowPtr = CuArray(collect(1:length(pr) + 1))
-    csrColInd = CuArray(pr)
-    csrNzVal = CUDA.ones(Float64, length(pr))
-    ipr = CUSPARSE.CuSparseMatrixCSC(csrRowPtr, csrColInd, csrNzVal, (maximum(pr), length(pr))) # transposed right here
+    ipr = _cusparse_projector(pr)
 
     Rr_d = permutedims(Rr_d, (3, 2, 1)) #(256, 4, 4)
     _, sy, sz = size(Rr_d)
@@ -146,10 +133,7 @@ function project_ket_on_bra(
 
     pu = M.projs[2]
 
-    csrRowPtr = CuArray(collect(1:length(pu) + 1))
-    csrColInd = CuArray(pu)
-    csrNzVal = CUDA.ones(Float64, length(pu))
-    ipu = CUSPARSE.CuSparseMatrixCSC(csrRowPtr, csrColInd, csrNzVal, (maximum(pu), length(pu))) # transposed right here
+    ipu = _cusparse_projector(pu)
 
     Ar_d = permutedims(Ar_d, (3, 2, 1)) #(256, 4, 4)
     _, sy, sz = size(Ar_d)
@@ -182,4 +166,12 @@ for i in 1:maximum(pu)
     A[:,:,i] = sum(Ar_d[:, :, pu.==i], dims=3)
 end
 Array(permutedims(A, (1, 3, 2)))
+end
+
+function _cusparse_projector(pr::Vector{Int})
+    # This is how sparse matrix is represented internally
+    csrRowPtr = CuArray(collect(1:length(pr) + 1))
+    csrColInd = CuArray(pr)
+    csrNzVal = CUDA.ones(Float64, length(pr))
+    ipr = CUSPARSE.CuSparseMatrixCSC(csrRowPtr, csrColInd, csrNzVal, (maximum(pr), length(pr))) # transposed right here
 end

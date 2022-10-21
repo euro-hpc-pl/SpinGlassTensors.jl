@@ -25,12 +25,11 @@ function update_env_left(
         csrRowPtr = CuArray(collect(1:length(pr) + 1))
         csrColInd = CuArray(pr)
         csrNzVal = CUDA.ones(Float64, length(pr))
+        ipr = CUSPARSE.CuSparseMatrixCSC(csrRowPtr, csrColInd, csrNzVal, (maximum(pr), length(pr))) # transposed right here
 
-        ipr = CUSPARSE.CuSparseMatrixCSC(csrRowPtr, csrColInd, csrNzVal, (maximum(M.projs[3]), length(pr))) # transposed right here
-        
         sb, st, _ = size(Lr_d)
         @cast Lr_d[(x, y), z] := Lr_d[x, y, z]
-        L = L .+ reshape(ipr * Lr_d', (:, sb, st))
+        L[1:maximum(pr), :, :] = L[1:maximum(pr), :, :] .+ reshape(ipr * Lr_d', (:, sb, st))
         from = to + 1
     end
 

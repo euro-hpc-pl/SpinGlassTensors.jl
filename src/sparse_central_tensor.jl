@@ -9,8 +9,12 @@ $(TYPEDSIGNATURES)
 """
 function update_env_left(
     LE::S, M::T, ::Union{Val{:n}, Val{:c}}
-) where {S <: AbstractArray{Float64, 3}, T <: SparseCentralTensor}
-    MM = cuda_dense_central_tensor(M)
+) where {S <: AbstractArray{Float64, 3}, T <: Union{SparseCentralTensor, SparseVirtualTensor}}
+    if typeof(M) == SparseCentralTensor
+        MM = cuda_dense_central_tensor(M)
+    else
+        MM = CUDA.CuArray(M)
+    end    
     LE = CUDA.CuArray(LE)
     @tensor L[nt, nc, nb] :=  LE[nt, oc, nb] * MM[oc, nc]
     Array(L)
@@ -57,8 +61,12 @@ $(TYPEDSIGNATURES)
 """
 function update_env_right(
     RE::S, M::T, ::Union{Val{:n}, Val{:c}}
-) where {S <: AbstractArray{Float64, 3}, T <: SparseCentralTensor}
-    MM = cuda_dense_central_tensor(M)
+) where {S <: AbstractArray{Float64, 3}, T <: Union{SparseCentralTensor, SparseVirtualTensor}}
+    if typeof(M) == SparseCentralTensor
+        MM = cuda_dense_central_tensor(M)
+    else
+        MM = CUDA.CuArray(M)
+    end 
     RE = CUDA.CuArray(RE)
     @tensor R[nt, nc, nb] := MM[nc, oc] * RE[nt, oc, nb]
     Array(R)

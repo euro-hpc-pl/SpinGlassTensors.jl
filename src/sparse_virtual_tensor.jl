@@ -1,12 +1,10 @@
+"""
+$(TYPEDSIGNATURES)
+"""
 function update_env_left(
     LE::S, A::S, M::T, B::S, ::Val{:n}
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseVirtualTensor}
     h = M.con
-    if typeof(h) == SparseCentralTensor
-        h = cuda_dense_central_tensor(h)
-    else
-        h = CUDA.CuArray(h)
-    end
     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
     @cast A4[x, k, l, y] := A[x, (k, l), y] (k ∈ 1:maximum(p_lt))
     @cast B4[x, k, l, y] := B[x, (k, l), y] (k ∈ 1:maximum(p_lb))
@@ -23,8 +21,11 @@ function update_env_left(
 
     @cast Ltemp[nbp, nc, ntp, nb, nt] := Ltemp[(nbp, nc, ntp), (nb, nt)] (nbp ∈ 1:maximum(p_lb), nc ∈ 1:maximum(p_l), nb ∈ 1:a)
     Ltemp = permutedims(CUDA.CuArray(Ltemp), (4, 1, 2, 5, 3))
-
-    @tensor Ltempnew[nb, nbp, nc, nt, ntp] := Ltemp[b, bp, oc, t, tp] * A4[t, tp, ntp, nt] * B4[b, bp, nbp, nb] * h[oc, nc]
+    @cast Ltemp[(b, bp), oc, (t, tp)] :=  Ltemp[b, bp, oc, t, tp]
+    Ltemp = update_env_left(Array(Ltemp), h, Val(:n))
+    Ltemp = CUDA.CuArray(Ltemp)
+    @cast Ltemp[nb, nbp, nc, nt, ntp] := Ltemp[(nb, nbp), nc, (nt, ntp)] (nbp ∈ 1:maximum(p_lb), ntp ∈ 1:maximum(p_lt))
+    @tensor Ltempnew[nb, nbp, nc, nt, ntp] := Ltemp[b, bp, nc, t, tp] * A4[t, tp, ntp, nt] * B4[b, bp, nbp, nb]
     
     a = size(Ltempnew, 1)
     prs = projectors_to_cusparse_transposed(p_rb, p_r, p_rt) 
@@ -39,15 +40,13 @@ function update_env_left(
 
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
 function update_env_left(
     LE::S, A::S, M::T, B::S, ::Val{:c}
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseVirtualTensor}
     h = M.con
-    if typeof(h) == SparseCentralTensor
-        h = cuda_dense_central_tensor(h)
-    else
-        h = CUDA.CuArray(h)
-    end
     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
 
     @cast A4[x, k, l, y] := A[x, (k, l), y] (k ∈ 1:maximum(p_lb))
@@ -63,8 +62,11 @@ function update_env_left(
 
     @cast Ltemp[nbp, nc, ntp, nb, nt] := Ltemp[(nbp, nc, ntp), (nb, nt)] (nbp ∈ 1:maximum(p_lb), nc ∈ 1:maximum(p_l), nb ∈ 1:a)
     Ltemp = permutedims(CUDA.CuArray(Ltemp), (4, 1, 2, 5, 3))
-
-    @tensor Ltempnew[nb, ntp, nc, nt, nbp] := Ltemp[b, bp, oc, t, tp] * A4[t, bp, ntp, nt] * B4[b, tp, nbp, nb] * h[oc, nc]
+    @cast Ltemp[(b, bp), oc, (t, tp)] :=  Ltemp[b, bp, oc, t, tp]
+    Ltemp = update_env_left(Array(Ltemp), h, Val(:n))
+    Ltemp = CUDA.CuArray(Ltemp)
+    @cast Ltemp[nb, nbp, nc, nt, ntp] := Ltemp[(nb, nbp), nc, (nt, ntp)] (nbp ∈ 1:maximum(p_lb), ntp ∈ 1:maximum(p_lt))
+    @tensor Ltempnew[nb, ntp, nc, nt, nbp] := Ltemp[b, bp, nc, t, tp] * A4[t, bp, ntp, nt] * B4[b, tp, nbp, nb]
     
     a = size(Ltempnew, 1)
     prs = projectors_to_cusparse_transposed(p_rb, p_r, p_rt) 
@@ -83,11 +85,6 @@ function update_env_right(
     RE::S, A::S, M::T, B::S, ::Val{:n}
 ) where {T <: SparseVirtualTensor, S <: AbstractArray{Float64,3}}
     h = M.con
-    if typeof(h) == SparseCentralTensor
-        h = cuda_dense_central_tensor(h)
-    else
-        h = CUDA.CuArray(h)
-    end
     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
 
     @cast A4[x, k, l, y] := A[x, (k, l), y] (k ∈ 1:maximum(p_lt))
@@ -103,7 +100,13 @@ function update_env_right(
 
     @cast Rtemp[nbp, nc, ntp, nb, nt] := Rtemp[(nbp, nc, ntp), (nb, nt)] (nbp ∈ 1:maximum(p_rb), nc ∈ 1:maximum(p_r), nt ∈ 1:a)
     Rtemp = permutedims(CUDA.CuArray(Rtemp), (5, 3, 2, 4, 1))
-    @tensor Rtempnew[nt, ntp, nc, nb, nbp] := Rtemp[t, tp, oc, b, bp] * A4[nt, ntp, tp, t] * B4[nb, nbp, bp, b] * h[nc, oc]
+
+    @cast Rtemp[(t, tp), oc, (b, bp)] :=  Rtemp[t, tp, oc, b, bp]
+    Rtemp = update_env_right(Array(Rtemp), h, Val(:n))
+    Rtemp = CUDA.CuArray(Rtemp)
+    @cast Rtemp[nt, ntp, nc, nb, nbp] := Rtemp[(nt, ntp), nc, (nb, nbp)] (nbp ∈ 1:maximum(p_rb), ntp ∈ 1:maximum(p_rt))
+   
+    @tensor Rtempnew[nt, ntp, nc, nb, nbp] := Rtemp[t, tp, nc, b, bp] * A4[nt, ntp, tp, t] * B4[nb, nbp, bp, b]
 
     a = size(Rtempnew, 1)
 
@@ -124,11 +127,6 @@ function update_env_right(
     RE::S, A::S, M::T, B::S, ::Val{:c}
 ) where {T <: SparseVirtualTensor, S <: AbstractArray{Float64,3}}
     h = M.con
-    if typeof(h) == SparseCentralTensor
-        h = cuda_dense_central_tensor(h)
-    else
-        h = CUDA.CuArray(h)
-    end
     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
 
     @cast A4[x, k, l, y] := A[x, (k, l), y] (k ∈ 1:maximum(p_lb))
@@ -144,7 +142,13 @@ function update_env_right(
 
     @cast Rtemp[nbp, nc, ntp, nb, nt] := Rtemp[(nbp, nc, ntp), (nb, nt)] (nbp ∈ 1:maximum(p_rb), nc ∈ 1:maximum(p_r), nt ∈ 1:a)
     Rtemp = permutedims(Rtemp, (5, 3, 2, 4, 1))
-    @tensor Rtempnew[nt, nbp, nc, nb, ntp] := Rtemp[t, tp, oc, b, bp] * A4[nt, ntp, bp, t] * B4[nb, nbp, tp, b] * h[nc, oc]
+
+    @cast Rtemp[(t, tp), oc, (b, bp)] :=  Rtemp[t, tp, oc, b, bp]
+    Rtemp = update_env_right(Array(Rtemp), h, Val(:n))
+    Rtemp = CUDA.CuArray(Rtemp)
+    @cast Rtemp[nt, ntp, nc, nb, nbp] := Rtemp[(nt, ntp), nc, (nb, nbp)] (nbp ∈ 1:maximum(p_rb), ntp ∈ 1:maximum(p_rt))
+   
+    @tensor Rtempnew[nt, nbp, nc, nb, ntp] := Rtemp[t, tp, nc, b, bp] * A4[nt, ntp, bp, t] * B4[nb, nbp, tp, b]
 
     a = size(Rtempnew, 1)
 
@@ -198,6 +202,9 @@ function project_ket_on_bra(
     Array(LR ./ maximum(abs.(LR)))
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
 function project_ket_on_bra(
     LE::S, B::S, M::T, RE::S, ::Val{:c}
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseVirtualTensor}
@@ -233,4 +240,3 @@ function project_ket_on_bra(
 
     Array(LR ./ maximum(abs.(LR)))
 end
-

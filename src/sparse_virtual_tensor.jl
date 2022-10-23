@@ -22,7 +22,7 @@ function update_env_left(
     @cast Ltemp[nbp, nc, ntp, nb, nt] := Ltemp[(nbp, nc, ntp), (nb, nt)] (nbp ∈ 1:maximum(p_lb), nc ∈ 1:maximum(p_l), nb ∈ 1:a)
     Ltemp = permutedims(CUDA.CuArray(Ltemp), (4, 1, 2, 5, 3))
     @cast Ltemp[(b, bp), oc, (t, tp)] :=  Ltemp[b, bp, oc, t, tp]
-    Ltemp = update_env_left(Array(Ltemp), h, Val(:n))
+    Ltemp = attach_central_left(Array(Ltemp), h, Val(:n))
     Ltemp = CUDA.CuArray(Ltemp)
     @cast Ltemp[nb, nbp, nc, nt, ntp] := Ltemp[(nb, nbp), nc, (nt, ntp)] (nbp ∈ 1:maximum(p_lb), ntp ∈ 1:maximum(p_lt))
     @tensor Ltempnew[nb, nbp, nc, nt, ntp] := Ltemp[b, bp, nc, t, tp] * A4[t, tp, ntp, nt] * B4[b, bp, nbp, nb]
@@ -63,7 +63,7 @@ function update_env_left(
     @cast Ltemp[nbp, nc, ntp, nb, nt] := Ltemp[(nbp, nc, ntp), (nb, nt)] (nbp ∈ 1:maximum(p_lb), nc ∈ 1:maximum(p_l), nb ∈ 1:a)
     Ltemp = permutedims(CUDA.CuArray(Ltemp), (4, 1, 2, 5, 3))
     @cast Ltemp[(b, bp), oc, (t, tp)] :=  Ltemp[b, bp, oc, t, tp]
-    Ltemp = update_env_left(Array(Ltemp), h, Val(:n))
+    Ltemp = attach_central_left(Array(Ltemp), h, Val(:n))
     Ltemp = CUDA.CuArray(Ltemp)
     @cast Ltemp[nb, nbp, nc, nt, ntp] := Ltemp[(nb, nbp), nc, (nt, ntp)] (nbp ∈ 1:maximum(p_lb), ntp ∈ 1:maximum(p_lt))
     @tensor Ltempnew[nb, ntp, nc, nt, nbp] := Ltemp[b, bp, nc, t, tp] * A4[t, bp, ntp, nt] * B4[b, tp, nbp, nb]
@@ -102,7 +102,7 @@ function update_env_right(
     Rtemp = permutedims(CUDA.CuArray(Rtemp), (5, 3, 2, 4, 1))
 
     @cast Rtemp[(t, tp), oc, (b, bp)] :=  Rtemp[t, tp, oc, b, bp]
-    Rtemp = update_env_right(Array(Rtemp), h, Val(:n))
+    Rtemp = attach_central_right(Array(Rtemp), h, Val(:n))
     Rtemp = CUDA.CuArray(Rtemp)
     @cast Rtemp[nt, ntp, nc, nb, nbp] := Rtemp[(nt, ntp), nc, (nb, nbp)] (nbp ∈ 1:maximum(p_rb), ntp ∈ 1:maximum(p_rt))
    
@@ -144,7 +144,7 @@ function update_env_right(
     Rtemp = permutedims(Rtemp, (5, 3, 2, 4, 1))
 
     @cast Rtemp[(t, tp), oc, (b, bp)] :=  Rtemp[t, tp, oc, b, bp]
-    Rtemp = update_env_right(Array(Rtemp), h, Val(:n))
+    Rtemp = attach_central_right(Array(Rtemp), h, Val(:n))
     Rtemp = CUDA.CuArray(Rtemp)
     @cast Rtemp[nt, ntp, nc, nb, nbp] := Rtemp[(nt, ntp), nc, (nb, nbp)] (nbp ∈ 1:maximum(p_rb), ntp ∈ 1:maximum(p_rt))
    

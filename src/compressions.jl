@@ -191,7 +191,7 @@ $(TYPEDSIGNATURES)
 function update_env_left(
     LE::S, M::T, trans::Symbol=:n
 ) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
-    update_env_left(LE, M[0], Val(trans))
+    attach_central_left(LE, M[0], Val(trans))
 end
 
 function projector_to_dense(pr :: Array{Int, 1})
@@ -294,7 +294,7 @@ function _update_tensor_forward(
     for i ∈ sites
         if i == 0 break end
         C = M[i]
-        B = _update_tensor_forward_n(C, B)
+        B = attach_central_left(B, C, Val(:n))
     end
     B
 end
@@ -309,7 +309,7 @@ function _update_tensor_forward(
     for i ∈ reverse(sites)
         if i == 0 break end
         C = M[i]
-        B = _update_tensor_forward_c(C, B)
+        B = attach_central_right(B, C, Val(:c))
     end
     B
 end
@@ -324,7 +324,7 @@ function _update_tensor_backwards(
     for i ∈ reverse(sites)
         if i == 0 break end
         C = M[i]
-        B = _update_tensor_backwards_n(C, B)
+        B = attach_central_right(B, C, Val(:n))
     end
     B
 end
@@ -339,7 +339,7 @@ function _update_tensor_backwards(
     for i ∈ sites
         if i == 0 break end
         C = M[i]
-        B = _update_tensor_backwards_c(C, B)
+        B = attach_central_left(B, C, Val(:c))
     end
     B
 end
@@ -367,7 +367,7 @@ $(TYPEDSIGNATURES)
 function update_env_right(
     RE::S, M::T, trans::Symbol
 ) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
-    update_env_right(RE, M[0], Val(trans))
+    attach_central_right(RE, M[0], Val(trans))
 end
 
 """
@@ -386,28 +386,19 @@ end
 """
 $(TYPEDSIGNATURES)
 """
-function project_ket_on_bra_twosite(env::Environment, site::Site)
-    site_l = _left_nbrs_site(site, env.bra.sites)
-    project_ket_on_bra(
-        env.env[(site_l, :left)],
-        env.ket[site_l],
-        env.ket[site],
-        env.mpo[site_l][0],
-        env.mpo[site][0],
-        env.env[(site, :right)]
-    )
-end
-
-"""
-$(TYPEDSIGNATURES)
-"""
 function project_ket_on_bra(
     LE::S, B₀::S, M::T, RE::S, ::Val{:n}
 ) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
     C = sort(collect(M), by = x -> x[1])
     TT = B₀
     for (_, v) ∈ reverse(C)
-        TT = project_ket_on_bra(LE, TT, v, RE, Val(:n)) 
+        if typeof(v) == SparseSiteTensor
+            TT = project_ket_on_bra(LE, TT, v, RE, Val(:n))
+        elseif typeof(v) == SparseVirtualTensor
+            TT = project_ket_on_bra(LE, TT, v, RE, Val(:n))
+        else
+            TT = attach_central_right(TT, v, Val(:n))
+        end
     end
     TT
 end
@@ -420,7 +411,15 @@ function project_ket_on_bra(
 ) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
     C = sort(collect(M), by = x -> x[1])
     TT = B₀
-    for (_, v) ∈ C TT = project_ket_on_bra(LE, TT, v, RE, Val(:c)) end
+    for (_, v) ∈ C 
+        if typeof(v) == SparseSiteTensor
+            TT = project_ket_on_bra(LE, TT, v, RE, Val(:c))
+        elseif typeof(v) == SparseVirtualTensor
+            TT = project_ket_on_bra(LE, TT, v, RE, Val(:c))
+        else
+            TT = attach_central_left(TT, v, Val(:c))
+        end
+    end
     TT
 end
 

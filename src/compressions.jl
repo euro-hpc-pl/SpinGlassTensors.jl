@@ -392,12 +392,11 @@ function project_ket_on_bra(
     C = sort(collect(M), by = x -> x[1])
     TT = B₀
     for (_, v) ∈ reverse(C)
-        if typeof(v) == SparseSiteTensor
-            TT = project_ket_on_bra(LE, TT, v, RE, Val(:n))
-        elseif typeof(v) == SparseVirtualTensor
-            TT = project_ket_on_bra(LE, TT, v, RE, Val(:n))
-        else
+        dimv = length(size(v))
+        if dimv == 2
             TT = attach_central_right(TT, v, Val(:n))
+        else
+            TT = project_ket_on_bra(LE, TT, v, RE, Val(:n))
         end
     end
     TT
@@ -411,13 +410,12 @@ function project_ket_on_bra(
 ) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
     C = sort(collect(M), by = x -> x[1])
     TT = B₀
-    for (_, v) ∈ C 
-        if typeof(v) == SparseSiteTensor
-            TT = project_ket_on_bra(LE, TT, v, RE, Val(:c))
-        elseif typeof(v) == SparseVirtualTensor
-            TT = project_ket_on_bra(LE, TT, v, RE, Val(:c))
-        else
+    for (_, v) ∈ C
+        dimv = length(size(v))
+        if dimv == 2
             TT = attach_central_left(TT, v, Val(:c))
+        else
+            TT = project_ket_on_bra(LE, TT, v, RE, Val(:c))
         end
     end
     TT
@@ -477,7 +475,6 @@ function variational_sweep!(
     env = Environment(bra, mpo, ket, trans)
     _right_sweep_var!(env, trans, args...)
 end
-
 
 """
 $(TYPEDSIGNATURES)

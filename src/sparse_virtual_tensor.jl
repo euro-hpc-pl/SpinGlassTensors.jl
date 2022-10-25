@@ -6,38 +6,37 @@ function update_env_left(
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseVirtualTensor}
     h = M.con
     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
+
+    A = CUDA.CuArray(A)
+    B = CUDA.CuArray(B)
+    LE = CUDA.CuArray(LE)
+
     @cast A4[x, k, l, y] := A[x, (k, l), y] (k ∈ 1:maximum(p_lt))
     @cast B4[x, k, l, y] := B[x, (k, l), y] (k ∈ 1:maximum(p_lb))
-    
-    A4 = CUDA.CuArray(A4)
-    B4 = CUDA.CuArray(B4)
-    
+
+    sb = size(LE, 1)
+    LEn = permutedims(LE, (2, 1, 3))
+    @cast LEn[lc, (lb, lt)] := LEn[lc, lb, lt]
     ps = projectors_to_cusparse(p_lb, p_l, p_lt)
+    Ltemp = ps * LEn
 
-    (a,b,c) = size(LE)
-    LE = permutedims(CUDA.CuArray(LE), (2, 1, 3))
-    @cast LEn[x, (y, z)] := LE[x, y, z]
-    Ltemp = ps * LEn 
+    @cast Ltemp[nbp, nc, ntp, nb, nt] := Ltemp[(nbp, nc, ntp), (nb, nt)] (nbp ∈ 1:maximum(p_lb), nc ∈ 1:maximum(p_l), nb ∈ 1:sb)
+    Ltemp = permutedims(Ltemp, (4, 1, 2, 5, 3))
 
-    @cast Ltemp[nbp, nc, ntp, nb, nt] := Ltemp[(nbp, nc, ntp), (nb, nt)] (nbp ∈ 1:maximum(p_lb), nc ∈ 1:maximum(p_l), nb ∈ 1:a)
-    Ltemp = permutedims(CUDA.CuArray(Ltemp), (4, 1, 2, 5, 3))
-    @cast Ltemp[(b, bp), oc, (t, tp)] :=  Ltemp[b, bp, oc, t, tp]
-    Ltemp = attach_central_left(Array(Ltemp), h, Val(:n))
-    Ltemp = CUDA.CuArray(Ltemp)
+    @cast Ltemp[(b, bp), oc, (t, tp)] := Ltemp[b, bp, oc, t, tp]
+    Ltemp = attach_central_left(Ltemp, h, Val(:n))
     @cast Ltemp[nb, nbp, nc, nt, ntp] := Ltemp[(nb, nbp), nc, (nt, ntp)] (nbp ∈ 1:maximum(p_lb), ntp ∈ 1:maximum(p_lt))
-    @tensor Ltempnew[nb, nbp, nc, nt, ntp] := Ltemp[b, bp, nc, t, tp] * A4[t, tp, ntp, nt] * B4[b, bp, nbp, nb]
-    
-    a = size(Ltempnew, 1)
+    @tensor Ltempnew[nb, nbp, nc, nt, ntp] := Ltemp[b, bp, nc, t, tp] * A4[t, tp, ntp, nt] * B4[b, bp, nbp, nb] order = (b, bp, t, tp)
+
+    sb = size(Ltempnew, 1)
     prs = projectors_to_cusparse_transposed(p_rb, p_r, p_rt) 
 
-    Ltempnew = permutedims(CUDA.CuArray(Ltempnew), (2, 3, 5, 1, 4)) #[(nbp, nc, ntp), (nb, nt)]
+    Ltempnew = permutedims(Ltempnew, (2, 3, 5, 1, 4)) #[(nbp, nc, ntp), (nb, nt)]
     @cast Ltempnew[(nbp, nc, ntp), (nb, nt)] := Ltempnew[nbp,  nc, ntp, nb, nt] 
-    Lnew = prs * Ltempnew  #[cc, (nb, nt)]  
-    Lnew = permutedims(CUDA.CuArray(Lnew), (2, 1))  #[(nb, nt), cc]
-    @cast Lnew[nb, nt, cc] := Lnew[(nb, nt), cc] (nb ∈ 1:a)
+    Lnew = prs * Ltempnew  #[cc, (nb, nt)]
 
-    Array(permutedims(Lnew, (1, 3, 2)) ./ maximum(abs.(Lnew)))
-
+    @cast Lnew[cc, nb, nt] := Lnew[cc, (nb, nt)] (nb ∈ 1:sb)
+    Array(permutedims(Lnew, (2, 1, 3)) ./ maximum(abs.(Lnew)))
 end
 
 """

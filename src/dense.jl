@@ -3,7 +3,10 @@ $(TYPEDSIGNATURES)
 """
 function attach_central_left(
     LE::S, M::T, ::Union{Val{:n}, Val{:c}}
-) where {S <: AbstractArray{Float64, 3}, T <: AbstractArray{Float64, 2}} 
+) where {S <: AbstractArray{Float64, 3}, T <: AbstractArray{Float64, 2}}
+    if typeof(LE) <: CuArray && !(typeof(M) <: CuArray)
+        M = CUDA.CuArray(M)
+    end
     @tensor L[nt, nc, nb] :=  LE[nt, oc, nb] * M[oc, nc]
     L
 end
@@ -13,7 +16,10 @@ $(TYPEDSIGNATURES)
 """
 function attach_central_right(
     LE::S, M::T, ::Union{Val{:n}, Val{:c}}
-) where {S <: AbstractArray{Float64, 3}, T <: AbstractArray{Float64, 2}} 
+) where {S <: AbstractArray{Float64, 3}, T <: AbstractArray{Float64, 2}}
+    if typeof(LE) <: CuArray && !(typeof(M) <: CuArray)
+        M = CUDA.CuArray(M)
+    end
     @tensor L[nt, nc, nb] :=  LE[nt, oc, nb] * M[nc, oc]
     L
 end

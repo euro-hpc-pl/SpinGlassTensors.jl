@@ -7,15 +7,14 @@ $(TYPEDSIGNATURES)
 """
 function attach_central_left(
     LE::S, M::T, ::Union{Val{:n}, Val{:c}}
-) where {S <: AbstractArray{Float64, 3}, T <: Union{SparseCentralTensor, SparseVirtualTensor}}
-    if typeof(M) == SparseCentralTensor
+) where {S <: AbstractArray{Float64, 3}, T <: SparseCentralTensor}
+    if typeof(LE) <: CuArray
         MM = cuda_dense_central_tensor(M)
     else
-        MM = CUDA.CuArray(M)
-    end    
-    LE = CUDA.CuArray(LE)
+        MM = dense_central_tensor(M)
+    end
     @tensor L[nt, nc, nb] :=  LE[nt, oc, nb] * MM[oc, nc]
-    Array(L)
+    L
 end
 
 """
@@ -23,13 +22,12 @@ $(TYPEDSIGNATURES)
 """
 function attach_central_right(
     LE::S, M::T, ::Union{Val{:n}, Val{:c}}
-) where {S <: AbstractArray{Float64, 3}, T <: Union{SparseCentralTensor, SparseVirtualTensor}}
-    if typeof(M) == SparseCentralTensor
+) where {S <: AbstractArray{Float64, 3}, T <: SparseCentralTensor}
+    if typeof(LE) <: CuArray
         MM = cuda_dense_central_tensor(M)
     else
-        MM = CUDA.CuArray(M)
-    end    
-    LE = CUDA.CuArray(LE)
+        MM = dense_central_tensor(M)
+    end
     @tensor L[nt, nc, nb] :=  LE[nt, oc, nb] * MM[nc, oc]
-    Array(L)
+    L
 end

@@ -17,7 +17,7 @@ function update_env_left(
     sb = size(LE, 1)
     LEn = permutedims(LE, (2, 1, 3))
     @cast LEn[lc, (lb, lt)] := LEn[lc, lb, lt]
-    ps = projectors_to_cusparse(p_lb, p_l, p_lt)
+    ps = projectors_to_sparse(p_lb, p_l, p_lt, Val(:cs))
     Ltemp = ps * LEn
 
     @cast Ltemp[nbp, nc, ntp, nb, nt] := Ltemp[(nbp, nc, ntp), (nb, nt)] (nbp ∈ 1:maximum(p_lb), nc ∈ 1:maximum(p_l), nb ∈ 1:sb)
@@ -29,7 +29,7 @@ function update_env_left(
     @tensor Ltempnew[nb, nbp, nc, nt, ntp] := Ltemp[b, bp, nc, t, tp] * A4[t, tp, ntp, nt] * B4[b, bp, nbp, nb] order = (b, bp, t, tp)
 
     sb = size(Ltempnew, 1)
-    prs = projectors_to_cusparse_transposed(p_rb, p_r, p_rt) 
+    prs = projectors_to_sparse_transposed(p_rb, p_r, p_rt) 
 
     Ltempnew = permutedims(Ltempnew, (2, 3, 5, 1, 4)) #[(nbp, nc, ntp), (nb, nt)]
     @cast Ltempnew[(nbp, nc, ntp), (nb, nt)] := Ltempnew[nbp,  nc, ntp, nb, nt] 
@@ -58,7 +58,7 @@ function update_env_left(
     sb = size(LE, 1)
     LEn = permutedims(LE, (2, 1, 3))
     @cast LEn[lc, (lb, lt)] := LEn[lc, lb, lt]
-    ps = projectors_to_cusparse(p_lb, p_l, p_lt)
+    ps = projectors_to_sparse(p_lb, p_l, p_lt, Val(:cs))
     Ltemp = ps * LEn
 
     @cast Ltemp[nbp, nc, ntp, nb, nt] := Ltemp[(nbp, nc, ntp), (nb, nt)] (nbp ∈ 1:maximum(p_lb), nc ∈ 1:maximum(p_l), nb ∈ 1:sb)
@@ -70,7 +70,7 @@ function update_env_left(
     @tensor Ltempnew[nb, ntp, nc, nt, nbp] := Ltemp[b, bp, nc, t, tp] * A4[t, bp, ntp, nt] * B4[b, tp, nbp, nb] order = (b, tp, t, bp)
 
     sb = size(Ltempnew, 1)
-    prs = projectors_to_cusparse_transposed(p_rb, p_r, p_rt) 
+    prs = projectors_to_sparse_transposed(p_rb, p_r, p_rt) 
 
     Ltempnew = permutedims(Ltempnew, (5, 3, 2, 1, 4)) #[(nbp, nc, ntp), (nb, nt)]
     @cast Ltempnew[(nbp, nc, ntp), (nb, nt)] := Ltempnew[nbp,  nc, ntp, nb, nt] 
@@ -99,7 +99,7 @@ function update_env_right(
     sb = size(RE, 1)
     REn = permutedims(RE, (2, 3, 1))
     @cast REn[rc, (rb, rt)] := REn[rc, rb, rt]
-    ps = projectors_to_cusparse(p_rb, p_r, p_rt)
+    ps = projectors_to_sparse(p_rb, p_r, p_rt, Val(:cs))
     Rtemp = ps * REn
 
     @cast Rtemp[nbp, nc, ntp, nb, nt] := Rtemp[(nbp, nc, ntp), (nb, nt)] (nbp ∈ 1:maximum(p_rb), nc ∈ 1:maximum(p_r), nt ∈ 1:sb)
@@ -111,7 +111,7 @@ function update_env_right(
     @tensor Rtempnew[nt, ntp, nc, nb, nbp] := Rtemp[t, tp, nc, b, bp] * A4[nt, ntp, tp, t] * B4[nb, nbp, bp, b] #order = (b, tp, t, bp)
 
     sb = size(Rtempnew, 1)
-    prs = projectors_to_cusparse_transposed(p_lb, p_l, p_lt) 
+    prs = projectors_to_sparse_transposed(p_lb, p_l, p_lt) 
 
     Rtempnew = permutedims(Rtempnew, (5, 3, 2, 1, 4)) #[(nbp, nc, ntp), (nb, nt)]
     @cast Rtempnew[(ntp, nc, nbp), (nt, nb)] :=  Rtempnew[ntp,  nc, nbp, nt, nb] 
@@ -141,7 +141,7 @@ function update_env_right(
     sb = size(RE, 1)
     REn = permutedims(RE, (2, 3, 1))
     @cast REn[rc, (rb, rt)] := REn[rc, rb, rt]
-    ps = projectors_to_cusparse(p_rb, p_r, p_rt)
+    ps = projectors_to_sparse(p_rb, p_r, p_rt, Val(:cs))
     Rtemp = ps * REn
 
     @cast Rtemp[nbp, nc, ntp, nb, nt] := Rtemp[(nbp, nc, ntp), (nb, nt)] (nbp ∈ 1:maximum(p_rb), nc ∈ 1:maximum(p_r), nt ∈ 1:sb)
@@ -153,7 +153,7 @@ function update_env_right(
     @tensor Rtempnew[nt, nbp, nc, nb, ntp] := Rtemp[t, tp, nc, b, bp] * A4[nt, ntp, bp, t] * B4[nb, nbp, tp, b]
 
     sb = size(Rtempnew, 1)
-    prs = projectors_to_cusparse_transposed(p_lb, p_l, p_lt) 
+    prs = projectors_to_sparse_transposed(p_lb, p_l, p_lt) 
 
     Rtempnew = permutedims(Rtempnew, (2, 3, 5, 1, 4)) #[(nbp, nc, ntp), (nb, nt)]
     @cast Rtempnew[(ntp, nc, nbp), (nt, nb)] :=  Rtempnew[ntp,  nc, nbp, nt, nb] 
@@ -184,7 +184,7 @@ function project_ket_on_bra(
 
     LEn = permutedims(LE, (2, 1, 3))
     @cast LEn[lc, (lb, lt)] := LEn[lc, lb, lt]
-    ps = projectors_to_cusparse(p_lb, p_l, p_lt)
+    ps = projectors_to_sparse(p_lb, p_l, p_lt, Val(:cs))
     LL = ps * LEn
 
     @cast LL[nbp, nc, ntp, nb, nt] := LL[(nbp, nc, ntp), (nb, nt)] (nbp ∈ 1:maximum(p_lb), nc ∈ 1:maximum(p_l), nb ∈ 1:sbl)
@@ -197,7 +197,7 @@ function project_ket_on_bra(
 
     REn = permutedims(RE, (2, 3, 1))
     @cast REn[rc, (rb, rt)] := REn[rc, rb, rt]
-    ps = projectors_to_cusparse(p_rb, p_r, p_rt)
+    ps = projectors_to_sparse(p_rb, p_r, p_rt, Val(:cs))
     RR = ps * REn
 
     @cast RR[nbp, nc, ntp, nb, nt] := RR[(nbp, nc, ntp), (nb, nt)] (nbp ∈ 1:maximum(p_rb), nc ∈ 1:maximum(p_r), nt ∈ 1:sbr)
@@ -229,7 +229,7 @@ function project_ket_on_bra(
 
     LEn = permutedims(LE, (2, 1, 3))
     @cast LEn[lc, (lb, lt)] := LEn[lc, lb, lt]
-    ps = projectors_to_cusparse(p_lt, p_l, p_lb)
+    ps = projectors_to_sparse(p_lt, p_l, p_lb, Val(:cs))
     LL = ps * LEn
 
     @cast LL[nbp, nc, ntp, nb, nt] := LL[(nbp, nc, ntp), (nb, nt)] (nbp ∈ 1:maximum(p_lt), nc ∈ 1:maximum(p_l), nb ∈ 1:sbl)
@@ -242,7 +242,7 @@ function project_ket_on_bra(
 
     REn = permutedims(RE, (2, 3, 1))
     @cast REn[rc, (rb, rt)] := REn[rc, rb, rt]
-    ps = projectors_to_cusparse(p_rt, p_r, p_rb)
+    ps = projectors_to_sparse(p_rt, p_r, p_rb, Val(:cs))
     RR = ps * REn
 
     @cast RR[nbp, nc, ntp, nb, nt] := RR[(nbp, nc, ntp), (nb, nt)] (nbp ∈ 1:maximum(p_rt), nc ∈ 1:maximum(p_r), nt ∈ 1:sbr)

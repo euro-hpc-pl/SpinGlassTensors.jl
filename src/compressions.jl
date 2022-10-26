@@ -9,8 +9,8 @@ export
     truncate!,
     variational_sweep!,
     Environment,
-    projectors_to_cusparse,
-    projectors_to_cusparse_transposed
+    projectors_to_sparse,
+    projectors_to_sparse_transposed
 
 """
 $(TYPEDSIGNATURES)
@@ -202,7 +202,7 @@ end
 """
 $(TYPEDSIGNATURES)
 """
-function projectors_to_sparse(p_lb :: Array{Int, 1}, p_l :: Array{Int, 1}, p_lt :: Array{Int, 1})
+function projectors_to_sparse(p_lb::Array{Int, 1}, p_l::Array{Int, 1}, p_lt::Array{Int, 1}, ::Val{:s})
     # asumption length(p_lb) == length(p_l) == length(p_lt)
     columns = length(p_lb)
     temp = Vector{Int64}()
@@ -229,7 +229,7 @@ function projectors_to_sparse(p_lb :: Array{Int, 1}, p_l :: Array{Int, 1}, p_lt 
     ps
 end
 
-function projectors_to_cusparse(p_lb :: Array{Int, 1}, p_l :: Array{Int, 1}, p_lt :: Array{Int, 1})
+function projectors_to_sparse(p_lb::Array{Int, 1}, p_l::Array{Int, 1}, p_lt::Array{Int, 1}, ::Val{:cs})
     # asumption length(p_lb) == length(p_l) == length(p_lt)
     columns = length(p_lb)
     temp = Vector{Int64}()
@@ -256,7 +256,7 @@ function projectors_to_cusparse(p_lb :: Array{Int, 1}, p_l :: Array{Int, 1}, p_l
     ps
 end
 
-function projectors_to_cusparse_transposed(p_lb :: Array{Int, 1}, p_l :: Array{Int, 1}, p_lt :: Array{Int, 1})
+function projectors_to_sparse_transposed(p_lb :: Array{Int, 1}, p_l :: Array{Int, 1}, p_lt :: Array{Int, 1})
     # asumption length(p_lb) == length(p_l) == length(p_lt)
     columns = length(p_lb)
     temp = Vector{Int64}()

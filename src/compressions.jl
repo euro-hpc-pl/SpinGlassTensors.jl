@@ -199,6 +199,24 @@ function projector_to_dense(pr :: Array{Int, 1})
     temp[:, pr]
 end
 
+function projectors_to_sparse(p_lb::Array{Int, 1}, p_l::Array{Int, 1}, p_lt::Array{Int, 1}, env)
+    if env <: CUDA.CuArray
+        ps = projectors_to_sparse(p_lb, p_l, p_lt, Val(:cs))
+    else
+        ps = projectors_to_sparse(p_lb, p_l, p_lt, Val(:s))
+    end
+    ps
+end
+
+function projectors_to_sparse_transposed(p_lb::Array{Int, 1}, p_l::Array{Int, 1}, p_lt::Array{Int, 1}, env)
+    if env <: CUDA.CuArray
+        ps = projectors_to_sparse_transposed(p_lb, p_l, p_lt, Val(:cs))
+    else
+        ps = projectors_to_sparse_transposed(p_lb, p_l, p_lt, Val(:s))
+    end
+    ps
+end
+
 """
 $(TYPEDSIGNATURES)
 """
@@ -256,7 +274,7 @@ function projectors_to_sparse(p_lb::Array{Int, 1}, p_l::Array{Int, 1}, p_lt::Arr
     ps
 end
 
-function projectors_to_sparse_transposed(p_lb :: Array{Int, 1}, p_l :: Array{Int, 1}, p_lt :: Array{Int, 1})
+function projectors_to_sparse_transposed(p_lb::Array{Int, 1}, p_l::Array{Int, 1}, p_lt::Array{Int, 1}, ::Val{:cs})
     # asumption length(p_lb) == length(p_l) == length(p_lt)
     columns = length(p_lb)
     temp = Vector{Int64}()

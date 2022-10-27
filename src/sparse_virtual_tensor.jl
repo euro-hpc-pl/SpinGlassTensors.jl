@@ -120,7 +120,7 @@ function update_env_right(
     @cast Rtempnew[(ntp, nc, nbp), (nt, nb)] :=  Rtempnew[ntp,  nc, nbp, nt, nb] 
     Rnew = prs * Rtempnew  #[cc, (nb, nt)] 
 
-    @cast Rnew[cc, nt, nb] := Rnew[cc, (nb, nt)] (nt ∈ 1:sb)
+    @cast Rnew[cc, nt, nb] := Rnew[cc, (nt, nb)] (nt ∈ 1:sb)
     Array(permutedims(Rnew, (2, 1, 3)) ./ maximum(abs.(Rnew)))
 end
 
@@ -163,7 +163,7 @@ function update_env_right(
     @cast Rtempnew[(ntp, nc, nbp), (nt, nb)] :=  Rtempnew[ntp,  nc, nbp, nt, nb] 
     Rnew = prs * Rtempnew  #[cc, (nb, nt)] 
 
-    @cast Rnew[cc, nt, nb] := Rnew[cc, (nb, nt)] (nt ∈ 1:sb)
+    @cast Rnew[cc, nt, nb] := Rnew[cc, (nt, nb)] (nt ∈ 1:sb)
     Array(permutedims(Rnew, (2, 1, 3)) ./ maximum(abs.(Rnew)))
 end
 

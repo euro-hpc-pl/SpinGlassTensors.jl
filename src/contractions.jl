@@ -8,9 +8,7 @@ export
 # TODO  remove all connenctions with old mps
 LinearAlgebra.norm(ψ::QMps) = sqrt(abs(dot(ψ, ψ)))
 
-"""
-$(TYPEDSIGNATURES)
-"""
+
 function LinearAlgebra.dot(ψ::QMps, ϕ::QMps)
     TTT = ones(1, 1)
     @assert ψ.sites == ϕ.sites
@@ -22,9 +20,7 @@ function LinearAlgebra.dot(ψ::QMps, ϕ::QMps)
     tr(TTT)
 end
 
-"""
-$(TYPEDSIGNATURES)
-"""
+
 function LinearAlgebra.dot(ψ::QMpo, ϕ::QMps)
     D = Dict{Site, Tensor}()
     for i ∈ reverse(ϕ.sites)
@@ -43,9 +39,7 @@ function LinearAlgebra.dot(ψ::QMpo, ϕ::QMps)
     QMps(D)
 end
 
-"""
-$(TYPEDSIGNATURES)
-"""
+
 function LinearAlgebra.dot(ϕ::QMps, ψ::QMpo)
     D = Dict{Site, Tensor}()
     for i ∈ reverse(ϕ.sites)
@@ -64,83 +58,58 @@ function LinearAlgebra.dot(ϕ::QMps, ψ::QMpo)
     QMps(D)
 end
 
-"""
-$(TYPEDSIGNATURES)
-"""
 Base.:(*)(ϕ::QMps, ψ::QMps) = dot(ϕ, ψ)
 
-"""
-$(TYPEDSIGNATURES)
-"""
+
 Base.:(*)(W::QMpo, ψ::QMps) = dot(W, ψ)
 
-"""
-$(TYPEDSIGNATURES)
-"""
+
 Base.:(*)(ψ::QMps, W::QMpo) = dot(ψ, W)
 
-"""
-$(TYPEDSIGNATURES)
-"""
-function contract_left(A::AbstractArray{T, 3}, B::AbstractMatrix{T}) where T
+function contract_left(A::Array{T, 3}, B::AbstractMatrix{T}) where T
     @matmul C[(x, y), u, r] := sum(σ) B[y, σ] * A[(x, σ), u, r] (σ ∈ 1:size(B, 2))
     C
 end
 
-"""
-$(TYPEDSIGNATURES)
-"""
-function contract_left(A::AbstractArray{T, 3}, M::SparseCentralTensor) where T
+
+function contract_left(A::Array{T, 3}, M::SparseCentralTensor) where T
     B = dense_central_tensor(M)
     @matmul C[(x, y), u, r] := sum(σ) B[y, σ] * A[(x, σ), u, r] (σ ∈ 1:size(B, 2))
     C
 end
 
-"""
-$(TYPEDSIGNATURES)
-"""
-function contract_up(A::AbstractArray{T, 3}, B::AbstractArray{T, 2}) where T
+
+function contract_up(A::Array{T, 3}, B::AbstractMatrix{T}) where T
     @tensor C[l, u, r] := B[u, σ] * A[l, σ, r]
     C
 end
 
-"""
-$(TYPEDSIGNATURES)
-"""
-function contract_down(A::AbstractArray{T, 2}, B::AbstractArray{T, 3}) where T
+
+function contract_down(A::Array{T, 2}, B::Array{T, 3}) where T
     @tensor C[l, d, r] := A[σ, d] * B[l, σ, r]
     C
 end
 
-"""
-$(TYPEDSIGNATURES)
-"""
-function contract_up(A::AbstractArray{T, 3}, B::AbstractArray{T, 4}) where T
+
+function contract_up(A::Array{T, 3}, B::Array{T, 4}) where T
     @matmul C[(x, y), z, (b, a)] := sum(σ) B[y, z, a, σ] * A[x, σ, b]
     C
 end
 
-"""
-$(TYPEDSIGNATURES)
-"""
-function contract_down(A::AbstractArray{T, 4}, B::AbstractArray{T, 3}) where T
+
+function contract_down(A::Array{T, 4}, B::Array{T, 3}) where T
     @matmul C[(x, y), z, (b, a)] := sum(σ) A[y, σ, a, z] * B[x, σ, b]
     C
 end
 
-"""
-$(TYPEDSIGNATURES)
-"""
-function contract_down(M::SparseCentralTensor, A::AbstractArray{T, 3}) where T
+function contract_down(M::SparseCentralTensor, A::Array{T, 3}) where T
     MM = dense_central_tensor(M)
     @tensor C[l, d, r] := MM[σ, d] * A[l, σ, r]
     C
 end
 
-"""
-$(TYPEDSIGNATURES)
-"""
-function contract_down(M::SparseDiagonalTensor, A::AbstractArray{T, 3}) where T
+
+function contract_down(M::SparseDiagonalTensor, A::Array{T, 3}) where T
     @cast AA[l, s1, s2, r] := A[l, (s1, s2), r]  (s1 ∈ 1:size(M.e1, 1))
     @tensor AA[l, q2, q1, r] := AA[l, s1, s2, r] * M.e1[s1, q1] * M.e2[s2, q2]
     @cast AA[l, (q2, q1), r] := AA[l, q2, q1, r]
@@ -148,10 +117,8 @@ function contract_down(M::SparseDiagonalTensor, A::AbstractArray{T, 3}) where T
 end
 
 # TODO: improve performance
-"""
-$(TYPEDSIGNATURES)
-"""
-function contract_up(A::AbstractArray{T, 3}, B::SparseSiteTensor) where T
+
+function contract_up(A::Array{T, 3}, B::SparseSiteTensor) where T
     sal, _, sar = size(A)
     sbl, sbt, sbr = maximum.(B.projs[1:3])
     C = zeros(sal, sbl, sbt, sar, sbr)
@@ -164,20 +131,16 @@ function contract_up(A::AbstractArray{T, 3}, B::SparseSiteTensor) where T
     CC
 end
 
-"""
-$(TYPEDSIGNATURES)
-"""
-function contract_up(A::AbstractArray{T, 3}, M::SparseCentralTensor) where T
+
+function contract_up(A::Array{T, 3}, M::SparseCentralTensor) where T
     MM = dense_central_tensor(M)
     @tensor C[l, u, r] := MM[u, σ] * A[l, σ, r]
     C
 end
 
 
-"""
-$(TYPEDSIGNATURES)
-"""
-function contract_up(A::AbstractArray{T, 3}, M::SparseDiagonalTensor) where T
+
+function contract_up(A::Array{T, 3}, M::SparseDiagonalTensor) where T
     @cast AA[l, s1, s2, r] := A[l, (s1, s2), r]  (s1 ∈ 1:size(M.e2, 2))
     @tensor AA[l, q1, q2, r] := M.e1[q1, s1] * M.e2[q2, s2] * AA[l, s2, s1, r]
     @cast AA[l, (q1, q2), r] := AA[l, q1, q2, r]
@@ -186,10 +149,8 @@ end
 
 
 # TODO: improve performance
-"""
-$(TYPEDSIGNATURES)
-"""
-function contract_down(A::SparseSiteTensor, B::AbstractArray{T, 3}) where T
+
+function contract_down(A::SparseSiteTensor, B::Array{T, 3}) where T
     sal, _, sar = size(B)
     sbl, _, sbt, sbr = maximum.(A.projs[1:4])
     C = zeros(sal, sbl, sbr, sar, sbt)
@@ -202,10 +163,8 @@ function contract_down(A::SparseSiteTensor, B::AbstractArray{T, 3}) where T
     CC
 end
 
-"""
-$(TYPEDSIGNATURES)
-"""
-function contract_up(A::AbstractArray{T, 3}, B::SparseVirtualTensor) where T
+
+function contract_up(A::Array{T, 3}, B::SparseVirtualTensor) where T
     h = B.con
     if typeof(h) == SparseCentralTensor
         h = dense_central_tensor(h)
@@ -227,10 +186,8 @@ function contract_up(A::AbstractArray{T, 3}, B::SparseVirtualTensor) where T
     CC
 end
 
-"""
-$(TYPEDSIGNATURES)
-"""
-function contract_down(A::SparseVirtualTensor, B::AbstractArray{T, 3}) where T
+
+function contract_down(A::SparseVirtualTensor, B::Array{T, 3}) where T
     h = A.con
     if typeof(h) == SparseCentralTensor
         h = dense_central_tensor(h)
@@ -251,9 +208,7 @@ function contract_down(A::SparseVirtualTensor, B::AbstractArray{T, 3}) where T
     CC
 end
 
-"""
-$(TYPEDSIGNATURES)
-"""
+
 function overlap_density_matrix(ϕ::QMps, ψ::QMps, k::Site)
     @assert ψ.sites == ϕ.sites
     C, D = ones(1, 1), ones(1, 1)

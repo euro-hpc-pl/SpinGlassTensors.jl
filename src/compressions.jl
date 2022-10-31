@@ -9,8 +9,8 @@ export
     truncate!,
     variational_sweep!,
     Environment,
-    projectors_to_cusparse,
-    projectors_to_cusparse_transposed
+    projectors_to_sparse,
+    projectors_to_sparse_transposed
 
 """
 $(TYPEDSIGNATURES)
@@ -191,7 +191,7 @@ $(TYPEDSIGNATURES)
 function update_env_left(
     LE::S, M::T, trans::Symbol=:n
 ) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
-    update_env_left(LE, M[0], Val(trans))
+    attach_central_left(LE, M[0], Val(trans))
 end
 
 function projector_to_dense(pr :: Array{Int, 1})
@@ -199,10 +199,28 @@ function projector_to_dense(pr :: Array{Int, 1})
     temp[:, pr]
 end
 
+function projectors_to_sparse(p_lb::Array{Int, 1}, p_l::Array{Int, 1}, p_lt::Array{Int, 1}, env)
+    if env <: CUDA.CuArray
+        ps = projectors_to_sparse(p_lb, p_l, p_lt, Val(:cs))
+    else
+        ps = projectors_to_sparse(p_lb, p_l, p_lt, Val(:s))
+    end
+    ps
+end
+
+function projectors_to_sparse_transposed(p_lb::Array{Int, 1}, p_l::Array{Int, 1}, p_lt::Array{Int, 1}, env)
+    if env <: CUDA.CuArray
+        ps = projectors_to_sparse_transposed(p_lb, p_l, p_lt, Val(:cs))
+    else
+        ps = projectors_to_sparse_transposed(p_lb, p_l, p_lt, Val(:s))
+    end
+    ps
+end
+
 """
 $(TYPEDSIGNATURES)
 """
-function projectors_to_sparse(p_lb :: Array{Int, 1}, p_l :: Array{Int, 1}, p_lt :: Array{Int, 1})
+function projectors_to_sparse(p_lb::Array{Int, 1}, p_l::Array{Int, 1}, p_lt::Array{Int, 1}, ::Val{:s})
     # asumption length(p_lb) == length(p_l) == length(p_lt)
     columns = length(p_lb)
     temp = Vector{Int64}()
@@ -229,7 +247,7 @@ function projectors_to_sparse(p_lb :: Array{Int, 1}, p_l :: Array{Int, 1}, p_lt 
     ps
 end
 
-function projectors_to_cusparse(p_lb :: Array{Int, 1}, p_l :: Array{Int, 1}, p_lt :: Array{Int, 1})
+function projectors_to_sparse(p_lb::Array{Int, 1}, p_l::Array{Int, 1}, p_lt::Array{Int, 1}, ::Val{:cs})
     # asumption length(p_lb) == length(p_l) == length(p_lt)
     columns = length(p_lb)
     temp = Vector{Int64}()
@@ -256,7 +274,7 @@ function projectors_to_cusparse(p_lb :: Array{Int, 1}, p_l :: Array{Int, 1}, p_l
     ps
 end
 
-function projectors_to_cusparse_transposed(p_lb :: Array{Int, 1}, p_l :: Array{Int, 1}, p_lt :: Array{Int, 1})
+function projectors_to_sparse_transposed(p_lb::Array{Int, 1}, p_l::Array{Int, 1}, p_lt::Array{Int, 1}, ::Val{:cs})
     # asumption length(p_lb) == length(p_l) == length(p_lt)
     columns = length(p_lb)
     temp = Vector{Int64}()
@@ -294,7 +312,7 @@ function _update_tensor_forward(
     for i ∈ sites
         if i == 0 break end
         C = M[i]
-        B = _update_tensor_forward_n(C, B)
+        B = attach_central_left(B, C, Val(:n))
     end
     B
 end
@@ -309,7 +327,7 @@ function _update_tensor_forward(
     for i ∈ reverse(sites)
         if i == 0 break end
         C = M[i]
-        B = _update_tensor_forward_c(C, B)
+        B = attach_central_right(B, C, Val(:c))
     end
     B
 end
@@ -324,7 +342,7 @@ function _update_tensor_backwards(
     for i ∈ reverse(sites)
         if i == 0 break end
         C = M[i]
-        B = _update_tensor_backwards_n(C, B)
+        B = attach_central_right(B, C, Val(:n))
     end
     B
 end
@@ -339,7 +357,7 @@ function _update_tensor_backwards(
     for i ∈ sites
         if i == 0 break end
         C = M[i]
-        B = _update_tensor_backwards_c(C, B)
+        B = attach_central_left(B, C, Val(:c))
     end
     B
 end
@@ -367,7 +385,7 @@ $(TYPEDSIGNATURES)
 function update_env_right(
     RE::S, M::T, trans::Symbol
 ) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
-    update_env_right(RE, M[0], Val(trans))
+    attach_central_right(RE, M[0], Val(trans))
 end
 
 """
@@ -386,28 +404,18 @@ end
 """
 $(TYPEDSIGNATURES)
 """
-function project_ket_on_bra_twosite(env::Environment, site::Site)
-    site_l = _left_nbrs_site(site, env.bra.sites)
-    project_ket_on_bra(
-        env.env[(site_l, :left)],
-        env.ket[site_l],
-        env.ket[site],
-        env.mpo[site_l][0],
-        env.mpo[site][0],
-        env.env[(site, :right)]
-    )
-end
-
-"""
-$(TYPEDSIGNATURES)
-"""
 function project_ket_on_bra(
     LE::S, B₀::S, M::T, RE::S, ::Val{:n}
 ) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
     C = sort(collect(M), by = x -> x[1])
     TT = B₀
     for (_, v) ∈ reverse(C)
-        TT = project_ket_on_bra(LE, TT, v, RE, Val(:n)) 
+        dimv = length(size(v))
+        if dimv == 2
+            TT = attach_central_right(TT, v, Val(:n))
+        else
+            TT = project_ket_on_bra(LE, TT, v, RE, Val(:n))
+        end
     end
     TT
 end
@@ -420,7 +428,14 @@ function project_ket_on_bra(
 ) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
     C = sort(collect(M), by = x -> x[1])
     TT = B₀
-    for (_, v) ∈ C TT = project_ket_on_bra(LE, TT, v, RE, Val(:c)) end
+    for (_, v) ∈ C
+        dimv = length(size(v))
+        if dimv == 2
+            TT = attach_central_left(TT, v, Val(:c))
+        else
+            TT = project_ket_on_bra(LE, TT, v, RE, Val(:c))
+        end
+    end
     TT
 end
 
@@ -478,7 +493,6 @@ function variational_sweep!(
     env = Environment(bra, mpo, ket, trans)
     _right_sweep_var!(env, trans, args...)
 end
-
 
 """
 $(TYPEDSIGNATURES)

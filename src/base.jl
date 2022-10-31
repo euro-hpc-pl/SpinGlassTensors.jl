@@ -101,8 +101,13 @@ end
 """
 $(TYPEDSIGNATURES)
 """
-@inline Base.getindex(a::AbstractTensorNetwork, i) = getindex(a.tensors, i)
+@inline Base.size(tens::AbstractSparseTensor) = maximum.(tens.projs)
 
+
+"""
+$(TYPEDSIGNATURES)
+"""
+@inline Base.getindex(a::AbstractTensorNetwork, i) = getindex(a.tensors, i)
 
 
 """
@@ -171,10 +176,6 @@ function IdentityQMps(loc_dims::Dict, Dmax::Int=1)
     QMps(id)
 end
 
-"""
-$(TYPEDSIGNATURES)
-"""
-@inline Base.size(tens::AbstractSparseTensor) = maximum.(tens.projs)
 
 """
 $(TYPEDSIGNATURES)

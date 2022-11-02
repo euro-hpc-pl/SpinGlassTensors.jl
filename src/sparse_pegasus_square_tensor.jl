@@ -3,7 +3,7 @@ $(TYPEDSIGNATURES)
 """
 function update_env_left(
     L::S, A::S, M::T, B::S, ::Val{:n}
-) where {S <: AbstractArray{Float64, 3}, T <: SparsePegasusSquareTensor}
+) where {S <: Array{Real, 3}, T <: SparsePegasusSquareTensor}
     pr, pd = M.projs
     p1l, p2l, p1u, p2u = M.bnd_projs
 
@@ -44,7 +44,7 @@ $(TYPEDSIGNATURES)
 """
 function update_env_left(
     L::S, A::S, M::T, B::S, ::Val{:c}
-) where {S <: AbstractArray{Float64, 3}, T <: SparsePegasusSquareTensor}
+) where {S <: Array{Real, 3}, T <: SparsePegasusSquareTensor}
     pr, pd = M.projs
     p1l, p2l, p1u, p2u = M.bnd_projs
 
@@ -85,7 +85,7 @@ $(TYPEDSIGNATURES)
 """
 function update_env_right(
     R::S, A::S, M::T, B::S, ::Val{:n}
-) where {T <: SparsePegasusSquareTensor, S <: AbstractArray{Float64, 3}}
+) where {T <: SparsePegasusSquareTensor, S <: Array{Real, 3}}
     pr, pd = M.projs
     p1l, p2l, p1u, p2u = M.bnd_projs
     lel1, lel2, leu1, leu2 = CUDA.CuArray.(M.bnd_exp)
@@ -127,7 +127,7 @@ $(TYPEDSIGNATURES)
 """
 function update_env_right(
     R::S, A::S, M::T, B::S, ::Val{:c}
-) where {T <: SparsePegasusSquareTensor, S <: AbstractArray{Float64, 3}}
+) where {T <: SparsePegasusSquareTensor, S <: Array{Real, 3}}
     pr, pd = M.projs
     p1l, p2l, p1u, p2u = M.bnd_projs
     lel1, lel2, leu1, leu2 = CUDA.CuArray.(M.bnd_exp)
@@ -166,7 +166,7 @@ end
 
 function project_ket_on_bra(
     L::S, B::S, M::T, R::S, ::Val{:n}
-) where {S <: AbstractArray{Float64, 3}, T <: SparsePegasusSquareTensor}
+) where {S <: Array{Real, 3}, T <: SparsePegasusSquareTensor}
     pr, pd = M.projs
     p1l, p2l, p1u, p2u = M.bnd_projs
     lel1, lel2, leu1, leu2 = CUDA.CuArray.(M.bnd_exp)
@@ -208,7 +208,7 @@ $(TYPEDSIGNATURES)
 """
 function project_ket_on_bra(
     L::S, B::S, M::T, R::S, ::Val{:c}
-) where {S <: AbstractArray{Float64, 3}, T <: SparsePegasusSquareTensor}
+) where {S <: Array{Real, 3}, T <: SparsePegasusSquareTensor}
     pr, pd = M.projs
     p1l, p2l, p1u, p2u = M.bnd_projs
     lel1, lel2, leu1, leu2 = CUDA.CuArray.(M.bnd_exp)

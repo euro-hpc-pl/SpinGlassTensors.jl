@@ -37,25 +37,25 @@ function attach_central_left(
     LE = permutedims(LE, (1, 3, 2))
     LE = reshape(LE, (st * sb, sl1, sl2))
     if sr1 <= sr2 && sl1 <= sl2
-        println("sr1 <= sr2 && sl1 <= sl2")
-        @cast LE[tb, l1, r1, l2] := LE[tb, l1, l2] * e21[l2, r1]
-        @tensor LE[tb, l1, r1, r2] := LE[tb, l1, r1, l2] * e22[l2, r2]
-        @cast LE[tb, l1, r1, r2] := LE[tb, r1, r2, l2] * e11[l1, r1] * e12[l1, r2]
+        #println("sr1 <= sr2 && sl1 <= sl2")
+        @cast LE[tb, l1, l2, r1] := LE[tb, l1, l2] * e21[l2, r1]
+        @tensor LE[tb, l1, r1, r2] := LE[tb, l1, l2, r1] * e22[l2, r2]
+        @cast LE[tb, l1, r1, r2] := LE[tb, l1, r1, r2] * e11[l1, r1] * e12[l1, r2]
         LE = dropdims(sum(LE, dims=2), dims=2)
     elseif sr1 <= sr2 && sl1 > sl2
-        println("sr1 <= sr2 && sl1 > sl2")
+        #println("sr1 <= sr2 && sl1 > sl2")
         @cast LE[tb, l1, l2, r1] := LE[tb, l1, l2] * e11[l1, r1]
         @tensor LE[tb, l2, r1, r2] := LE[tb, l1, l2, r1] * e12[l1, r2]
         @cast LE[tb, l2, r1, r2] := LE[tb, l2, r1, r2] * e21[l2, r1] * e22[l2, r2]
         LE = dropdims(sum(LE, dims=2), dims=2)
     elseif sr1 > sr2 && sl1 <= sl2
-        println("sr1 > sr2 && sl1 <= sl2")
+        #println("sr1 > sr2 && sl1 <= sl2")
         @cast LE[tb, l1, l2, r2] := LE[tb, l1, l2] * e22[l2, r2]
         @tensor LE[tb, l1, r1, r2] := LE[tb, l1, l2, r2] * e21[l2, r1]
         @cast LE[tb, l1, r1, r2] := LE[tb, l1, r1, r2] * e11[l1, r1] * e12[l1, r2]
         LE = dropdims(sum(LE, dims=2), dims=2)
     else # sr1 > sr2 && sl1 > sl2
-        println("sr1 > sr2 && sl1 > sl2")
+        #println("sr1 > sr2 && sl1 > sl2")
         @cast LE[tb, l1, l2, r2] := LE[tb, l1, l2] * e12[l1, r2]
         @tensor LE[tb, l2, r1, r2] := LE[tb, l1, l2, r2] * e11[l1, r1]
         @cast LE[tb, l2, r1, r2] := LE[tb, l2, r1, r2] * e21[l2, r1] * e22[l2, r2]

@@ -249,57 +249,33 @@ end
 
 function projectors_to_sparse(p_lb::Array{Int, 1}, p_l::Array{Int, 1}, p_lt::Array{Int, 1}, ::Val{:cs})
     # asumption length(p_lb) == length(p_l) == length(p_lt)
+    p_l = CUDA.CuArray(p_l)
+    p_lb = CUDA.CuArray(p_lb)
+    p_lt = CUDA.CuArray(p_lt)
+
+    rowPtr = maximum(p_l) * maximum(p_lb) * (p_lt .- 1) .+ maximum(p_lb) * (p_l .- 1) .+ p_lb
+
     columns = length(p_lb)
-    temp = Vector{Int64}()
-    ps_vect = Vector{Int64}()
-
-    # @cast temp[x,y,w] = p_lb[x, w] * p_l[y,w]
-    # reshape(temp, (x*y, w))
-    rows_p_lb = maximum(p_lb)
-    for i ∈ collect(1:columns)
-        push!(temp, rows_p_lb*(p_l[i] -1) + p_lb[i])
-    end
-    
-    # @cast ps_vect[x,y,z, w] = p_lb[x, w] * p_l[y,w] * p_lt[z,w] = temp[x, y, w] * p_lt[z, w]
-     # reshape(ps_vect, (x*y*z, w))
-    temp_rows = maximum(p_lb) * maximum(p_l)
-    for i ∈ collect(1:columns)
-        push!(ps_vect, temp_rows*(p_lt[i] -1) + temp[i]) 
-    end
-
-    rowVal = CuArray{Int64}(ps_vect)
-    colPtr = CuArray{Int64}(collect(1:columns+1))
+    rows = maximum(p_l) * maximum(p_lb) * maximum(p_lt)
+    colPtr = CUDA.CuArray(collect(1:columns+1))
     nzVal = CUDA.ones(Float64, columns)
-    ps = CUSPARSE.CuSparseMatrixCSC(colPtr, rowVal, nzVal, (temp_rows*maximum(p_lt), columns))
-    ps
+
+    CUSPARSE.CuSparseMatrixCSC(colPtr, rowPtr, nzVal, (rows, columns))
 end
 
 function projectors_to_sparse_transposed(p_lb::Array{Int, 1}, p_l::Array{Int, 1}, p_lt::Array{Int, 1}, ::Val{:cs})
-    # asumption length(p_lb) == length(p_l) == length(p_lt)
+    p_l = CUDA.CuArray(p_l)
+    p_lb = CUDA.CuArray(p_lb)
+    p_lt = CUDA.CuArray(p_lt)
+
+    rowPtr = maximum(p_l) * maximum(p_lb) * (p_lt .- 1) .+ maximum(p_lb) * (p_l .- 1) .+ p_lb
+
     columns = length(p_lb)
-    temp = Vector{Int64}()
-    ps_vect = Vector{Int64}()
-
-    # @cast temp[x,y,w] = p_lb[x, w] * p_l[y,w]
-    # reshape(temp, (x*y, w))
-    rows_p_lb = maximum(p_lb)
-    for i ∈ collect(1:columns)
-        push!(temp, rows_p_lb*(p_l[i] -1) + p_lb[i])
-    end
-    
-    # @cast ps_vect[x,y,z, w] = p_lb[x, w] * p_l[y,w] * p_lt[z,w] = temp[x, y, w] * p_lt[z, w]
-     # reshape(ps_vect, (x*y*z, w))
-    temp_rows = maximum(p_lb) * maximum(p_l)
-    for i ∈ collect(1:columns)
-        push!(ps_vect, temp_rows*(p_lt[i] -1) + temp[i]) 
-    end
-
-    rowVal = CuArray{Int64}(ps_vect)
-    colPtr = CuArray{Int64}(collect(1:columns+1))
+    rows = maximum(p_l) * maximum(p_lb) * maximum(p_lt)
+    colPtr = CUDA.CuArray(collect(1:columns+1))
     nzVal = CUDA.ones(Float64, columns)
 
-    ps = CUSPARSE.CuSparseMatrixCSR(colPtr, rowVal, nzVal, (columns, temp_rows*maximum(p_lt)))
-    ps
+    CUSPARSE.CuSparseMatrixCSR(colPtr, rowPtr, nzVal, (columns, rows))
 end
 
 """

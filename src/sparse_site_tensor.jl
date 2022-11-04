@@ -4,7 +4,8 @@ $(TYPEDSIGNATURES)
 function update_env_left(
     LE::S, A::S, M::T, B::S, ::Val{:n}
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
-
+# @time begin
+#     println("update_env_left   SparseSiteTensor")
     total_size = length(M.projs[1])
     batch_size = min(2^20, total_size)
     from = 1
@@ -27,7 +28,7 @@ function update_env_left(
         L[1:maximum(pr), :, :] = L[1:maximum(pr), :, :] .+ reshape(ipr * Lr_d', (:, sb, st))
         from = to + 1
     end
-
+# end
     Array(permutedims(L, (2, 1, 3)))
 end
 
@@ -64,6 +65,8 @@ $(TYPEDSIGNATURES)
 function update_env_right(
     RE::S, A::S, M::T, B::S, ::Val{:n}
 ) where {T <: SparseSiteTensor, S <: AbstractArray{Float64, 3}}
+# @time begin
+#     println("update_env_right   SparseSiteTensor")
     R = CUDA.zeros(eltype(RE), size(A, 1), size(B, 1), maximum(M.projs[1]))
 
     A_d = permutedims(CUDA.CuArray(A[:, M.projs[2], :]), (1, 3, 2))
@@ -83,7 +86,7 @@ function update_env_right(
 
     R = ipr * Rr_d
     R = reshape(R, (:, sy, sz))
-
+# end
     Array(permutedims(R, (3, 1, 2)))
 end
 
@@ -122,6 +125,9 @@ $(TYPEDSIGNATURES)
 function project_ket_on_bra(
     LE::S, B::S, M::T, RE::S, ::Val{:n}
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
+
+# @time begin
+#     println("project_ket_on_bra   SparseSiteTensor")
     A = CUDA.zeros(eltype(LE), size(LE, 3), size(RE, 1), maximum(M.projs[2]))
 
     le = permutedims(CUDA.CuArray(LE[:, M.projs[1], :]), (3, 1, 2))
@@ -141,7 +147,7 @@ function project_ket_on_bra(
 
     A = ipu * Ar_d  #(16, 16)
     A = reshape(A, (:, sy, sz))
-
+# end
     Array(permutedims(A, (3, 1, 2)))
 end
 

@@ -127,6 +127,76 @@ function update_env_right(
     Array(permutedims(R, (2, 1, 3)))
 end
 
+"""
+$(TYPEDSIGNATURES)
+"""
+function project_ket_on_bra(
+    LE::S, B::S, M::T, RE::S, ::Val{:n}
+) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
+    total_size = length(M.projs[3])
+    batch_size = min(2^20, total_size)
+    from = 1
+
+    A = CUDA.zeros(eltype(LE), maximum(M.projs[2]), size(LE, 3), size(RE, 1))
+    while from <= total_size
+        to = min(total_size, from + batch_size - 1)
+
+        le = permutedims(CUDA.CuArray(LE[:, M.projs[1], :]), (3, 1, 2))
+        b = permutedims(CUDA.CuArray(B[:, M.projs[4], :]), (1, 3, 2))
+        re = permutedims(CUDA.CuArray(RE[:, M.projs[3], :]), (3, 1, 2))
+    
+        Ar_d = le ⊠ b ⊠ re
+        Ar_d .*= reshape(CUDA.CuArray(M.loc_exp[from:to]), 1, 1, :)
+        pu = M.projs[2][from:to]
+
+        ipu = _cusparse_projector(pu)
+        sb, st, _ = size(Ar_d)
+        @cast Ar_d[(x, y), z] := Ar_d[x, y, z]
+        A[1:maximum(pu), :, :] = A[1:maximum(pu), :, :] .+ reshape(ipu * Ar_d', (:, sb, st))
+        from = to + 1
+    end
+    Array(permutedims(A, (2, 1, 3)))
+end
+
+"""
+$(TYPEDSIGNATURES)
+"""
+function project_ket_on_bra(
+    LE::S, B::S, M::T, RE::S, ::Val{:c}
+) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
+    total_size = length(M.projs[3])
+    batch_size = min(2^20, total_size)
+    from = 1
+
+    A = CUDA.zeros(eltype(LE), maximum(M.projs[4]), size(LE, 3), size(RE, 1))
+    while from <= total_size
+        to = min(total_size, from + batch_size - 1)
+
+        le = permutedims(CUDA.CuArray(LE[:, M.projs[1], :]), (3, 1, 2))
+        b = permutedims(CUDA.CuArray(B[:, M.projs[2], :]), (1, 3, 2))
+        re = permutedims(CUDA.CuArray(RE[:, M.projs[3], :]), (3, 1, 2))
+    
+        Ar_d = le ⊠ b ⊠ re
+        Ar_d .*= reshape(CUDA.CuArray(M.loc_exp[from:to]), 1, 1, :)
+        pu = M.projs[4][from:to]
+
+        ipu = _cusparse_projector(pu)
+        sb, st, _ = size(Ar_d)
+        @cast Ar_d[(x, y), z] := Ar_d[x, y, z]
+        A[1:maximum(pu), :, :] = A[1:maximum(pu), :, :] .+ reshape(ipu * Ar_d', (:, sb, st))
+        from = to + 1
+    end
+    Array(permutedims(A, (2, 1, 3)))
+end
+
+function _cusparse_projector(pr::Vector{Int})
+    # This is how sparse matrix is represented internally
+    csrRowPtr = CuArray(collect(1:length(pr) + 1))
+    csrColInd = CuArray(pr)
+    csrNzVal = CUDA.ones(Float64, length(pr))
+    ipr = CUSPARSE.CuSparseMatrixCSC(csrRowPtr, csrColInd, csrNzVal, (maximum(pr), length(pr))) # transposed right here
+end
+
 # function update_env_left(
 #     LE::S, A::S, M::T, B::S, ::Val{:c}
 # ) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
@@ -214,65 +284,57 @@ end
 #     Array(permutedims(R, (3, 1, 2)))
 # end
 
-"""
-$(TYPEDSIGNATURES)
-"""
-function project_ket_on_bra(
-    LE::S, B::S, M::T, RE::S, ::Val{:n}
-) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
+# """
+# $(TYPEDSIGNATURES)
+# """
+# function project_ket_on_bra(
+#     LE::S, B::S, M::T, RE::S, ::Val{:n}
+# ) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
 
-# @time begin
-#     println("project_ket_on_bra   SparseSiteTensor")
-    A = CUDA.zeros(eltype(LE), size(LE, 3), size(RE, 1), maximum(M.projs[2]))
+# # @time begin
+# #     println("project_ket_on_bra   SparseSiteTensor")
+#     A = CUDA.zeros(eltype(LE), size(LE, 3), size(RE, 1), maximum(M.projs[2]))
 
-    le = permutedims(CUDA.CuArray(LE[:, M.projs[1], :]), (3, 1, 2))
-    b = permutedims(CUDA.CuArray(B[:, M.projs[4], :]), (1, 3, 2))
-    re = permutedims(CUDA.CuArray(RE[:, M.projs[3], :]), (3, 1, 2))
+#     le = permutedims(CUDA.CuArray(LE[:, M.projs[1], :]), (3, 1, 2))
+#     b = permutedims(CUDA.CuArray(B[:, M.projs[4], :]), (1, 3, 2))
+#     re = permutedims(CUDA.CuArray(RE[:, M.projs[3], :]), (3, 1, 2))
 
-    Ar_d = le ⊠ b ⊠ re
-    Ar_d .*= reshape(CUDA.CuArray(M.loc_exp), 1, 1, :)
+#     Ar_d = le ⊠ b ⊠ re
+#     Ar_d .*= reshape(CUDA.CuArray(M.loc_exp), 1, 1, :)
 
-    pu = M.projs[2]
+#     pu = M.projs[2]
 
-    ipu = _cusparse_projector(pu)
+#     ipu = _cusparse_projector(pu)
 
-    Ar_d = permutedims(Ar_d, (3, 2, 1)) #(256, 4, 4)
-    _, sy, sz = size(Ar_d)
-    @cast Ar_d[x, (y, z)] := Ar_d[x, y, z]
+#     Ar_d = permutedims(Ar_d, (3, 2, 1)) #(256, 4, 4)
+#     _, sy, sz = size(Ar_d)
+#     @cast Ar_d[x, (y, z)] := Ar_d[x, y, z]
 
-    A = ipu * Ar_d  #(16, 16)
-    A = reshape(A, (:, sy, sz))
+#     A = ipu * Ar_d  #(16, 16)
+#     A = reshape(A, (:, sy, sz))
+# # end
+#     Array(permutedims(A, (3, 1, 2)))
 # end
-    Array(permutedims(A, (3, 1, 2)))
-end
 
-"""
-$(TYPEDSIGNATURES)
-"""
-function project_ket_on_bra(
-    LE::S, B::S, M::T, RE::S, ::Val{:c}
-) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
-A = CUDA.zeros(eltype(LE), size(LE, 3), size(RE, 1), maximum(M.projs[4]))
+# """
+# $(TYPEDSIGNATURES)
+# """
+# function project_ket_on_bra(
+#     LE::S, B::S, M::T, RE::S, ::Val{:c}
+# ) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
+# A = CUDA.zeros(eltype(LE), size(LE, 3), size(RE, 1), maximum(M.projs[4]))
 
-le = permutedims(CUDA.CuArray(LE[:, M.projs[1], :]), (3, 1, 2))
-b = permutedims(CUDA.CuArray(B[:, M.projs[2], :]), (1, 3, 2))
-re = permutedims(CUDA.CuArray(RE[:, M.projs[3], :]), (3, 1, 2))
+# le = permutedims(CUDA.CuArray(LE[:, M.projs[1], :]), (3, 1, 2))
+# b = permutedims(CUDA.CuArray(B[:, M.projs[2], :]), (1, 3, 2))
+# re = permutedims(CUDA.CuArray(RE[:, M.projs[3], :]), (3, 1, 2))
 
-Ar_d = le ⊠ b ⊠ re
-Ar_d .*= reshape(CUDA.CuArray(M.loc_exp), 1, 1, :)
+# Ar_d = le ⊠ b ⊠ re
+# Ar_d .*= reshape(CUDA.CuArray(M.loc_exp), 1, 1, :)
 
-pu = M.projs[4]
+# pu = M.projs[4]
 
-for i in 1:maximum(pu)
-    A[:,:,i] = sum(Ar_d[:, :, pu.==i], dims=3)
-end
-Array(permutedims(A, (1, 3, 2)))
-end
-
-function _cusparse_projector(pr::Vector{Int})
-    # This is how sparse matrix is represented internally
-    csrRowPtr = CuArray(collect(1:length(pr) + 1))
-    csrColInd = CuArray(pr)
-    csrNzVal = CUDA.ones(Float64, length(pr))
-    ipr = CUSPARSE.CuSparseMatrixCSC(csrRowPtr, csrColInd, csrNzVal, (maximum(pr), length(pr))) # transposed right here
-end
+# for i in 1:maximum(pu)
+#     A[:,:,i] = sum(Ar_d[:, :, pu.==i], dims=3)
+# end
+# Array(permutedims(A, (1, 3, 2)))
+# end

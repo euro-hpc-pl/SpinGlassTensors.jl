@@ -69,7 +69,7 @@ function update_env_left(
     @cast Ltemp[(lc, lc2), lt, (lc1, lb)] := Ltemp[lc, lc2, lt, lc1, lb]
     Ltemp = attach_central_left(Ltemp, h, Val(:n))
     @cast Ltemp[lc, lc2, lt, lc1, lb] := Ltemp[(lc, lc2), lt, (lc1, lb)] (lc2 ∈ 1:maximum(p_lb), lb ∈ 1:maximum(p_lt))
-    @tensor Ltempnew[br, bt2, c, ar, ab2] := Ltemp[bl, bt1, c, al, ab1] * A4[al, ab1, ab2, ar] * B4[bl, bt1, bt2, br] order = (bl, bt1, al, ab1)
+    @tensor Ltemp[br, bt2, c, ar, ab2] := Ltemp[bl, bt1, c, al, ab1] * A4[al, ab1, ab2, ar] * B4[bl, bt1, bt2, br] order = (bl, bt1, al, ab1)
 
     slb = size(Ltemp, 1)
     prs = projectors_to_sparse_transposed(p_rb, p_r, p_rt, tLE) 

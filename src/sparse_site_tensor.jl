@@ -5,7 +5,7 @@ function update_env_left(
     LE::S, A::S, M::T, B::S, ::Val{:n}
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
 # @time begin
-#     println("update_env_left   SparseSiteTensor")
+    #println("update_env_left   SparseSiteTensor")
     total_size = length(M.projs[1])
     batch_size = min(2^20, total_size)
     from = 1
@@ -70,7 +70,7 @@ function update_env_right(
     RE::S, A::S, M::T, B::S, ::Val{:n}
 ) where {T <: SparseSiteTensor, S <: AbstractArray{Float64, 3}}
     total_size = length(M.projs[3])
-    batch_size = min(2^20, total_size)
+    batch_size = min(2^24, total_size)
     from = 1
 
     R = CUDA.zeros(eltype(RE),  maximum(M.projs[1]), size(A, 1), size(B, 1))
@@ -82,7 +82,6 @@ function update_env_right(
         B_d = permutedims(CUDA.CuArray(B[:, M.projs[4], :]), (3, 1, 2))
     
         Rr_d = A_d ⊠ R_d ⊠ B_d
-    
         Rr_d .*= reshape(CUDA.CuArray(M.loc_exp[from:to]), 1, 1, :)
         pr = M.projs[1][from:to]
 
@@ -102,7 +101,7 @@ function update_env_right(
     RE::S, A::S, M::T, B::S, ::Val{:c}
 ) where {T <: SparseSiteTensor, S <: AbstractArray{Float64, 3}}
     total_size = length(M.projs[3])
-    batch_size = min(2^20, total_size)
+    batch_size = min(2^24, total_size)
     from = 1
 
     R = CUDA.zeros(eltype(RE),  maximum(M.projs[1]), size(A, 1), size(B, 1))
@@ -114,7 +113,6 @@ function update_env_right(
         B_d = permutedims(CUDA.CuArray(B[:, M.projs[2], :]), (3, 1, 2))
     
         Rr_d = A_d ⊠ R_d ⊠ B_d
-    
         Rr_d .*= reshape(CUDA.CuArray(M.loc_exp[from:to]), 1, 1, :)
         pr = M.projs[1][from:to]
 
@@ -134,7 +132,7 @@ function project_ket_on_bra(
     LE::S, B::S, M::T, RE::S, ::Val{:n}
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
     total_size = length(M.projs[3])
-    batch_size = min(2^20, total_size)
+    batch_size = min(2^24, total_size)
     from = 1
 
     A = CUDA.zeros(eltype(LE), maximum(M.projs[2]), size(LE, 3), size(RE, 1))
@@ -165,7 +163,7 @@ function project_ket_on_bra(
     LE::S, B::S, M::T, RE::S, ::Val{:c}
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
     total_size = length(M.projs[3])
-    batch_size = min(2^20, total_size)
+    batch_size = min(2^24, total_size)
     from = 1
 
     A = CUDA.zeros(eltype(LE), maximum(M.projs[4]), size(LE, 3), size(RE, 1))

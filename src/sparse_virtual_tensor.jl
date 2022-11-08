@@ -30,44 +30,44 @@ function update_env_left(
 
     # if sh[2] / sh[1] < sA4[3] * sA4[4] / (sA4[1] * sA4[2]) < sB4[3] * sB4[4] / (sB4[1] * sB4[2])
     #     @cast Ltemp[(lc, lc2), lt, (lc1, lb)] := Ltemp[lc, lc2, lt, lc1, lb]
-    #     Ltemp = attach_central_left(Ltemp, h, Val(:n))
+    #     Ltemp = attach_central_left(Ltemp, h)
     #     @cast Ltemp[lc, lc2, lt, lc1, lb] := Ltemp[(lc, lc2), lt, (lc1, lb)] (lc2 ∈ 1:maximum(p_lb), lb ∈ 1:maximum(p_lt))
     #     @tensor Ltemp[bl, bt1, c, ar, ab2] := Ltemp[bl, bt1, c, al, ab1] * A4[al, ab1, ab2, ar]
     #     @tensor Ltemp[br, bt2, c, ar, ab2] := Ltemp[bl, bt1, c, ar, ab2] * B4[bl, bt1, bt2, br]
     # elseif sh[2] / sh[1] < sB4[3] * sB4[4] / (sB4[1] * sB4[2]) < sA4[3] * sA4[4] / (sA4[1] * sA4[2])
     #     @cast Ltemp[(lc, lc2), lt, (lc1, lb)] := Ltemp[lc, lc2, lt, lc1, lb]
-    #     Ltemp = attach_central_left(Ltemp, h, Val(:n))
+    #     Ltemp = attach_central_left(Ltemp, h)
     #     @cast Ltemp[lc, lc2, lt, lc1, lb] := Ltemp[(lc, lc2), lt, (lc1, lb)] (lc2 ∈ 1:maximum(p_lb), lb ∈ 1:maximum(p_lt))
     #     @tensor Ltemp[br, bt2, c, al, ab1] := Ltemp[bl, bt1, c, al, ab1] * B4[bl, bt1, bt2, br]
     #     @tensor Ltemp[br, bt2, c, ar, ab2] := Ltemp[br, bt2, c, al, ab1] * A4[al, ab1, ab2, ar]
     # elseif sA4[3] * sA4[4] / (sA4[1] * sA4[2]) < sh[2] / sh[1] < sB4[3] * sB4[4] / (sB4[1] * sB4[2])
     #     @tensor Ltemp[bl, bt1, c, ar, ab2] := Ltemp[bl, bt1, c, al, ab1] * A4[al, ab1, ab2, ar]
     #     @cast Ltemp[(lc, lc2), lt, (lc1, lb)] := Ltemp[lc, lc2, lt, lc1, lb]
-    #     Ltemp = attach_central_left(Ltemp, h, Val(:n))
+    #     Ltemp = attach_central_left(Ltemp, h)
     #     @cast Ltemp[lc, lc2, lt, lc1, lb] := Ltemp[(lc, lc2), lt, (lc1, lb)] (lc2 ∈ 1:maximum(p_lb), lb ∈ 1:maximum(p_lt))
     #     @tensor Ltemp[br, bt2, c, ar, ab2] := Ltemp[bl, bt1, c, ar, ab2] * B4[bl, bt1, bt2, br]
     # elseif sB4[3] * sB4[4] / (sB4[1] * sB4[2]) <  sh[2] / sh[1] < sA4[3] * sA4[4] / (sA4[1] * sA4[2])
     #     @tensor Ltemp[br, bt2, c, al, ab1] := Ltemp[bl, bt1, c, al, ab1] * B4[bl, bt1, bt2, br]
     #     @cast Ltemp[(lc, lc2), lt, (lc1, lb)] := Ltemp[lc, lc2, lt, lc1, lb]
-    #     Ltemp = attach_central_left(Ltemp, h, Val(:n))
+    #     Ltemp = attach_central_left(Ltemp, h)
     #     @cast Ltemp[lc, lc2, lt, lc1, lb] := Ltemp[(lc, lc2), lt, (lc1, lb)] (lc2 ∈ 1:maximum(p_lb), lb ∈ 1:maximum(p_lt))
     #     @tensor Ltemp[br, bt2, c, ar, ab2] := Ltemp[br, bt2, c, al, ab1] * A4[al, ab1, ab2, ar]
     # elseif sA4[3] * sA4[4] / (sA4[1] * sA4[2]) < sB4[3] * sB4[4] / (sB4[1] * sB4[2]) < sh[2] / sh[1] 
     #     @tensor Ltemp[bl, bt1, c, ar, ab2] := Ltemp[bl, bt1, c, al, ab1] * A4[al, ab1, ab2, ar]
     #     @tensor Ltemp[br, bt2, c, ar, ab2] := Ltemp[bl, bt1, c, ar, ab2] * B4[bl, bt1, bt2, br]
     #     @cast Ltemp[(lc, lc2), lt, (lc1, lb)] := Ltemp[lc, lc2, lt, lc1, lb]
-    #     Ltemp = attach_central_left(Ltemp, h, Val(:n))
+    #     Ltemp = attach_central_left(Ltemp, h)
     #     @cast Ltemp[lc, lc2, lt, lc1, lb] := Ltemp[(lc, lc2), lt, (lc1, lb)] (lc2 ∈ 1:maximum(p_lb), lb ∈ 1:maximum(p_lt))
     # elseif sB4[3] * sB4[4] / (sB4[1] * sB4[2]) < sA4[3] * sA4[4] / (sA4[1] * sA4[2]) < sh[2] / sh[1]
     #     @tensor Ltemp[br, bt2, c, al, ab1] := Ltemp[bl, bt1, c, al, ab1] * B4[bl, bt1, bt2, br]
     #     @tensor Ltemp[br, bt2, c, ar, ab2] := Ltemp[br, bt2, c, al, ab1] * A4[al, ab1, ab2, ar]
     #     @cast Ltemp[(lc, lc2), lt, (lc1, lb)] := Ltemp[lc, lc2, lt, lc1, lb]
-    #     Ltemp = attach_central_left(Ltemp, h, Val(:n))
+    #     Ltemp = attach_central_left(Ltemp, h)
     #     @cast Ltemp[lc, lc2, lt, lc1, lb] := Ltemp[(lc, lc2), lt, (lc1, lb)] (lc2 ∈ 1:maximum(p_lb), lb ∈ 1:maximum(p_lt))
     # end
 
     @cast Ltemp[(lc, lc2), lt, (lc1, lb)] := Ltemp[lc, lc2, lt, lc1, lb]
-    Ltemp = attach_central_left(Ltemp, h, Val(:n))
+    Ltemp = attach_central_left(Ltemp, h)
     @cast Ltemp[lc, lc2, lt, lc1, lb] := Ltemp[(lc, lc2), lt, (lc1, lb)] (lc2 ∈ 1:maximum(p_lb), lb ∈ 1:maximum(p_lt))
     @tensor Ltemp[br, bt2, c, ar, ab2] := Ltemp[bl, bt1, c, al, ab1] * A4[al, ab1, ab2, ar] * B4[bl, bt1, bt2, br] order = (bl, bt1, al, ab1)
 
@@ -107,7 +107,7 @@ function update_env_left(
     Ltemp = permutedims(Ltemp, (4, 1, 2, 5, 3))
 
     @cast Ltemp[(lc, lc2), lt, (lc1, lb)] := Ltemp[lc, lc2, lt, lc1, lb]
-    Ltemp = attach_central_left(Ltemp, h, Val(:c))
+    Ltemp = attach_central_left(Ltemp, h)
     @cast Ltemp[lc, lc2, lt, lc1, lb] := Ltemp[(lc, lc2), lt, (lc1, lb)] (lc2 ∈ 1:maximum(p_lb), lb ∈ 1:maximum(p_lt))
     @tensor Ltempnew[br, ab2, c, ar, bt2] := Ltemp[bl, ab1, c, al, bt1] * A4[al, ab1, ab2, ar] * B4[bl, bt1, bt2, br] order = (bl, bt1, al, ab1)
 
@@ -129,7 +129,6 @@ $(TYPEDSIGNATURES)
 function update_env_right(
     RE::S, A::S, M::T, B::S, ::Val{:n}
 ) where {T <: SparseVirtualTensor, S <: AbstractArray{Float64,3}}
-println("update_env_right   SparseVirtualTensor")
 
     h = M.con
     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
@@ -151,7 +150,7 @@ println("update_env_right   SparseVirtualTensor")
     @cast Rtemp[rc1, rc, rc2, rb, rt] := Rtemp[(rc1, rc, rc2), (rb, rt)] (rc1 ∈ 1:maximum(p_rb), rc ∈ 1:maximum(p_r), rt ∈ 1:srt)
     Rtemp = permutedims(Rtemp, (5, 3, 2, 4, 1))
     @cast Rtemp[(rt, rc2), rc, (rb, rc1)] :=  Rtemp[rt, rc2, rc, rb, rc1]
-    Rtemp = attach_central_right(Rtemp, h, Val(:n))
+    Rtemp = attach_central_right(Rtemp, h)
     @cast Rtemp[rt, rc2, rc, rb, rc1] := Rtemp[(rt, rc2), rc, (rb, rc1)] (rc1 ∈ 1:maximum(p_rb), rc2 ∈ 1:maximum(p_rt))
     @tensor Rtempnew[al, ab1, c, bl, bt1] := Rtemp[ar, ab2, c, br, bt2] * A4[al, ab1, ab2, ar] * B4[bl, bt1, bt2, br] #order = (b, tp, t, bp)
 
@@ -192,7 +191,7 @@ function update_env_right(
     Rtemp = permutedims(Rtemp, (5, 3, 2, 4, 1))
 
     @cast Rtemp[(rt, rc2), rc, (rb, rc1)] :=  Rtemp[rt, rc2, rc, rb, rc1]
-    Rtemp = attach_central_right(Rtemp, h, Val(:c))
+    Rtemp = attach_central_right(Rtemp, h)
     @cast Rtemp[rt, rc2, rc, rb, rc1] := Rtemp[(rt, rc2), rc, (rb, rc1)] (rc1 ∈ 1:maximum(p_rb), rc2 ∈ 1:maximum(p_rt))
     @tensor Rtempnew[al, bt1, c, bl, ab1] := Rtemp[ar, bt2, c, br, ab2] * A4[al, ab1, ab2, ar] * B4[bl, bt1, bt2, br] #order = (b, tp, t, bp)
 
@@ -236,7 +235,7 @@ function project_ket_on_bra(
     LL = permutedims(LL, (4, 1, 2, 5, 3))
 
     @cast LL[(lc, lc2), lt, (lc1, lb)] := LL[lc, lc2, lt, lc1, lb]
-    LL = attach_central_left(LL, h, Val(:n))
+    LL = attach_central_left(LL, h)
     @cast LL[lc, lc2, lt, lc1, lb] := LL[(lc, lc2), lt, (lc1, lb)] (lc2 ∈ 1:maximum(p_lb), lb ∈ 1:maximum(p_lt))
 
     REn = permutedims(RE, (2, 3, 1))
@@ -281,7 +280,7 @@ function project_ket_on_bra(
     LL = permutedims(LL, (4, 1, 2, 5, 3))
 
     @cast LL[(lc, lc2), lt, (lc1, lb)] := LL[lc, lc2, lt, lc1, lb]
-    LL = attach_central_left(LL, h, Val(:c))
+    LL = attach_central_left(LL, h)
     @cast LL[lc, lc2, lt, lc1, lb] := LL[(lc, lc2), lt, (lc1, lb)] (lc2 ∈ 1:maximum(p_lt), lb ∈ 1:maximum(p_lb))
 
     REn = permutedims(RE, (2, 3, 1))

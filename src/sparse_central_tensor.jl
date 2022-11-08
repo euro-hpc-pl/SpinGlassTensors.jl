@@ -6,7 +6,7 @@ export
 $(TYPEDSIGNATURES)
 """
 function attach_central_left(
-    LE::S, M::T, ::Union{Val{:n}, Val{:c}}
+    LE::S, M::T
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseCentralTensor}
     if typeof(LE) <: CuArray
         e11 = CUDA.CuArray(M.e11)
@@ -53,7 +53,7 @@ end
 $(TYPEDSIGNATURES)
 """
 function attach_central_right(
-    RE::S, M::T, ::Union{Val{:n}, Val{:c}}
+    RE::S, M::T
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseCentralTensor}
     if typeof(RE) <: CuArray
         e11 = CUDA.CuArray(M.e11)

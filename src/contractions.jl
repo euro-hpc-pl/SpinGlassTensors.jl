@@ -103,17 +103,19 @@ function contract_down(A::Array{T, 4}, B::Array{T, 3}) where T
 end
 
 function contract_down(M::SparseCentralTensor, A::Array{T, 3}) where T
-    MM = dense_central_tensor(M)
-    @tensor C[l, d, r] := MM[σ, d] * A[l, σ, r]
-    C
+    attach_central_left(A, M)
+    # MM = dense_central_tensor(M)
+    # @tensor C[l, d, r] := MM[σ, d] * A[l, σ, r]
+    # C
 end
 
 
 function contract_down(M::SparseDiagonalTensor, A::Array{T, 3}) where T
-    @cast AA[l, s1, s2, r] := A[l, (s1, s2), r]  (s1 ∈ 1:size(M.e1, 1))
-    @tensor AA[l, q2, q1, r] := AA[l, s1, s2, r] * M.e1[s1, q1] * M.e2[s2, q2]
-    @cast AA[l, (q2, q1), r] := AA[l, q2, q1, r]
-    AA
+    attach_central_left(A, M)
+    # @cast AA[l, s1, s2, r] := A[l, (s1, s2), r]  (s1 ∈ 1:size(M.e1, 1))
+    # @tensor AA[l, q2, q1, r] := AA[l, s1, s2, r] * M.e1[s1, q1] * M.e2[s2, q2]
+    # @cast AA[l, (q2, q1), r] := AA[l, q2, q1, r]
+    # AA
 end
 
 # TODO: improve performance
@@ -133,18 +135,20 @@ end
 
 
 function contract_up(A::Array{T, 3}, M::SparseCentralTensor) where T
-    MM = dense_central_tensor(M)
-    @tensor C[l, u, r] := MM[u, σ] * A[l, σ, r]
-    C
+    attach_central_right(A, M)
+    # MM = dense_central_tensor(M)
+    # @tensor C[l, u, r] := MM[u, σ] * A[l, σ, r]
+    # C
 end
 
 
 
 function contract_up(A::Array{T, 3}, M::SparseDiagonalTensor) where T
-    @cast AA[l, s1, s2, r] := A[l, (s1, s2), r]  (s1 ∈ 1:size(M.e2, 2))
-    @tensor AA[l, q1, q2, r] := M.e1[q1, s1] * M.e2[q2, s2] * AA[l, s2, s1, r]
-    @cast AA[l, (q1, q2), r] := AA[l, q1, q2, r]
-    AA
+    attach_central_right(A, M)
+    # @cast AA[l, s1, s2, r] := A[l, (s1, s2), r]  (s1 ∈ 1:size(M.e2, 2))
+    # @tensor AA[l, q1, q2, r] := M.e1[q1, s1] * M.e2[q2, s2] * AA[l, s2, s1, r]
+    # @cast AA[l, (q1, q2), r] := AA[l, q1, q2, r]
+    # AA
 end
 
 

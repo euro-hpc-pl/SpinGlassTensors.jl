@@ -31,6 +31,36 @@ function attach_3_matrices_left(L, B2, h, A2)
     L 
 end
 
+function attach_3_matrices_right(R, B2, h, A2)
+    # selecting optimal order of attaching matrices to R
+    if r1over2(h) <= r1over2(B2) <= r1over2(A2)
+        R = attach_central_right(R, h)  # [..., lc, ...] = [..., rc, ...] * [lc, rc]
+        @tensor R[lfb, x, y] := R[rfb, x, y] * B2[lfb, rfb]
+        @tensor R[x, y, lft] := R[x, y, rft] * A2[lft, rft]
+    elseif r1over2(h) <= r1over2(A2) <= r1over2(B2)
+        R = attach_central_right(R, h)  # [..., lc, ...] = [..., rc, ...] * [lc, rc]
+        @tensor R[x, y, lft] := R[x, y, rft] * A2[lft, rft]
+        @tensor R[lfb, x, y] := R[rfb, x, y] * B2[lfb, rfb]
+    elseif r1over2(A2) <= r1over2(h) <= r1over2(B2)
+        @tensor R[x, y, lft] := R[x, y, rft] * A2[lft, rft]
+        R = attach_central_right(R, h)  # [..., lc, ...] = [..., rc, ...] * [lc, rc]
+        @tensor R[lfb, x, y] := R[rfb, x, y] * B2[lfb, rfb]
+    elseif r1over2(A2) <= r1over2(B2) <= r1over2(h)
+        @tensor R[x, y, lft] := R[x, y, rft] * A2[lft, rft]
+        @tensor R[lfb, x, y] := R[rfb, x, y] * B2[lfb, rfb]
+        R = attach_central_right(R, h)  # [..., lc, ...] = [..., rc, ...] * [lc, rc]
+    elseif r1over2(B2) <= r1over2(h) <= r1over2(A2)
+        @tensor R[lfb, x, y] := R[rfb, x, y] * B2[lfb, rfb]
+        R = attach_central_right(R, h)  # [..., lc, ...] = [..., rc, ...] * [lc, rc]
+        @tensor R[x, y, lft] := R[x, y, rft] * A2[lft, rft]
+    else # r1over2(B2) <= r1over2(A2) <= r1over2(h)
+        @tensor R[lfb, x, y] := R[rfb, x, y] * B2[lfb, rfb]
+        @tensor R[x, y, lft] := R[x, y, rft] * A2[lft, rft]
+        R = attach_central_right(R, h)  # [..., lc, ...] = [..., rc, ...] * [lc, rc]
+    end
+    R 
+end
+
 function update_env_left(
     LE::S, A::S, M::T, B::S, ::Val{:n}
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseVirtualTensor}
@@ -111,89 +141,89 @@ function update_env_left(
     Array(permutedims(L, (2, 1, 3)) ./ maximum(abs.(L)))  # [rb, rcp, rt]
 end
 
-"""
-$(TYPEDSIGNATURES)
-"""
 function update_env_right(
     RE::S, A::S, M::T, B::S, ::Val{:n}
-) where {T <: SparseVirtualTensor, S <: AbstractArray{Float64,3}}
+) where {S <: AbstractArray{Float64, 3}, T <: SparseVirtualTensor}
+
+    A = CUDA.CuArray(A)
+    B = CUDA.CuArray(B)
+    R = CUDA.CuArray(RE)
 
     h = M.con
     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
 
-    A = CUDA.CuArray(A)
-    B = CUDA.CuArray(B)
-    RE = CUDA.CuArray(RE)
+    slt, srt = size(A, 1), size(A, 3)
+    slb, srb = size(B, 1), size(B, 3)
+    srcb, src, srct = maximum(p_rb), maximum(p_r), maximum(p_rt)
+    slcb, slct = maximum(p_lb), maximum(p_lt)
 
-    @cast A4[al, ab1, ab2, ar] := A[al, (ab1, ab2), ar] (ab1 ∈ 1:maximum(p_lt))
-    @cast B4[bl, bt1, bt2, br] := B[bl, (bt1, bt2), br] (bt1 ∈ 1:maximum(p_lb))
+    @cast A2[(lt, lct), (rct, rt)] := A[lt, (lct, rct), rt] (rct ∈ 1:srct)
+    @cast B2[(lb, lcb), (rcb, rb)] := B[lb, (lcb, rcb), rb] (rcb ∈ 1:srcb)
 
-    srt = size(RE, 1)
-    REn = permutedims(RE, (2, 3, 1))
-    @cast REn[rc, (rb, rt)] := REn[rc, rb, rt]
-    tRE = typeof(RE)
-    ps = projectors_to_sparse(p_rb, p_r, p_rt, tRE)
-    Rtemp = ps * REn
+    R = permutedims(R, (2, 3, 1))  # [rcp, rb, rt]
+    @cast R[rcp, (rb, rt)] := R[rcp, rb, rt]
 
-    @cast Rtemp[rc1, rc, rc2, rb, rt] := Rtemp[(rc1, rc, rc2), (rb, rt)] (rc1 ∈ 1:maximum(p_rb), rc ∈ 1:maximum(p_r), rt ∈ 1:srt)
-    Rtemp = permutedims(Rtemp, (5, 3, 2, 4, 1))
-    @cast Rtemp[(rt, rc2), rc, (rb, rc1)] :=  Rtemp[rt, rc2, rc, rb, rc1]
-    Rtemp = attach_central_right(Rtemp, h)
-    @cast Rtemp[rt, rc2, rc, rb, rc1] := Rtemp[(rt, rc2), rc, (rb, rc1)] (rc1 ∈ 1:maximum(p_rb), rc2 ∈ 1:maximum(p_rt))
-    @tensor Rtempnew[al, ab1, c, bl, bt1] := Rtemp[ar, ab2, c, br, bt2] * A4[al, ab1, ab2, ar] * B4[bl, bt1, bt2, br] #order = (b, tp, t, bp)
+    ps = projectors_to_sparse(p_rb, p_r, p_rt, typeof(R))
+    R = ps * R  # [(rcb, rc, rct), (rb, rt)]
 
-    srt = size(Rtempnew, 1)
-    prs = projectors_to_sparse_transposed(p_lb, p_l, p_lt, tRE) 
-    Rtempnew = permutedims(Rtempnew, (5, 3, 2, 1, 4)) #[(nbp, nc, ntp), (nb, nt)]
-    @cast Rtempnew[(bl, c, ab1), (bt1, al)] :=  Rtempnew[bl, c, ab1, bt1, al] 
-    Rnew = prs * Rtempnew  #[cc, (nb, nt)] 
-    @cast Rnew[c, nt, nb] := Rnew[c, (nt, nb)] (nt ∈ 1:srt)
-    Array(permutedims(Rnew, (2, 1, 3)) ./ maximum(abs.(Rnew)))
+    @cast R[rcb, rc, rct, rb, rt] := R[(rcb, rc, rct), (rb, rt)] (rcb ∈ 1:srcb, rc ∈ 1:src, rb ∈ 1:srb)
+    R = permutedims(R, (1, 4, 2, 3, 5))  # [rcb, rb, rc, rct, rt]
+
+    @cast R[(rcb, rb), rc, (rct, rt)] := R[rcb, rb, rc, rct, rt]
+
+    R = attach_3_matrices_right(R, B2, h, A2)
+    
+    @cast R[lb, lcb, lc, lt, lct] := R[(lb, lcb), lc, (lt, lct)] (lb ∈ 1:slb, lt ∈ 1:slt)
+    R = permutedims(R, (2, 3, 5, 4, 1)) #[lct, lc, lcb, lt, lb] #
+    @cast R[(lcb, lc, lct), (lt, lb)] := R[lcb, lc, lct, lt, lb]
+    
+    prs = projectors_to_sparse_transposed(p_lb, p_l, p_lt, typeof(R)) #
+    R = prs * R  # [rcp, (rt, rb)]
+    @cast R[lcp, lt, lb] := R[lcp, (lt, lb)] (lb ∈ 1:slb)
+    Array(permutedims(R, (2, 1, 3)) ./ maximum(abs.(R)))  # [rt, rcp, rb]
 end
 
-
-"""
-$(TYPEDSIGNATURES)
-"""
 function update_env_right(
     RE::S, A::S, M::T, B::S, ::Val{:c}
-) where {T <: SparseVirtualTensor, S <: AbstractArray{Float64,3}}
-    h = M.con
-    p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
+) where {S <: AbstractArray{Float64, 3}, T <: SparseVirtualTensor}
 
     A = CUDA.CuArray(A)
     B = CUDA.CuArray(B)
-    RE = CUDA.CuArray(RE)
+    R = CUDA.CuArray(RE)
 
-    @cast A4[al, ab1, ab2, ar] := A[al, (ab1, ab2), ar] (ab1 ∈ 1:maximum(p_lb))
-    @cast B4[bl, bt1, bt2, br] := B[bl, (bt1, bt2), br] (bt1 ∈ 1:maximum(p_lt))
+    h = M.con
+    p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
 
-    srt = size(RE, 1)
-    REn = permutedims(RE, (2, 3, 1))
-    @cast REn[rc, (rb, rt)] := REn[rc, rb, rt]
-    tRE = typeof(RE)
-    ps = projectors_to_sparse(p_rb, p_r, p_rt, tRE)
-    Rtemp = ps * REn
+    slt, srt = size(A, 1), size(A, 3)
+    slb, srb = size(B, 1), size(B, 3)
+    srcb, src, srct = maximum(p_rb), maximum(p_r), maximum(p_rt)
+    slcb, slct = maximum(p_lb), maximum(p_lt)
 
-    @cast Rtemp[rc1, rc, rc2, rb, rt] := Rtemp[(rc1, rc, rc2), (rb, rt)] (rc1 ∈ 1:maximum(p_rb), rc ∈ 1:maximum(p_r), rt ∈ 1:srt)
-    Rtemp = permutedims(Rtemp, (5, 3, 2, 4, 1))
+    @cast A2[(lt, lcb), (rcb, rt)] := A[lt, (lcb, rcb), rt] (rcb ∈ 1:srcb)
+    @cast B2[(lb, lct), (rct, rb)] := B[lb, (lct, rct), rb] (rct ∈ 1:srct)
 
-    @cast Rtemp[(rt, rc2), rc, (rb, rc1)] :=  Rtemp[rt, rc2, rc, rb, rc1]
-    Rtemp = attach_central_right(Rtemp, h)
-    @cast Rtemp[rt, rc2, rc, rb, rc1] := Rtemp[(rt, rc2), rc, (rb, rc1)] (rc1 ∈ 1:maximum(p_rb), rc2 ∈ 1:maximum(p_rt))
-    @tensor Rtempnew[al, bt1, c, bl, ab1] := Rtemp[ar, bt2, c, br, ab2] * A4[al, ab1, ab2, ar] * B4[bl, bt1, bt2, br] #order = (b, tp, t, bp)
+    R = permutedims(R, (2, 3, 1))  # [rcp, rb, rt]
+    @cast R[rcp, (rb, rt)] := R[rcp, rb, rt]
 
-    srt = size(Rtempnew, 1)
-    prs = projectors_to_sparse_transposed(p_lb, p_l, p_lt, tRE) 
+    ps = projectors_to_sparse(p_rb, p_r, p_rt, typeof(R))
+    R = ps * R  # [(rcb, rc, rct), (rb, rt)]
 
-    Rtempnew = permutedims(Rtempnew, (2, 3, 5, 1, 4)) #[(nbp, nc, ntp), (nb, nt)]
-    @cast Rtempnew[(bl, al, bt1), (ab1, c)] :=  Rtempnew[bl, al, bt1, ab1, c] 
-    Rnew = prs * Rtempnew  #[cc, (nb, nt)] 
+    @cast R[rcb, rc, rct, rb, rt] := R[(rcb, rc, rct), (rb, rt)] (rcb ∈ 1:srcb, rc ∈ 1:src, rb ∈ 1:srb)
+    R = permutedims(R, (3, 4, 2, 1, 5))  # [rct, rb, rc, rcb, rt]
 
-    @cast Rnew[c, nt, nb] := Rnew[c, (nt, nb)] (nt ∈ 1:srt)
-    Array(permutedims(Rnew, (2, 1, 3)) ./ maximum(abs.(Rnew)))
+    @cast R[(rct, rb), rc, (rcb, rt)] := R[rct, rb, rc, rcb, rt]
+
+    R = attach_3_matrices_right(R, B2, h, A2)
+    
+    @cast R[lb, lct, lc, lt, lcb] := R[(lb, lct), lc, (lt, lcb)] (lb ∈ 1:slb, lt ∈ 1:slt)
+    R = permutedims(R, (5, 3, 2, 4, 1)) #[lct, lc, lcb, lt, lb] #
+    @cast R[(lcb, lc, lct), (lt, lb)] := R[lcb, lc, lct, lt, lb]
+    
+    prs = projectors_to_sparse_transposed(p_lb, p_l, p_lt, typeof(R)) #
+    R = prs * R  # [rcp, (rt, rb)]
+    @cast R[lcp, lt, lb] := R[lcp, (lt, lb)] (lb ∈ 1:slb)
+    Array(permutedims(R, (2, 1, 3)) ./ maximum(abs.(R)))  # [rt, rcp, rb]
 end
-
 
 """
 $(TYPEDSIGNATURES)

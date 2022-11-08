@@ -102,7 +102,6 @@ function update_env_left(
 
     @cast Ltemp[lcb, lc, lct, lb, lt] := Ltemp[(lcb, lc, lct), (lb, lt)] (lcb ∈ 1:maximum(p_lb), lc ∈ 1:maximum(p_l), lb ∈ 1:slb)
     Ltemp = permutedims(Ltemp, (4, 1, 2, 5, 3))
-(lb,lcb,lc,lt,lct)
     @cast Ltemp[(lb, lcb), lc, (lt, lct)] := Ltemp[lb, lcb, lc, lt, lct]
     Ltemp = attach_central_left(Ltemp, h)
     @cast Ltemp[lb, lcb, lc, lt, lct] := Ltemp[(lb, lcb), lc, (lt, lct)] (lcb ∈ 1:maximum(p_lb), lct ∈ 1:maximum(p_lt))

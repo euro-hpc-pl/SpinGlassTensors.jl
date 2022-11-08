@@ -191,7 +191,7 @@ $(TYPEDSIGNATURES)
 function update_env_left(
     LE::S, M::T, trans::Symbol=:n
 ) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
-    attach_central_left(LE, M[0], Val(trans))
+    attach_central_left(LE, M[0])
 end
 
 function projector_to_dense(pr :: Array{Int, 1})
@@ -288,7 +288,7 @@ function _update_tensor_forward(
     for i ∈ sites
         if i == 0 break end
         C = M[i]
-        B = attach_central_left(B, C, Val(:n))
+        B = attach_central_left(B, C)
     end
     B
 end
@@ -303,7 +303,7 @@ function _update_tensor_forward(
     for i ∈ reverse(sites)
         if i == 0 break end
         C = M[i]
-        B = attach_central_right(B, C, Val(:c))
+        B = attach_central_right(B, C)
     end
     B
 end
@@ -318,7 +318,7 @@ function _update_tensor_backwards(
     for i ∈ reverse(sites)
         if i == 0 break end
         C = M[i]
-        B = attach_central_right(B, C, Val(:n))
+        B = attach_central_right(B, C)
     end
     B
 end
@@ -333,7 +333,7 @@ function _update_tensor_backwards(
     for i ∈ sites
         if i == 0 break end
         C = M[i]
-        B = attach_central_left(B, C, Val(:c))
+        B = attach_central_left(B, C)
     end
     B
 end
@@ -361,7 +361,7 @@ $(TYPEDSIGNATURES)
 function update_env_right(
     RE::S, M::T, trans::Symbol
 ) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
-    attach_central_right(RE, M[0], Val(trans))
+    attach_central_right(RE, M[0])
 end
 
 """
@@ -388,7 +388,7 @@ function project_ket_on_bra(
     for (_, v) ∈ reverse(C)
         dimv = length(size(v))
         if dimv == 2
-            TT = attach_central_right(TT, v, Val(:n))
+            TT = attach_central_right(TT, v)
         else
             TT = project_ket_on_bra(LE, TT, v, RE, Val(:n))
         end
@@ -407,7 +407,7 @@ function project_ket_on_bra(
     for (_, v) ∈ C
         dimv = length(size(v))
         if dimv == 2
-            TT = attach_central_left(TT, v, Val(:c))
+            TT = attach_central_left(TT, v)
         else
             TT = project_ket_on_bra(LE, TT, v, RE, Val(:c))
         end

@@ -80,8 +80,8 @@ end
 
 
 struct SparseDiagonalTensor <: AbstractSparseTensor
-    e1::Matrix{<:Real}
-    e2::Matrix{<:Real}
+    e1 #::Matrix{<:Real}
+    e2 #::Matrix{<:Real}
     sizes::NTuple{2, Int}
 end
 

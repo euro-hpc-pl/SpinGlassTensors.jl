@@ -104,7 +104,7 @@ function update_env_left(
     Ltemp = permutedims(Ltemp, (4, 1, 2, 5, 3))
 
     @cast Ltemp[(lc, lct), lt, (lcb, lb)] := Ltemp[lc, lct, lt, lcb, lb]
-    Ltemp = attach_central_left(Ltemp, h, Val(:n))
+    Ltemp = attach_central_left(Ltemp, h)
     @cast Ltemp[lc, lct, lt, lcb, lb] := Ltemp[(lc, lct), lt, (lcb, lb)] (lct ∈ 1:maximum(p_lb), lb ∈ 1:maximum(p_lt))
     @tensor Ltemp[nlc, nlct, lt, nlcb, nlb] := Ltemp[lc, lct, lt, lcb, lb] * A4[lcb, lb, nlb, nlcb] * B4[lc, lct, nlct, nlc] order = (lc, lct, lcb, lb)
 
@@ -182,7 +182,7 @@ function update_env_left(
     Ltemp = permutedims(Ltemp, (4, 1, 2, 5, 3))
 
     @cast Ltemp[(lc, lc2), lt, (lc1, lb)] := Ltemp[lc, lc2, lt, lc1, lb]
-    Ltemp = attach_central_left(Ltemp, h, Val(:c))
+    Ltemp = attach_central_left(Ltemp, h)
     @cast Ltemp[lc, lc2, lt, lc1, lb] := Ltemp[(lc, lc2), lt, (lc1, lb)] (lc2 ∈ 1:maximum(p_lb), lb ∈ 1:maximum(p_lt))
     @tensor Ltempnew[br, ab2, c, ar, bt2] := Ltemp[bl, ab1, c, al, bt1] * A4[al, ab1, ab2, ar] * B4[bl, bt1, bt2, br] order = (bl, bt1, al, ab1)
 
@@ -204,7 +204,6 @@ $(TYPEDSIGNATURES)
 function update_env_right(
     RE::S, A::S, M::T, B::S, ::Val{:n}
 ) where {T <: SparseVirtualTensor, S <: AbstractArray{Float64,3}}
-#println("update_env_right   SparseVirtualTensor")
 
     h = M.con
     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
@@ -226,7 +225,7 @@ function update_env_right(
     @cast Rtemp[rc1, rc, rc2, rb, rt] := Rtemp[(rc1, rc, rc2), (rb, rt)] (rc1 ∈ 1:maximum(p_rb), rc ∈ 1:maximum(p_r), rt ∈ 1:srt)
     Rtemp = permutedims(Rtemp, (5, 3, 2, 4, 1))
     @cast Rtemp[(rt, rc2), rc, (rb, rc1)] :=  Rtemp[rt, rc2, rc, rb, rc1]
-    Rtemp = attach_central_right(Rtemp, h, Val(:n))
+    Rtemp = attach_central_right(Rtemp, h)
     @cast Rtemp[rt, rc2, rc, rb, rc1] := Rtemp[(rt, rc2), rc, (rb, rc1)] (rc1 ∈ 1:maximum(p_rb), rc2 ∈ 1:maximum(p_rt))
     @tensor Rtempnew[al, ab1, c, bl, bt1] := Rtemp[ar, ab2, c, br, bt2] * A4[al, ab1, ab2, ar] * B4[bl, bt1, bt2, br] #order = (b, tp, t, bp)
 
@@ -267,7 +266,7 @@ function update_env_right(
     Rtemp = permutedims(Rtemp, (5, 3, 2, 4, 1))
 
     @cast Rtemp[(rt, rc2), rc, (rb, rc1)] :=  Rtemp[rt, rc2, rc, rb, rc1]
-    Rtemp = attach_central_right(Rtemp, h, Val(:c))
+    Rtemp = attach_central_right(Rtemp, h)
     @cast Rtemp[rt, rc2, rc, rb, rc1] := Rtemp[(rt, rc2), rc, (rb, rc1)] (rc1 ∈ 1:maximum(p_rb), rc2 ∈ 1:maximum(p_rt))
     @tensor Rtempnew[al, bt1, c, bl, ab1] := Rtemp[ar, bt2, c, br, ab2] * A4[al, ab1, ab2, ar] * B4[bl, bt1, bt2, br] #order = (b, tp, t, bp)
 
@@ -311,7 +310,7 @@ function project_ket_on_bra(
     LL = permutedims(LL, (4, 1, 2, 5, 3))
 
     @cast LL[(lc, lc2), lt, (lc1, lb)] := LL[lc, lc2, lt, lc1, lb]
-    LL = attach_central_left(LL, h, Val(:n))
+    LL = attach_central_left(LL, h)
     @cast LL[lc, lc2, lt, lc1, lb] := LL[(lc, lc2), lt, (lc1, lb)] (lc2 ∈ 1:maximum(p_lb), lb ∈ 1:maximum(p_lt))
 
     REn = permutedims(RE, (2, 3, 1))
@@ -356,7 +355,7 @@ function project_ket_on_bra(
     LL = permutedims(LL, (4, 1, 2, 5, 3))
 
     @cast LL[(lc, lc2), lt, (lc1, lb)] := LL[lc, lc2, lt, lc1, lb]
-    LL = attach_central_left(LL, h, Val(:c))
+    LL = attach_central_left(LL, h)
     @cast LL[lc, lc2, lt, lc1, lb] := LL[(lc, lc2), lt, (lc1, lb)] (lc2 ∈ 1:maximum(p_lt), lb ∈ 1:maximum(p_lb))
 
     REn = permutedims(RE, (2, 3, 1))

@@ -70,16 +70,16 @@ function update_env_right(
     RE::S, A::S, M::T, B::S, ::Val{:n}
 ) where {T <: SparseSiteTensor, S <: AbstractArray{Float64, 3}}
     total_size = length(M.projs[3])
-    batch_size = min(2^24, total_size)
+    batch_size = min(2^20, total_size)
     from = 1
 
     R = CUDA.zeros(eltype(RE),  maximum(M.projs[1]), size(A, 1), size(B, 1))
     while from <= total_size
         to = min(total_size, from + batch_size - 1)
 
-        A_d = permutedims(CUDA.CuArray(A[:, M.projs[2], :]), (1, 3, 2))
-        R_d = permutedims(CUDA.CuArray(RE[:, M.projs[3], :]), (1, 3, 2))
-        B_d = permutedims(CUDA.CuArray(B[:, M.projs[4], :]), (3, 1, 2))
+        A_d = permutedims(CUDA.CuArray(A[:, M.projs[2][from : to], :]), (1, 3, 2))
+        R_d = permutedims(CUDA.CuArray(RE[:, M.projs[3][from : to], :]), (1, 3, 2))
+        B_d = permutedims(CUDA.CuArray(B[:, M.projs[4][from : to], :]), (3, 1, 2))
     
         Rr_d = A_d ⊠ R_d ⊠ B_d
         Rr_d .*= reshape(CUDA.CuArray(M.loc_exp[from:to]), 1, 1, :)
@@ -101,16 +101,16 @@ function update_env_right(
     RE::S, A::S, M::T, B::S, ::Val{:c}
 ) where {T <: SparseSiteTensor, S <: AbstractArray{Float64, 3}}
     total_size = length(M.projs[3])
-    batch_size = min(2^24, total_size)
+    batch_size = min(2^20, total_size)
     from = 1
 
     R = CUDA.zeros(eltype(RE),  maximum(M.projs[1]), size(A, 1), size(B, 1))
     while from <= total_size
         to = min(total_size, from + batch_size - 1)
 
-        A_d = permutedims(CUDA.CuArray(A[:, M.projs[4], :]), (1, 3, 2))
-        R_d = permutedims(CUDA.CuArray(RE[:, M.projs[3], :]), (1, 3, 2))
-        B_d = permutedims(CUDA.CuArray(B[:, M.projs[2], :]), (3, 1, 2))
+        A_d = permutedims(CUDA.CuArray(A[:, M.projs[4][from : to], :]), (1, 3, 2))
+        R_d = permutedims(CUDA.CuArray(RE[:, M.projs[3][from : to], :]), (1, 3, 2))
+        B_d = permutedims(CUDA.CuArray(B[:, M.projs[2][from : to], :]), (3, 1, 2))
     
         Rr_d = A_d ⊠ R_d ⊠ B_d
         Rr_d .*= reshape(CUDA.CuArray(M.loc_exp[from:to]), 1, 1, :)
@@ -132,16 +132,16 @@ function project_ket_on_bra(
     LE::S, B::S, M::T, RE::S, ::Val{:n}
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
     total_size = length(M.projs[3])
-    batch_size = min(2^24, total_size)
+    batch_size = min(2^20, total_size)
     from = 1
 
     A = CUDA.zeros(eltype(LE), maximum(M.projs[2]), size(LE, 3), size(RE, 1))
     while from <= total_size
         to = min(total_size, from + batch_size - 1)
 
-        le = permutedims(CUDA.CuArray(LE[:, M.projs[1], :]), (3, 1, 2))
-        b = permutedims(CUDA.CuArray(B[:, M.projs[4], :]), (1, 3, 2))
-        re = permutedims(CUDA.CuArray(RE[:, M.projs[3], :]), (3, 1, 2))
+        le = permutedims(CUDA.CuArray(LE[:, M.projs[1][from : to], :]), (3, 1, 2))
+        b = permutedims(CUDA.CuArray(B[:, M.projs[4][from : to], :]), (1, 3, 2))
+        re = permutedims(CUDA.CuArray(RE[:, M.projs[3][from : to], :]), (3, 1, 2))
     
         Ar_d = le ⊠ b ⊠ re
         Ar_d .*= reshape(CUDA.CuArray(M.loc_exp[from:to]), 1, 1, :)
@@ -163,16 +163,16 @@ function project_ket_on_bra(
     LE::S, B::S, M::T, RE::S, ::Val{:c}
 ) where {S <: AbstractArray{Float64, 3}, T <: SparseSiteTensor}
     total_size = length(M.projs[3])
-    batch_size = min(2^24, total_size)
+    batch_size = min(2^20, total_size)
     from = 1
 
     A = CUDA.zeros(eltype(LE), maximum(M.projs[4]), size(LE, 3), size(RE, 1))
     while from <= total_size
         to = min(total_size, from + batch_size - 1)
 
-        le = permutedims(CUDA.CuArray(LE[:, M.projs[1], :]), (3, 1, 2))
-        b = permutedims(CUDA.CuArray(B[:, M.projs[2], :]), (1, 3, 2))
-        re = permutedims(CUDA.CuArray(RE[:, M.projs[3], :]), (3, 1, 2))
+        le = permutedims(CUDA.CuArray(LE[:, M.projs[1][from : to], :]), (3, 1, 2))
+        b = permutedims(CUDA.CuArray(B[:, M.projs[2][from : to], :]), (1, 3, 2))
+        re = permutedims(CUDA.CuArray(RE[:, M.projs[3][from : to], :]), (3, 1, 2))
     
         Ar_d = le ⊠ b ⊠ re
         Ar_d .*= reshape(CUDA.CuArray(M.loc_exp[from:to]), 1, 1, :)

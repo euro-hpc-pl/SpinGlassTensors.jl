@@ -235,37 +235,39 @@ function project_ket_on_bra(
     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
 
     B = CUDA.CuArray(B)
-    LE = CUDA.CuArray(LE)
-    RE = CUDA.CuArray(RE)
+    L = CUDA.CuArray(LE)
+    R = CUDA.CuArray(RE)
 
-    @cast B4[bl, bt1, bt2, br] := B[bl, (bt1, bt2), br] (bt1 ∈ 1:maximum(p_lb))
+    slb, srb = size(B, 1), size(B, 3)
+    srcb, src, srct = maximum(p_rb), maximum(p_r), maximum(p_rt)
+    slcb, slc, slct = maximum(p_lb), maximum(p_l), maximum(p_lt)
 
-    slb = size(LE, 1)
-    srt = size(RE, 1)
+    @cast B2[(lb, lcb), (rcb, rb)] := B[lb, (lcb, rcb), rb] (lcb ∈ 1:slcb)
+    @cast B4[lb, lcb, rcb, rb] := B[lb, (lcb, rcb), rb] (lcb ∈ 1:slcb)
 
-    LEn = permutedims(LE, (2, 1, 3))
-    @cast LEn[lc, (lb, lt)] := LEn[lc, lb, lt]
-    tLE = typeof(LE)
-    ps = projectors_to_sparse(p_lb, p_l, p_lt, tLE)
-    LL = ps * LEn
+    L = permutedims(L, (2, 1, 3))
+    @cast L[lc, (lb, lt)] := L[lc, lb, lt]
+    ps = projectors_to_sparse(p_lb, p_l, p_lt, typeof(L))
+    L = ps * L
 
-    @cast LL[lc1, lc, lc2, lb, lt] := LL[(lc1, lc, lc2), (lb, lt)] (lc1 ∈ 1:maximum(p_lb), lc ∈ 1:maximum(p_l), lb ∈ 1:slb)
-    LL = permutedims(LL, (4, 1, 2, 5, 3))
+    @cast L[lcb, lc, lct, lb, lt] := L[(lcb, lc, lct), (lb, lt)] (lcb ∈ 1:slcb, lc ∈ 1:slc, lb ∈ 1:slb)
+    L = permutedims(L, (4, 1, 2, 5, 3))  # [lb, lcb, lc, lt, lct]
+    @cast L[(lb, lcb), lc, (lt, lct)] := L[lb, lcb, lc, lt, lct]
 
-    @cast LL[(lc, lc2), lt, (lc1, lb)] := LL[lc, lc2, lt, lc1, lb]
-    LL = attach_central_left(LL, h)
-    @cast LL[lc, lc2, lt, lc1, lb] := LL[(lc, lc2), lt, (lc1, lb)] (lc2 ∈ 1:maximum(p_lb), lb ∈ 1:maximum(p_lt))
+    L = attach_central_left(L, h)
+    @cast L[lb, lcb, lc, lt, lct] := L[(lb, lcb), lc, (lt, lct)] (lcb ∈ 1:slcb, lct ∈ 1:slct)
 
-    REn = permutedims(RE, (2, 3, 1))
-    @cast REn[rc, (rb, rt)] := REn[rc, rb, rt]
-    ps = projectors_to_sparse(p_rb, p_r, p_rt, tLE)
-    RR = ps * REn
+    R = permutedims(R, (2, 3, 1))
+    @cast R[rc, (rb, rt)] := R[rc, rb, rt]
+    ps = projectors_to_sparse(p_rb, p_r, p_rt, typeof(R))
+    R = ps * R
 
-    @cast RR[rc1, rc, rc2, rb, rt] := RR[(rc1, rc, rc2), (rb, rt)] (rc1 ∈ 1:maximum(p_rb), rc ∈ 1:maximum(p_r), rt ∈ 1:srt)
-    RR = permutedims(RR, (5, 3, 2, 4, 1))
-    @tensor LR[lc1, lc2, rc2, rt] := LL[bl, bt1, rc, lc1, lc2] * RR[rt, rc2, rc, br, bt2] * B4[bl, bt1, bt2, br] order = (bl, bt1, bt2, br, rc)
+    @cast R[rcb, rc, rct, rb, rt] := R[(rcb, rc, rct), (rb, rt)] (rcb ∈ 1:srcb, rc ∈ 1:src, rb ∈ 1:srb)
 
-    @cast LR[l, (c1, c2), b] := LR[l, c1, c2, b]
+    R = permutedims(R, (5, 3, 2, 4, 1)) #[rt, rct, rc, rb, rcb]
+    @tensor LR[lt, lct, rct, rt] := L[lb, lcb, c, lt, lct] * R[rt, rct, c, rb, rcb] * B4[lb, lcb, rcb, rb] order = (lb, lcb, rcb, rb, c)
+
+    @cast LR[lt, (lct, rct), rt] := LR[lt, lct, rct, rt]
 
     Array(LR ./ maximum(abs.(LR)))
 end
@@ -280,37 +282,41 @@ function project_ket_on_bra(
     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
 
     B = CUDA.CuArray(B)
-    LE = CUDA.CuArray(LE)
-    RE = CUDA.CuArray(RE)
+    L = CUDA.CuArray(LE)
+    R = CUDA.CuArray(RE)
 
-    @cast B4[bl, bt1, bt2, br] := B[bl, (bt1, bt2), br] (bt1 ∈ 1:maximum(p_lt))
+    slb, srb = size(B, 1), size(B, 3)
+    srcb, src, srct = maximum(p_rb), maximum(p_r), maximum(p_rt)
+    slcb, slc, slct = maximum(p_lb), maximum(p_l), maximum(p_lt)
 
-    slb = size(LE, 1)
-    srt = size(RE, 1)
+    @cast B2[(lb, lct), (rct, rb)] := B[lb, (lct, rct), rb] (lct ∈ 1:slct)
+    @cast B4[lb, lct, rct, rb] := B[lb, (lct, rct), rb] (lct ∈ 1:slct)
 
-    LEn = permutedims(LE, (2, 1, 3))
-    @cast LEn[lc, (lb, lt)] := LEn[lc, lb, lt]
-    tLE = typeof(LE)
-    ps = projectors_to_sparse(p_lt, p_l, p_lb, tLE)
-    LL = ps * LEn
+    L = permutedims(L, (2, 1, 3))
+    @cast L[lc, (lb, lt)] := L[lc, lb, lt]
+    ps = projectors_to_sparse(p_lt, p_l, p_lb, typeof(L))
+    L = ps * L
 
-    @cast LL[lc1, lc, lc2, lb, lt] := LL[(lc1, lc, lc2), (lb, lt)] (lc1 ∈ 1:maximum(p_lt), lc ∈ 1:maximum(p_l), lb ∈ 1:slb)
-    LL = permutedims(LL, (4, 1, 2, 5, 3))
+    @cast L[lct, lc, lcb, lb, lt] := L[(lct, lc, lcb), (lb, lt)] (lct ∈ 1:slct, lc ∈ 1:slc, lb ∈ 1:slb)
+    L = permutedims(L, (4, 1, 2, 5, 3))  # [lb, lct, lc, lt, lcb]
 
-    @cast LL[(lc, lc2), lt, (lc1, lb)] := LL[lc, lc2, lt, lc1, lb]
-    LL = attach_central_left(LL, h)
-    @cast LL[lc, lc2, lt, lc1, lb] := LL[(lc, lc2), lt, (lc1, lb)] (lc2 ∈ 1:maximum(p_lt), lb ∈ 1:maximum(p_lb))
+    @cast L[(lb, lct), lc, (lt, lcb)] := L[lb, lct, lc, lt, lcb]
 
-    REn = permutedims(RE, (2, 3, 1))
-    @cast REn[rc, (rb, rt)] := REn[rc, rb, rt]
-    ps = projectors_to_sparse(p_rb, p_r, p_rt, tLE)
-    RR = ps * REn
+    L = attach_central_left(L, h)
+    @cast L[lb, lct, lc, lt, lcb] := L[(lb, lct), lc, (lt, lcb)] (lcb ∈ 1:slcb, lct ∈ 1:slct)
 
-    @cast RR[rc1, rc, rc2, rb, rt] := RR[(rc1, rc, rc2), (rb, rt)] (rc1 ∈ 1:maximum(p_rt), rc ∈ 1:maximum(p_r), rt ∈ 1:srt)
-    RR = permutedims(RR, (5, 3, 2, 4, 1))
-    @tensor LR[lc1, lb, rc2, rt] := LL[bl, bt1, rc, lc1, lb] * RR[rt, rc2, rc, br, bt2] * B4[bl, bt1, bt2, br] order = (bl, bt1, bt2, br, rc)
+    R = permutedims(R, (2, 3, 1))
+    @cast R[rc, (rb, rt)] := R[rc, rb, rt]
+    ps = projectors_to_sparse(p_rb, p_r, p_rt, typeof(R))
+    R = ps * R
 
-    @cast LR[l, (c1, c2), r] := LR[l, c1, c2, r]
+    @cast R[rct, rc, rcb, rb, rt] := R[(rct, rc, rcb), (rb, rt)] (rcb ∈ 1:srcb, rc ∈ 1:src, rb ∈ 1:srb)
+
+    R = permutedims(R, (5, 3, 2, 4, 1)) #[rt, rcb, rc, rb, rct]
+
+    @tensor LR[lt, lcb, rcb, rt] := L[lb, lct, c, lt, lcb] * R[rt, rcb, c, rb, rct] * B4[lb, lct, rct, rb] order = (lb, lct, rct, rb, c)
+
+    @cast LR[lt, (lcb, rcb), rt] := LR[lt, lcb, rcb, rt]
 
     Array(LR ./ maximum(abs.(LR)))
 end

@@ -98,6 +98,7 @@ function update_env_left(
     prs = projectors_to_sparse_transposed(p_rb, p_r, p_rt, typeof(L))
     L = prs * L  # [rcp, (rb, rt)]
     @cast L[rcp, rb, rt] := L[rcp, (rb, rt)] (rb ∈ 1:srb)
+
     Array(permutedims(L, (2, 1, 3)) ./ maximum(abs.(L)))  # [rb, rcp, rt]
 end
 
@@ -268,7 +269,6 @@ function project_ket_on_bra(
     @tensor LR[lt, lct, rct, rt] := L[lb, lcb, c, lt, lct] * R[rt, rct, c, rb, rcb] * B4[lb, lcb, rcb, rb] order = (lb, lcb, rcb, rb, c)
 
     @cast LR[lt, (lct, rct), rt] := LR[lt, lct, rct, rt]
-
     Array(LR ./ maximum(abs.(LR)))
 end
 

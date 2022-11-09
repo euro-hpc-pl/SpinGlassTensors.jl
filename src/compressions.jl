@@ -232,12 +232,12 @@ function projectors_to_sparse(p_lb::Array{Int, 1}, p_l::Array{Int, 1}, p_lt::Arr
     for i ∈ collect(1:columns)
         push!(temp, rows_p_lb*(p_l[i] -1) + p_lb[i])
     end
-    
+
     # @cast ps_vect[x,y,z, w] = p_lb[x, w] * p_l[y,w] * p_lt[z,w] = temp[x, y, w] * p_lt[z, w]
      # reshape(ps_vect, (x*y*z, w))
     temp_rows = maximum(p_lb) * maximum(p_l)
     for i ∈ collect(1:columns)
-        push!(ps_vect, temp_rows*(p_lt[i] -1) + temp[i]) 
+        push!(ps_vect, temp_rows*(p_lt[i] -1) + temp[i])
     end
 
     rowInd = ps_vect

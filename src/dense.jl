@@ -1,6 +1,3 @@
-"""
-$(TYPEDSIGNATURES)
-"""
 function attach_central_left(
     LE::S, M::T
 ) where {S <: AbstractArray{Float64, 3}, T <: AbstractArray{Float64, 2}}
@@ -10,10 +7,7 @@ function attach_central_left(
     @tensor L[nt, nc, nb] :=  LE[nt, oc, nb] * M[oc, nc]
     L
 end
-    
-"""
-$(TYPEDSIGNATURES)
-"""
+
 function attach_central_right(
     LE::S, M::T
 ) where {S <: AbstractArray{Float64, 3}, T <: AbstractArray{Float64, 2}}
@@ -24,9 +18,6 @@ function attach_central_right(
     L
 end
 
-"""
-$(TYPEDSIGNATURES)
-"""
 function update_env_left(
     LE::S, A::S, M::T, B::S, ::Val{:n}
 ) where {S <: AbstractArray{Float64, 3}, T <: AbstractArray{Float64, 4}}
@@ -35,9 +26,6 @@ function update_env_left(
     L
 end
 
-"""
-$(TYPEDSIGNATURES)
-"""
 function update_env_left(
     LE::S, A::S, M::T, B::S, ::Val{:c}
 ) where {S <: AbstractArray{Float64, 3}, T <: AbstractArray{Float64, 4}}
@@ -47,7 +35,6 @@ function update_env_left(
 end
 
 """
-$(TYPEDSIGNATURES)
       -- A --
          |    |
  R =  -- M -- RE
@@ -62,9 +49,6 @@ function update_env_right(
     R
 end
 
-"""
-$(TYPEDSIGNATURES)
-"""
 function update_env_right(
     RE::S, A::S, M::T, B::S, ::Val{:c}
 ) where {T <: AbstractArray{Float64, 4}, S <: AbstractArray{Float64, 3}}
@@ -74,7 +58,6 @@ function update_env_right(
 end
 
 """
-$(TYPEDSIGNATURES)
    |    |    |
   LE -- M -- RE
    |    |    |
@@ -88,9 +71,6 @@ function project_ket_on_bra(
     A
 end
 
-"""
-$(TYPEDSIGNATURES)
-"""
 function project_ket_on_bra(
     LE::S, B::S, C::S, M::T, N::T, RE::S, ::Val{:n}
 ) where {T <: AbstractArray{Float64, 4}, S <: AbstractArray{Float64, 3}}
@@ -101,9 +81,6 @@ function project_ket_on_bra(
     A
 end
 
-"""
-$(TYPEDSIGNATURES)
-"""
 function project_ket_on_bra(
     LE::S, B::S, M::T, RE::S, ::Val{:c}
 ) where {T <: AbstractArray{Float64, 4}, S <: AbstractArray{Float64, 3}}
@@ -112,9 +89,6 @@ function project_ket_on_bra(
     A
 end
 
-"""
-$(TYPEDSIGNATURES)
-"""
 function project_ket_on_bra(
     LE::S, B::S, C::S, M::T, N::T, RE::S, ::Val{:c}
 ) where {T <: AbstractArray{Float64, 4}, S <: AbstractArray{Float64, 3}}

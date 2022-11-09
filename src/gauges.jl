@@ -1,8 +1,6 @@
-export optimize_gauges_for_overlaps!!
+export
+    optimize_gauges_for_overlaps!!
 
-"""
-$(TYPEDSIGNATURES)
-"""
 function _gauges_right_sweep!!!(ψ_top::QMps, ψ_bot::QMps, all_gauges::Dict)
     RT, RB = ones(1, 1), ones(1, 1)
     for i ∈ ψ_top.sites
@@ -41,9 +39,6 @@ function _gauges_right_sweep!!!(ψ_top::QMps, ψ_bot::QMps, all_gauges::Dict)
     end
 end
 
-"""
-$(TYPEDSIGNATURES)
-"""
 function _gauges_left_sweep!!!(ψ_top::QMps, ψ_bot::QMps, all_gauges::Dict)
     RT, RB = ones(1, 1), ones(1, 1)
 
@@ -84,9 +79,6 @@ function _gauges_left_sweep!!!(ψ_top::QMps, ψ_bot::QMps, all_gauges::Dict)
     end
 end
 
-"""
-$(TYPEDSIGNATURES)
-"""
 function optimize_gauges_for_overlaps!!(
     ψ_top::QMps,
     ψ_bot::QMps,

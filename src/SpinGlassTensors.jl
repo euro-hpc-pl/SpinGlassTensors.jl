@@ -1,10 +1,8 @@
 module SpinGlassTensors
     using LinearAlgebra, MKL
     using TensorOperations, TensorCast
-    #using LowRankApprox
     using CUDA
-    using NNlib # This to test batched_multiply
-    using NNlibCUDA
+    using NNlib, NNlibCUDA
     using Memoize
 
     using DocStringExtensions

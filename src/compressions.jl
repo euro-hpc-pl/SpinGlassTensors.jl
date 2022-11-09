@@ -1,5 +1,3 @@
-using SparseArrays
-
 export
     variational_compress!,
     _left_nbrs_site,
@@ -8,13 +6,8 @@ export
     canonise_truncate!,
     truncate!,
     variational_sweep!,
-    Environment,
-    projectors_to_sparse,
-    projectors_to_sparse_transposed
+    Environment
 
-"""
-$(TYPEDSIGNATURES)
-"""
 mutable struct Environment <: AbstractEnvironment
     bra::QMps  # to be optimized
     mpo::QMpo
@@ -42,9 +35,6 @@ mutable struct Environment <: AbstractEnvironment
     end
 end
 
-"""
-$(TYPEDSIGNATURES)
-"""
 function variational_compress!(
     bra::QMps,
     mpo::QMpo,
@@ -76,9 +66,6 @@ function variational_compress!(
     overlap
 end
 
-"""
-$(TYPEDSIGNATURES)
-"""
 function _left_sweep_var!(env::Environment, trans::Symbol=:n, args...)
     for site ∈ reverse(env.bra.sites)
         update_env_right!(env, site, trans)
@@ -91,9 +78,6 @@ function _left_sweep_var!(env::Environment, trans::Symbol=:n, args...)
     end
 end
 
-"""
-$(TYPEDSIGNATURES)
-"""
 function _right_sweep_var!(env::Environment, trans::Symbol=:n, args...)
     for site ∈ env.bra.sites
         update_env_left!(env, site, trans)
@@ -107,7 +91,6 @@ function _right_sweep_var!(env::Environment, trans::Symbol=:n, args...)
 end
 
 """
-$(TYPEDSIGNATURES)
 Largest x in sites: x < site
 """
 function _left_nbrs_site(site::Site, sites)
@@ -117,7 +100,6 @@ function _left_nbrs_site(site::Site, sites)
 end
 
 """
-$(TYPEDSIGNATURES)
 Smallest x in sites: x > site
 """
 function _right_nbrs_site(site::Site, sites)
@@ -126,9 +108,6 @@ function _right_nbrs_site(site::Site, sites)
     minimum(ms)
 end
 
-"""
-$(TYPEDSIGNATURES)
-"""
 function update_env_left!(env::Environment, site::Site, trans::Symbol=:n)
     if site <= first(env.bra.sites) return end
 
@@ -143,9 +122,6 @@ function update_env_left!(env::Environment, site::Site, trans::Symbol=:n)
     push!(env.env, (site, :left) => LL)
 end
 
-"""
-$(TYPEDSIGNATURES)
-"""
 function update_env_right!(env::Environment, site::Site, trans::Symbol=:n)
     if site >= last(env.bra.sites) return end
 
@@ -160,16 +136,12 @@ function update_env_right!(env::Environment, site::Site, trans::Symbol=:n)
     push!(env.env, (site, :right) => RR)
 end
 
-"""
-$(TYPEDSIGNATURES)
-"""
 function clear_env_containing_site!(env::Environment, site::Site)
     delete!(env.env, (_left_nbrs_site(site, env.ket.sites), :right))
     delete!(env.env, (_right_nbrs_site(site, env.ket.sites), :left))
 end
 
 """
-$(TYPEDSIGNATURES)
         -- A --
       |    |
  L = LE -- M --
@@ -185,102 +157,16 @@ function update_env_left(
     update_env_left(LE, A, M[0], B, Val(trans))
 end
 
-"""
-$(TYPEDSIGNATURES)
-"""
 function update_env_left(
     LE::S, M::T, trans::Symbol=:n
 ) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
     attach_central_left(LE, M[0])
 end
 
-function projector_to_dense(pr :: Array{Int, 1})
-    temp = diagm(ones(Float64, maximum(pr)))
-    temp[:, pr]
+function projector_to_dense(pr::Array{Int, 1})
+    diagm(ones(Float64, maximum(pr)))[:, pr]
 end
 
-function projectors_to_sparse(p_lb::Array{Int, 1}, p_l::Array{Int, 1}, p_lt::Array{Int, 1}, env)
-    if env <: CUDA.CuArray
-        ps = projectors_to_sparse(p_lb, p_l, p_lt, Val(:cs))
-    else
-        ps = projectors_to_sparse(p_lb, p_l, p_lt, Val(:s))
-    end
-    ps
-end
-
-function projectors_to_sparse_transposed(p_lb::Array{Int, 1}, p_l::Array{Int, 1}, p_lt::Array{Int, 1}, env)
-    if env <: CUDA.CuArray
-        ps = projectors_to_sparse_transposed(p_lb, p_l, p_lt, Val(:cs))
-    else
-        ps = projectors_to_sparse_transposed(p_lb, p_l, p_lt, Val(:s))
-    end
-    ps
-end
-
-"""
-$(TYPEDSIGNATURES)
-"""
-function projectors_to_sparse(p_lb::Array{Int, 1}, p_l::Array{Int, 1}, p_lt::Array{Int, 1}, ::Val{:s})
-    # asumption length(p_lb) == length(p_l) == length(p_lt)
-    columns = length(p_lb)
-    temp = Vector{Int64}()
-    ps_vect = Vector{Int64}()
-
-    # @cast temp[x,y,w] = p_lb[x, w] * p_l[y,w]
-    # reshape(temp, (x*y, w))
-    rows_p_lb = maximum(p_lb)
-    for i ∈ collect(1:columns)
-        push!(temp, rows_p_lb*(p_l[i] -1) + p_lb[i])
-    end
-
-    # @cast ps_vect[x,y,z, w] = p_lb[x, w] * p_l[y,w] * p_lt[z,w] = temp[x, y, w] * p_lt[z, w]
-     # reshape(ps_vect, (x*y*z, w))
-    temp_rows = maximum(p_lb) * maximum(p_l)
-    for i ∈ collect(1:columns)
-        push!(ps_vect, temp_rows*(p_lt[i] -1) + temp[i])
-    end
-
-    rowInd = ps_vect
-    colInd = collect(1:columns)
-    Values = ones(Float64, columns)
-    ps = sparse(rowInd, colInd, Values, temp_rows*maximum(p_lt), columns)
-    ps
-end
-
-function projectors_to_sparse(p_lb::Array{Int, 1}, p_l::Array{Int, 1}, p_lt::Array{Int, 1}, ::Val{:cs})
-    # asumption length(p_lb) == length(p_l) == length(p_lt)
-    p_l = CUDA.CuArray(p_l)
-    p_lb = CUDA.CuArray(p_lb)
-    p_lt = CUDA.CuArray(p_lt)
-
-    rowPtr = maximum(p_l) * maximum(p_lb) * (p_lt .- 1) .+ maximum(p_lb) * (p_l .- 1) .+ p_lb
-
-    columns = length(p_lb)
-    rows = maximum(p_l) * maximum(p_lb) * maximum(p_lt)
-    colPtr = CUDA.CuArray(collect(1:columns+1))
-    nzVal = CUDA.ones(Float64, columns)
-
-    CUSPARSE.CuSparseMatrixCSC(colPtr, rowPtr, nzVal, (rows, columns))
-end
-
-function projectors_to_sparse_transposed(p_lb::Array{Int, 1}, p_l::Array{Int, 1}, p_lt::Array{Int, 1}, ::Val{:cs})
-    p_l = CUDA.CuArray(p_l)
-    p_lb = CUDA.CuArray(p_lb)
-    p_lt = CUDA.CuArray(p_lt)
-
-    rowPtr = maximum(p_l) * maximum(p_lb) * (p_lt .- 1) .+ maximum(p_lb) * (p_l .- 1) .+ p_lb
-
-    columns = length(p_lb)
-    rows = maximum(p_l) * maximum(p_lb) * maximum(p_lt)
-    colPtr = CUDA.CuArray(collect(1:columns+1))
-    nzVal = CUDA.ones(Float64, columns)
-
-    CUSPARSE.CuSparseMatrixCSR(colPtr, rowPtr, nzVal, (columns, rows))
-end
-
-"""
-$(TYPEDSIGNATURES)
-"""
 function _update_tensor_forward(
     A::S, M::T, sites, ::Val{:n}
 ) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
@@ -293,9 +179,6 @@ function _update_tensor_forward(
     B
 end
 
-"""
-$(TYPEDSIGNATURES)
-"""
 function _update_tensor_forward(
     A::S, M::T, sites, ::Val{:c}
 ) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
@@ -308,9 +191,6 @@ function _update_tensor_forward(
     B
 end
 
-"""
-$(TYPEDSIGNATURES)
-"""
 function _update_tensor_backwards(
     A::S, M::T, sites, ::Val{:n}
 ) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
@@ -323,9 +203,6 @@ function _update_tensor_backwards(
     B
 end
 
-"""
-$(TYPEDSIGNATURES)
-"""
 function _update_tensor_backwards(
     A::S, M::T, sites, ::Val{:c}
 ) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
@@ -338,9 +215,6 @@ function _update_tensor_backwards(
     B
 end
 
-"""
-$(TYPEDSIGNATURES)
-"""
 function update_env_right(
     RE::S, A₀::S1, M::T, B₀::S, trans::Symbol
 ) where {T <: AbstractDict, S <: AbstractArray{Float64, 3}, S1 <: AbstractArray{Float64, 3}}
@@ -351,7 +225,6 @@ function update_env_right(
 end
 
 """
-$(TYPEDSIGNATURES)
            --
               |
  R =  -- M -- RE
@@ -364,9 +237,6 @@ function update_env_right(
     attach_central_right(RE, M[0])
 end
 
-"""
-$(TYPEDSIGNATURES)
-"""
 function project_ket_on_bra(env::Environment, site::Site, trans::Symbol)
     project_ket_on_bra(
         env.env[(site, :left)],
@@ -377,9 +247,6 @@ function project_ket_on_bra(env::Environment, site::Site, trans::Symbol)
     )
 end
 
-"""
-$(TYPEDSIGNATURES)
-"""
 function project_ket_on_bra(
     LE::S, B₀::S, M::T, RE::S, ::Val{:n}
 ) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
@@ -396,9 +263,6 @@ function project_ket_on_bra(
     TT
 end
 
-"""
-$(TYPEDSIGNATURES)
-"""
 function project_ket_on_bra(
     LE::S, B₀::S, M::T, RE::S, ::Val{:c}
 ) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
@@ -415,9 +279,6 @@ function project_ket_on_bra(
     TT
 end
 
-"""
-$(TYPEDSIGNATURES)
-"""
 function measure_env(env::Environment, site::Site, trans::Symbol)
     L = update_env_left(
         env.env[(site, :left)], env.bra[site], env.mpo[site], env.ket[site], trans
@@ -426,9 +287,6 @@ function measure_env(env::Environment, site::Site, trans::Symbol)
     @tensor L[t, c, b] * R[b, c, t]
 end
 
-"""
-$(TYPEDSIGNATURES)
-"""
 function truncate!(ψ::QMps, s::Symbol, Dcut::Int=typemax(Int), tolS::Real=1E-16, args...)
     @assert s ∈ (:left, :right)
     if s == :right
@@ -440,24 +298,10 @@ function truncate!(ψ::QMps, s::Symbol, Dcut::Int=typemax(Int), tolS::Real=1E-16
     end
 end
 
-"""
-$(TYPEDSIGNATURES)
-"""
 canonise!(ψ::QMps, s::Symbol) = canonise!(ψ, Val(s))
-
-"""
-$(TYPEDSIGNATURES)
-"""
 canonise!(ψ::QMps, ::Val{:right}) = _left_sweep!(ψ, typemax(Int))
-
-"""
-$(TYPEDSIGNATURES)
-"""
 canonise!(ψ::QMps, ::Val{:left}) = _right_sweep!(ψ, typemax(Int))
 
-"""
-$(TYPEDSIGNATURES)
-"""
 function variational_sweep!(
     bra::QMps,
     mpo::QMpo,
@@ -470,9 +314,6 @@ function variational_sweep!(
     _right_sweep_var!(env, trans, args...)
 end
 
-"""
-$(TYPEDSIGNATURES)
-"""
 function variational_sweep!(
     bra::QMps,
     mpo::QMpo,
@@ -494,9 +335,6 @@ function canonise_truncate!(ψ::QMps, s::Symbol, Dcut::Int=typemax(Int), tolS::R
     end
 end
 
-"""
-$(TYPEDSIGNATURES)
-"""
 function _right_sweep!(ψ::QMps, Dcut::Int=typemax(Int), tolS::Real=1E-16, args...)
     R = ones(eltype(ψ[1]), 1, 1)
     for i ∈ ψ.sites
@@ -509,9 +347,6 @@ function _right_sweep!(ψ::QMps, Dcut::Int=typemax(Int), tolS::Real=1E-16, args.
     end
 end
 
-"""
-$(TYPEDSIGNATURES)
-"""
 function _left_sweep!(ψ::QMps, Dcut::Int=typemax(Int), tolS::Real=1E-16, args...)
     R = ones(eltype(ψ[1]), 1, 1)
     for i ∈ reverse(ψ.sites)

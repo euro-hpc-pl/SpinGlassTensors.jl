@@ -8,7 +8,6 @@ export
 # TODO  remove all connenctions with old mps
 LinearAlgebra.norm(ψ::QMps) = sqrt(abs(dot(ψ, ψ)))
 
-
 function LinearAlgebra.dot(ψ::QMps, ϕ::QMps)
     TTT = ones(1, 1)
     @assert ψ.sites == ϕ.sites
@@ -19,7 +18,6 @@ function LinearAlgebra.dot(ψ::QMps, ϕ::QMps)
     end
     tr(TTT)
 end
-
 
 function LinearAlgebra.dot(ψ::QMpo, ϕ::QMps)
     D = Dict{Site, Tensor}()
@@ -38,7 +36,6 @@ function LinearAlgebra.dot(ψ::QMpo, ϕ::QMps)
     end
     QMps(D)
 end
-
 
 function LinearAlgebra.dot(ϕ::QMps, ψ::QMpo)
     D = Dict{Site, Tensor}()
@@ -59,11 +56,7 @@ function LinearAlgebra.dot(ϕ::QMps, ψ::QMpo)
 end
 
 Base.:(*)(ϕ::QMps, ψ::QMps) = dot(ϕ, ψ)
-
-
 Base.:(*)(W::QMpo, ψ::QMps) = dot(W, ψ)
-
-
 Base.:(*)(ψ::QMps, W::QMpo) = dot(ψ, W)
 
 function contract_left(A::Array{T, 3}, B::AbstractMatrix{T}) where T
@@ -71,31 +64,26 @@ function contract_left(A::Array{T, 3}, B::AbstractMatrix{T}) where T
     C
 end
 
-
 function contract_left(A::Array{T, 3}, M::SparseCentralTensor) where T
     B = dense_central_tensor(M)
     @matmul C[(x, y), u, r] := sum(σ) B[y, σ] * A[(x, σ), u, r] (σ ∈ 1:size(B, 2))
     C
 end
 
-
 function contract_up(A::Array{T, 3}, B::AbstractMatrix{T}) where T
     @tensor C[l, u, r] := B[u, σ] * A[l, σ, r]
     C
 end
-
 
 function contract_down(A::Array{T, 2}, B::Array{T, 3}) where T
     @tensor C[l, d, r] := A[σ, d] * B[l, σ, r]
     C
 end
 
-
 function contract_up(A::Array{T, 3}, B::Array{T, 4}) where T
     @matmul C[(x, y), z, (b, a)] := sum(σ) B[y, z, a, σ] * A[x, σ, b]
     C
 end
-
 
 function contract_down(A::Array{T, 4}, B::Array{T, 3}) where T
     @matmul C[(x, y), z, (b, a)] := sum(σ) A[y, σ, a, z] * B[x, σ, b]
@@ -104,21 +92,11 @@ end
 
 function contract_down(M::SparseCentralTensor, A::Array{T, 3}) where T
     attach_central_left(A, M)
-    # MM = dense_central_tensor(M)
-    # @tensor C[l, d, r] := MM[σ, d] * A[l, σ, r]
-    # C
 end
-
 
 function contract_down(M::SparseDiagonalTensor, A::Array{T, 3}) where T
     attach_central_left(A, M)
-    # @cast AA[l, s1, s2, r] := A[l, (s1, s2), r]  (s1 ∈ 1:size(M.e1, 1))
-    # @tensor AA[l, q2, q1, r] := AA[l, s1, s2, r] * M.e1[s1, q1] * M.e2[s2, q2]
-    # @cast AA[l, (q2, q1), r] := AA[l, q2, q1, r]
-    # AA
 end
-
-# TODO: improve performance
 
 function contract_up(A::Array{T, 3}, B::SparseSiteTensor) where T
     sal, _, sar = size(A)
@@ -133,26 +111,13 @@ function contract_up(A::Array{T, 3}, B::SparseSiteTensor) where T
     CC
 end
 
-
 function contract_up(A::Array{T, 3}, M::SparseCentralTensor) where T
     attach_central_right(A, M)
-    # MM = dense_central_tensor(M)
-    # @tensor C[l, u, r] := MM[u, σ] * A[l, σ, r]
-    # C
 end
-
-
 
 function contract_up(A::Array{T, 3}, M::SparseDiagonalTensor) where T
     attach_central_right(A, M)
-    # @cast AA[l, s1, s2, r] := A[l, (s1, s2), r]  (s1 ∈ 1:size(M.e2, 2))
-    # @tensor AA[l, q1, q2, r] := M.e1[q1, s1] * M.e2[q2, s2] * AA[l, s2, s1, r]
-    # @cast AA[l, (q1, q2), r] := AA[l, q1, q2, r]
-    # AA
 end
-
-
-# TODO: improve performance
 
 function contract_down(A::SparseSiteTensor, B::Array{T, 3}) where T
     sal, _, sar = size(B)
@@ -166,7 +131,6 @@ function contract_down(A::SparseSiteTensor, B::Array{T, 3}) where T
     @cast CC[(x, y), z, (b, a)] := C[x, y, z, b, a]
     CC
 end
-
 
 function contract_up(A::Array{T, 3}, B::SparseVirtualTensor) where T
     h = B.con
@@ -184,12 +148,10 @@ function contract_up(A::Array{T, 3}, B::SparseVirtualTensor) where T
     for l ∈ 1:length(p_l), r ∈ 1:length(p_r)
         AA = @inbounds @view A4[:, p_lb[l], p_rb[r], :]
         @inbounds C[:, l, p_lt[l], p_rt[r], :, r] += h[p_l[l], p_r[r]] .* AA
-
     end
     @cast CC[(x, y), (t1, t2), (b, a)] := C[x, y, t1, t2, b, a]
     CC
 end
-
 
 function contract_down(A::SparseVirtualTensor, B::Array{T, 3}) where T
     h = A.con
@@ -205,13 +167,11 @@ function contract_down(A::SparseVirtualTensor, B::Array{T, 3}) where T
 
     for l ∈ 1:length(p_l), r ∈ 1:length(p_r)
         BB = @inbounds @view B4[:, p_lt[l], p_rt[r], :]
-
         @inbounds C[:, l, p_lb[l], p_rb[r], :, r] += h[p_l[l], p_r[r]] .* BB
     end
     @cast CC[(x, y), (t1, t2), (b, a)] := C[x, y, t1, t2, b, a]
     CC
 end
-
 
 function overlap_density_matrix(ϕ::QMps, ψ::QMps, k::Site)
     @assert ψ.sites == ϕ.sites

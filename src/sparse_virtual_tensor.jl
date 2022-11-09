@@ -1,6 +1,6 @@
 function CUDA.CUSPARSE.CuSparseMatrixCSC(
     ::Type{T}, p_lb::R, p_l::R, p_lt::R
-) where {T <: Number, R <: Array{Int, 1}}
+) where {T <: Real, R <: Array{Int, 1}}
     @assert length(p_lb) == length(p_l) == length(p_lt)
     p_l, p_lb, p_lt = CuArray.((p_l, p_lb, p_lt))
     ncol = length(p_lb)
@@ -15,16 +15,8 @@ end
 
 function CUDA.CUSPARSE.CuSparseMatrixCSR(
     ::Type{T}, p_lb::R, p_l::R, p_lt::R
-) where {T <: Number, R <: Array{Int, 1}}
-    p_l, p_lb, p_lt = CuArray.((p_l, p_lb, p_lt))
-    ncol = length(p_lb)
-
-    CUSPARSE.CuSparseMatrixCSR(
-        CuArray(collect(1:ncol+1)),
-        maximum(p_l) * maximum(p_lb) * (p_lt .- 1) .+ maximum(p_lb) * (p_l .- 1) .+ p_lb,
-        CUDA.ones(T, ncol),
-        (length(p_lb), maximum(p_l) * maximum(p_lb) * maximum(p_lt))
-    )
+) where {T <: Real, R <: Array{Int, 1}}
+    transpose(CUSPARSE.CuSparseMatrixCSC(T, p_lb, p_l, p_lt))
 end
 
 r2_over_r1(matrix) = size(matrix, 2) / size(matrix, 1)
@@ -95,8 +87,8 @@ function attach_3_matrices_right(R, B2, h, A2)
 end
 
 function update_env_left(
-    LE::S, A::S, M::T, B::S, ::Val{:n}
-) where {S <: AbstractArray{<:Real, 3}, T <: SparseVirtualTensor}
+    LE::S, A::S, M::SparseVirtualTensor, B::S, ::Val{:n}
+) where S <: ArrayOrCuArray{3}
     A, B, L = CuArray.((A, B, LE))
 
     h = M.con
@@ -133,8 +125,8 @@ function update_env_left(
 end
 
 function update_env_left(
-    LE::S, A::S, M::T, B::S, ::Val{:c}
-) where {S <: AbstractArray{<:Real, 3}, T <: SparseVirtualTensor}
+    LE::S, A::S, M::SparseVirtualTensor, B::S, ::Val{:c}
+) where S <: ArrayOrCuArray{3}
     A, B, L = CuArray.((A, B, LE))
 
     h = M.con
@@ -170,8 +162,8 @@ function update_env_left(
 end
 
 function update_env_right(
-    RE::S, A::S, M::T, B::S, ::Val{:n}
-) where {S <: AbstractArray{<:Real, 3}, T <: SparseVirtualTensor}
+    RE::S, A::S, M::SparseVirtualTensor, B::S, ::Val{:n}
+) where S <: ArrayOrCuArray{3}
     A, B, R = CuArray.((A, B, RE))
 
     h = M.con
@@ -209,8 +201,8 @@ function update_env_right(
 end
 
 function update_env_right(
-    RE::S, A::S, M::T, B::S, ::Val{:c}
-) where {S <: AbstractArray{<:Real, 3}, T <: SparseVirtualTensor}
+    RE::S, A::S, M::SparseVirtualTensor, B::S, ::Val{:c}
+) where S <: ArrayOrCuArray{3}
     A, B, R = CuArray.((A, B, RE))
 
     h = M.con
@@ -248,8 +240,8 @@ function update_env_right(
 end
 
 function project_ket_on_bra(
-    LE::S, B::S, M::T, RE::S, ::Val{:n}
-) where {S <: AbstractArray{<:Real, 3}, T <: SparseVirtualTensor}
+    LE::S, B::S, M::SparseVirtualTensor, RE::S, ::Val{:n}
+) where S <: ArrayOrCuArray{3}
     h = M.con
     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
 
@@ -289,8 +281,8 @@ function project_ket_on_bra(
 end
 
 function project_ket_on_bra(
-    LE::S, B::S, M::T, RE::S, ::Val{:c}
-) where {S <: AbstractArray{<:Real, 3}, T <: SparseVirtualTensor}
+    LE::S, B::S, M::SparseVirtualTensor, RE::S, ::Val{:c}
+) where S <: ArrayOrCuArray{3}
     h = M.con
     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
 

@@ -150,7 +150,7 @@ end
 """
 function update_env_left(
     LE::S, A₀::S, M::T, B₀::S, trans::Symbol=:n
-) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
+) where {S <: ArrayOrCuArray{3}, T <: AbstractDict}
     sites = sort(collect(keys(M)))
     A = _update_tensor_forward(A₀, M, sites, Val(trans))
     B = _update_tensor_backwards(B₀, M, sites, Val(trans))
@@ -159,17 +159,16 @@ end
 
 function update_env_left(
     LE::S, M::T, trans::Symbol=:n
-) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
+) where {S <: ArrayOrCuArray{3}, T <: AbstractDict}
     attach_central_left(LE, M[0])
 end
 
-function projector_to_dense(pr::Array{Int, 1})
-    diagm(ones(Float64, maximum(pr)))[:, pr]
-end
+projector_to_dense(::Type{T}, pr::Array{Int, 1}) where T = diagm(ones(T, maximum(pr)))[:, pr]
+projector_to_dense(pr::Array{Int, 1}) = projector_to_dens(Float64, pr)
 
 function _update_tensor_forward(
     A::S, M::T, sites, ::Val{:n}
-) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
+) where {S <: ArrayOrCuArray{3}, T <: AbstractDict}
     B = copy(A)
     for i ∈ sites
         if i == 0 break end
@@ -181,7 +180,7 @@ end
 
 function _update_tensor_forward(
     A::S, M::T, sites, ::Val{:c}
-) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
+) where {S <: ArrayOrCuArray{3}, T <: AbstractDict}
     B = copy(A)
     for i ∈ reverse(sites)
         if i == 0 break end
@@ -193,7 +192,7 @@ end
 
 function _update_tensor_backwards(
     A::S, M::T, sites, ::Val{:n}
-) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
+) where {S <: ArrayOrCuArray{3}, T <: AbstractDict}
     B = copy(A)
     for i ∈ reverse(sites)
         if i == 0 break end
@@ -205,7 +204,7 @@ end
 
 function _update_tensor_backwards(
     A::S, M::T, sites, ::Val{:c}
-) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
+) where {S <: ArrayOrCuArray{3}, T <: AbstractDict}
     B = copy(A)
     for i ∈ sites
         if i == 0 break end
@@ -217,7 +216,7 @@ end
 
 function update_env_right(
     RE::S, A₀::S1, M::T, B₀::S, trans::Symbol
-) where {T <: AbstractDict, S <: AbstractArray{Float64, 3}, S1 <: AbstractArray{Float64, 3}}
+) where {T <: AbstractDict, S <: ArrayOrCuArray{3}, S1 <: ArrayOrCuArray{3}}
     sites = sort(collect(keys(M)))
     A = _update_tensor_forward(A₀, M, sites, Val(trans))
     B = _update_tensor_backwards(B₀, M, sites, Val(trans))
@@ -233,7 +232,7 @@ end
 """
 function update_env_right(
     RE::S, M::T, trans::Symbol
-) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
+) where {S <: ArrayOrCuArray{3}, T <: AbstractDict}
     attach_central_right(RE, M[0])
 end
 
@@ -249,7 +248,7 @@ end
 
 function project_ket_on_bra(
     LE::S, B₀::S, M::T, RE::S, ::Val{:n}
-) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
+) where {S <: ArrayOrCuArray{3}, T <: AbstractDict}
     C = sort(collect(M), by = x -> x[1])
     TT = B₀
     for (_, v) ∈ reverse(C)
@@ -265,7 +264,7 @@ end
 
 function project_ket_on_bra(
     LE::S, B₀::S, M::T, RE::S, ::Val{:c}
-) where {S <: AbstractArray{Float64, 3}, T <: AbstractDict}
+) where {S <: ArrayOrCuArray{3}, T <: AbstractDict}
     C = sort(collect(M), by = x -> x[1])
     TT = B₀
     for (_, v) ∈ C

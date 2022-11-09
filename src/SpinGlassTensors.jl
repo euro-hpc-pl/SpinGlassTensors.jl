@@ -5,7 +5,7 @@ module SpinGlassTensors
     using NNlib, NNlibCUDA
     using Memoize
 
-    using DocStringExtensions
+    #using DocStringExtensions
 
     include("base.jl")
     include("linear_algebra_ext.jl")

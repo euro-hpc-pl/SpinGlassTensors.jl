@@ -2,11 +2,7 @@ export
     attach_central_left,
     attach_central_right
 
-ArrayOrCuArray(L) = typeof(L) <: CuArray ? CuArray : Array
-
-function attach_central_left(
-    L::S, M::T
-) where {S <: AbstractArray{<:Real, 3}, T <: SparseCentralTensor}
+function attach_central_left(L::ArrayOrCuArray{3}, M::SparseCentralTensor)
     e11, e12, e21, e22 = ArrayOrCuArray(L).((M.e11, M.e12, M.e21, M.e22))
 
     sb, _, st = size(L)
@@ -38,9 +34,7 @@ function attach_central_left(
     permutedims(reshape(dropdims(sum(L, dims=2), dims=2), (sb, st, sr1 * sr2)), (1, 3, 2))
 end
 
-function attach_central_right(
-    R::S, M::T
-) where {S <: AbstractArray{<:Real, 3}, T <: SparseCentralTensor}
+function attach_central_right(R::ArrayOrCuArray{3}, M::SparseCentralTensor)
     e11, e12, e21, e22 = ArrayOrCuArray(R).((M.e11, M.e12, M.e21, M.e22))
 
     st, _, sb = size(R)

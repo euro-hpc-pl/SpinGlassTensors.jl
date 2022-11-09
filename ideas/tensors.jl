@@ -46,7 +46,7 @@ struct Central{T <: Number} <: AbstractSparseTensor
     vec_en::Vector{Matrix{T}}
 
     function Central(vec_en)
-        S =  promote_type(eltype.(vec_en)...)
+        S = promote_type(eltype.(vec_en)...)
         new{S}(vec_en)
     end
 end
@@ -114,7 +114,7 @@ struct CuTensor{T <: Number} <: AbstractTensor
     size::Dims
     data::CuArray{T}
 
-    CuTensor(ten::SparseTensor{Central}) = Tensor(CUDA.CuArray.(ten.data)...)
+    CuTensor(ten::SparseTensor{Central}) = Tensor(CuArray.(ten.data)...)
 end
 
 const DenseTensor = Union{Tensor, CuTensor}

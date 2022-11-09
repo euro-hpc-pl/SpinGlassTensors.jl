@@ -59,46 +59,47 @@ Base.:(*)(ϕ::QMps, ψ::QMps) = dot(ϕ, ψ)
 Base.:(*)(W::QMpo, ψ::QMps) = dot(W, ψ)
 Base.:(*)(ψ::QMps, W::QMpo) = dot(ψ, W)
 
-function contract_left(A::Array{T, 3}, B::AbstractMatrix{T}) where T
+#TODO: remove AbstractMatrix
+function contract_left(A::Array{T, 3}, B::AbstractMatrix{T}) where T <: Real
     @matmul C[(x, y), u, r] := sum(σ) B[y, σ] * A[(x, σ), u, r] (σ ∈ 1:size(B, 2))
     C
 end
 
-function contract_left(A::Array{T, 3}, M::SparseCentralTensor) where T
+function contract_left(A::Array{<:Real, 3}, M::SparseCentralTensor)
     B = dense_central_tensor(M)
     @matmul C[(x, y), u, r] := sum(σ) B[y, σ] * A[(x, σ), u, r] (σ ∈ 1:size(B, 2))
     C
 end
 
-function contract_up(A::Array{T, 3}, B::AbstractMatrix{T}) where T
+function contract_up(A::Array{T, 3}, B::AbstractMatrix{T}) where T <: Real
     @tensor C[l, u, r] := B[u, σ] * A[l, σ, r]
     C
 end
 
-function contract_down(A::Array{T, 2}, B::Array{T, 3}) where T
+function contract_down(A::Array{T, 2}, B::Array{T, 3}) where T <: Real
     @tensor C[l, d, r] := A[σ, d] * B[l, σ, r]
     C
 end
 
-function contract_up(A::Array{T, 3}, B::Array{T, 4}) where T
+function contract_up(A::Array{T, 3}, B::Array{T, 4}) where T <: Real
     @matmul C[(x, y), z, (b, a)] := sum(σ) B[y, z, a, σ] * A[x, σ, b]
     C
 end
 
-function contract_down(A::Array{T, 4}, B::Array{T, 3}) where T
+function contract_down(A::Array{T, 4}, B::Array{T, 3}) where T <: Real
     @matmul C[(x, y), z, (b, a)] := sum(σ) A[y, σ, a, z] * B[x, σ, b]
     C
 end
 
-function contract_down(M::SparseCentralTensor, A::Array{T, 3}) where T
+function contract_down(M::SparseCentralTensor, A::Array{<:Real, 3})
     attach_central_left(A, M)
 end
 
-function contract_down(M::SparseDiagonalTensor, A::Array{T, 3}) where T
+function contract_down(M::SparseDiagonalTensor, A::Array{<:Real, 3})
     attach_central_left(A, M)
 end
 
-function contract_up(A::Array{T, 3}, B::SparseSiteTensor) where T
+function contract_up(A::Array{<:Real, 3}, B::SparseSiteTensor)
     sal, _, sar = size(A)
     sbl, sbt, sbr = maximum.(B.projs[1:3])
     C = zeros(sal, sbl, sbt, sar, sbr)
@@ -111,15 +112,10 @@ function contract_up(A::Array{T, 3}, B::SparseSiteTensor) where T
     CC
 end
 
-function contract_up(A::Array{T, 3}, M::SparseCentralTensor) where T
-    attach_central_right(A, M)
-end
+contract_up(A::Array{<:Real, 3}, M::SparseCentralTensor) = attach_central_right(A, M)
+contract_up(A::Array{<:Real, 3}, M::SparseDiagonalTensor) = attach_central_right(A, M)
 
-function contract_up(A::Array{T, 3}, M::SparseDiagonalTensor) where T
-    attach_central_right(A, M)
-end
-
-function contract_down(A::SparseSiteTensor, B::Array{T, 3}) where T
+function contract_down(A::SparseSiteTensor, B::Array{<:Real, 3})
     sal, _, sar = size(B)
     sbl, _, sbt, sbr = maximum.(A.projs[1:4])
     C = zeros(sal, sbl, sbr, sar, sbt)
@@ -132,7 +128,7 @@ function contract_down(A::SparseSiteTensor, B::Array{T, 3}) where T
     CC
 end
 
-function contract_up(A::Array{T, 3}, B::SparseVirtualTensor) where T
+function contract_up(A::Array{<:Real, 3}, B::SparseVirtualTensor)
     h = B.con
     if typeof(h) == SparseCentralTensor
         h = dense_central_tensor(h)
@@ -153,7 +149,7 @@ function contract_up(A::Array{T, 3}, B::SparseVirtualTensor) where T
     CC
 end
 
-function contract_down(A::SparseVirtualTensor, B::Array{T, 3}) where T
+function contract_down(A::SparseVirtualTensor, B::Array{<:Real, 3})
     h = A.con
     if typeof(h) == SparseCentralTensor
         h = dense_central_tensor(h)

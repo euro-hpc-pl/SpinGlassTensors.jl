@@ -33,6 +33,9 @@ const Site = Union{Int, Rational{Int}}
 const Sites = NTuple{N, Site} where N
 const State = Union{Vector, NTuple}
 
+#TODO: remove AbstractArray from this union:
+const ArrayOrCuArray{N} = Union{Array{<:Real, N}, CuArray{<:Real, N}, AbstractArray{<:Real, N}}
+ArrayOrCuArray(L) = typeof(L) <: CuArray ? CuArray : Array
 struct SparseSiteTensor <: AbstractSparseTensor
     loc_exp::Vector{<:Real}
     projs::NTuple{N, Vector{Int}} where N

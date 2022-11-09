@@ -5,7 +5,6 @@ module SpinGlassTensors
     using CUDA
     using NNlib # This to test batched_multiply
     using NNlibCUDA
-    #using LoopVectorization # This is to test sparse tensors
     using Memoize
 
     using DocStringExtensions

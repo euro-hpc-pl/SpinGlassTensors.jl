@@ -28,7 +28,7 @@ function attach_3_matrices_left(L, B2, h, A2)
         @tensor L[x, y, rft] := L[x, y, lft] * A2[lft, rft]
         L = attach_central_left(L, h)  # [..., rc, ...] = [..., lc, ...] * [lc, rc]
     end
-    L 
+    L
 end
 
 function attach_3_matrices_right(R, B2, h, A2)
@@ -58,12 +58,12 @@ function attach_3_matrices_right(R, B2, h, A2)
         @tensor R[x, y, lft] := R[x, y, rft] * A2[lft, rft]
         R = attach_central_right(R, h)  # [..., lc, ...] = [..., rc, ...] * [lc, rc]
     end
-    R 
+    R
 end
 
 function update_env_left(
     LE::S, A::S, M::T, B::S, ::Val{:n}
-) where {S <: AbstractArray{Float64, 3}, T <: SparseVirtualTensor}
+) where {S <: AbstractArray{<:Real, 3}, T <: SparseVirtualTensor}
 
     A = CUDA.CuArray(A)
     B = CUDA.CuArray(B)
@@ -104,7 +104,7 @@ end
 
 function update_env_left(
     LE::S, A::S, M::T, B::S, ::Val{:c}
-) where {S <: AbstractArray{Float64, 3}, T <: SparseVirtualTensor}
+) where {S <: AbstractArray{<:Real, 3}, T <: SparseVirtualTensor}
 
     A = CUDA.CuArray(A)
     B = CUDA.CuArray(B)
@@ -131,7 +131,7 @@ function update_env_left(
     @cast L[(lb, lct), lc, (lt, lcb)] := L[lb, lct, lc, lt, lcb]
 
     L = attach_3_matrices_left(L, B2, h, A2)
-    
+
     @cast L[rct, rb, rc, rcb, rt] := L[(rct, rb), rc, (rcb, rt)] (rct ∈ 1:srct, rcb ∈ 1:srcb)
     L = permutedims(L, (1, 3, 4, 2, 5)) #[rcb, rc, rct, rb, rt]
     @cast L[(rct, rc, rcb), (rb, rt)] := L[rct, rc, rcb, rb, rt]
@@ -144,7 +144,7 @@ end
 
 function update_env_right(
     RE::S, A::S, M::T, B::S, ::Val{:n}
-) where {S <: AbstractArray{Float64, 3}, T <: SparseVirtualTensor}
+) where {S <: AbstractArray{<:Real, 3}, T <: SparseVirtualTensor}
 
     A = CUDA.CuArray(A)
     B = CUDA.CuArray(B)
@@ -173,11 +173,11 @@ function update_env_right(
     @cast R[(rcb, rb), rc, (rct, rt)] := R[rcb, rb, rc, rct, rt]
 
     R = attach_3_matrices_right(R, B2, h, A2)
-    
+
     @cast R[lb, lcb, lc, lt, lct] := R[(lb, lcb), lc, (lt, lct)] (lb ∈ 1:slb, lt ∈ 1:slt)
     R = permutedims(R, (2, 3, 5, 4, 1)) #[lct, lc, lcb, lt, lb] #
     @cast R[(lcb, lc, lct), (lt, lb)] := R[lcb, lc, lct, lt, lb]
-    
+
     prs = projectors_to_sparse_transposed(p_lb, p_l, p_lt, typeof(R)) #
     R = prs * R  # [rcp, (rt, rb)]
     @cast R[lcp, lt, lb] := R[lcp, (lt, lb)] (lb ∈ 1:slb)
@@ -186,7 +186,7 @@ end
 
 function update_env_right(
     RE::S, A::S, M::T, B::S, ::Val{:c}
-) where {S <: AbstractArray{Float64, 3}, T <: SparseVirtualTensor}
+) where {S <: AbstractArray{<:Real, 3}, T <: SparseVirtualTensor}
 
     A = CUDA.CuArray(A)
     B = CUDA.CuArray(B)
@@ -215,11 +215,11 @@ function update_env_right(
     @cast R[(rct, rb), rc, (rcb, rt)] := R[rct, rb, rc, rcb, rt]
 
     R = attach_3_matrices_right(R, B2, h, A2)
-    
+
     @cast R[lb, lct, lc, lt, lcb] := R[(lb, lct), lc, (lt, lcb)] (lb ∈ 1:slb, lt ∈ 1:slt)
     R = permutedims(R, (5, 3, 2, 4, 1)) #[lct, lc, lcb, lt, lb] #
     @cast R[(lcb, lc, lct), (lt, lb)] := R[lcb, lc, lct, lt, lb]
-    
+
     prs = projectors_to_sparse_transposed(p_lb, p_l, p_lt, typeof(R)) #
     R = prs * R  # [rcp, (rt, rb)]
     @cast R[lcp, lt, lb] := R[lcp, (lt, lb)] (lb ∈ 1:slb)
@@ -231,7 +231,7 @@ $(TYPEDSIGNATURES)
 """
 function project_ket_on_bra(
     LE::S, B::S, M::T, RE::S, ::Val{:n}
-) where {S <: AbstractArray{Float64, 3}, T <: SparseVirtualTensor}
+) where {S <: AbstractArray{<:Real, 3}, T <: SparseVirtualTensor}
     h = M.con
     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
 
@@ -277,7 +277,7 @@ $(TYPEDSIGNATURES)
 """
 function project_ket_on_bra(
     LE::S, B::S, M::T, RE::S, ::Val{:c}
-) where {S <: AbstractArray{Float64, 3}, T <: SparseVirtualTensor}
+) where {S <: AbstractArray{<:Real, 3}, T <: SparseVirtualTensor}
     h = M.con
     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
 

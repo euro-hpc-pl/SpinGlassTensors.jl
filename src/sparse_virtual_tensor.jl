@@ -5,7 +5,7 @@ function CUDA.CUSPARSE.CuSparseMatrixCSC(
     p_l, p_lb, p_lt = CuArray.((p_l, p_lb, p_lt))
     ncol = length(p_lb)
 
-    CUSPARSE.CuSparseMatrixCSC(
+    CuSparseMatrixCSC(
         CuArray(collect(1:ncol+1)),
         maximum(p_l) * maximum(p_lb) * (p_lt .- 1) .+ maximum(p_lb) * (p_l .- 1) .+ p_lb,
         CUDA.ones(T, ncol),
@@ -16,14 +16,14 @@ end
 function CUDA.CUSPARSE.CuSparseMatrixCSR(
     ::Type{T}, p_lb::R, p_l::R, p_lt::R
 ) where {T <: Real, R <: Array{Int, 1}}
-    transpose(CUSPARSE.CuSparseMatrixCSC(T, p_lb, p_l, p_lt))
+    transpose(CuSparseMatrixCSC(T, p_lb, p_l, p_lt))
 end
 
 r2_over_r1(matrix) = size(matrix, 2) / size(matrix, 1)
 r1_over_r2(matrix) = size(matrix, 1) / size(matrix, 2)
 
 """
-Selecting optimal order of attaching matrices to L
+Select optimal order of attaching matrices to L
 """
 function attach_3_matrices_left(L, B2, h, A2)
     if r2_over_r1(h) <= r2_over_r1(B2) <= r2_over_r1(A2)
@@ -55,7 +55,7 @@ function attach_3_matrices_left(L, B2, h, A2)
 end
 
 """
-Selecting optimal order of attaching matrices to R
+Select optimal order of attaching matrices to R
 """
 function attach_3_matrices_right(R, B2, h, A2)
     if r1_over_r2(h) <= r1_over_r2(B2) <= r1_over_r2(A2)
@@ -104,7 +104,7 @@ function update_env_left(
     L = permutedims(L, (2, 1, 3))#[lcp, lb, lt]
     @cast L[lcp, (lb, lt)] := L[lcp, lb, lt]
 
-    ps = CUSPARSE.CuSparseMatrixCSC(eltype(LE), p_lb, p_l, p_lt)
+    ps = CuSparseMatrixCSC(eltype(LE), p_lb, p_l, p_lt)
     L = ps * L #[(lcb, lc, lct), (lb, lt)]
 
     @cast L[lcb, lc, lct, lb, lt] := L[(lcb, lc, lct), (lb, lt)] (lcb ∈ 1:slcb, lc ∈ 1:slc, lb ∈ 1:slb)
@@ -117,7 +117,7 @@ function update_env_left(
     L = permutedims(L, (1, 3, 4, 2, 5)) #[rcb, rc, rct, rb, rt]
     @cast L[(rcb, rc, rct), (rb, rt)] := L[rcb, rc, rct, rb, rt]
 
-    prs = CUSPARSE.CuSparseMatrixCSR(eltype(LE), p_rb, p_r, p_rt)
+    prs = CuSparseMatrixCSR(eltype(LE), p_rb, p_r, p_rt)
     L = prs * L #[rcp, (rb, rt)]
     @cast L[rcp, rb, rt] := L[rcp, (rb, rt)] (rb ∈ 1:srb)
 
@@ -142,7 +142,7 @@ function update_env_left(
     L = permutedims(L, (2, 1, 3)) #[lcp, lb, lt]
     @cast L[lcp, (lb, lt)] := L[lcp, lb, lt]
 
-    ps = CUSPARSE.CuSparseMatrixCSC(eltype(LE), p_lb, p_l, p_lt)
+    ps = CuSparseMatrixCSC(eltype(LE), p_lb, p_l, p_lt)
     L = ps * L  #[(lcb, lc, lct), (lb, lt)]
 
     @cast L[lcb, lc, lct, lb, lt] := L[(lcb, lc, lct), (lb, lt)] (lcb ∈ 1:slcb, lc ∈ 1:slc, lb ∈ 1:slb)
@@ -155,7 +155,7 @@ function update_env_left(
     L = permutedims(L, (1, 3, 4, 2, 5)) #[rcb, rc, rct, rb, rt]
     @cast L[(rct, rc, rcb), (rb, rt)] := L[rct, rc, rcb, rb, rt]
 
-    prs = CUSPARSE.CuSparseMatrixCSR(eltype(LE), p_rb, p_r, p_rt)
+    prs = CuSparseMatrixCSR(eltype(LE), p_rb, p_r, p_rt)
     L = prs * L  #[rcp, (rb, rt)]
     @cast L[rcp, rb, rt] := L[rcp, (rb, rt)] (rb ∈ 1:srb)
     Array(permutedims(L, (2, 1, 3)) ./ maximum(abs.(L)))  #[rb, rcp, rt]
@@ -180,7 +180,7 @@ function update_env_right(
     R = permutedims(R, (2, 3, 1))  #[rcp, rb, rt]
     @cast R[rcp, (rb, rt)] := R[rcp, rb, rt]
 
-    ps = CUSPARSE.CuSparseMatrixCSC(eltype(RE), p_rb, p_r, p_rt)
+    ps = CuSparseMatrixCSC(eltype(RE), p_rb, p_r, p_rt)
     R = ps * R  #[(rcb, rc, rct), (rb, rt)]
 
     @cast R[rcb, rc, rct, rb, rt] := R[(rcb, rc, rct), (rb, rt)] (rcb ∈ 1:srcb, rc ∈ 1:src, rb ∈ 1:srb)
@@ -194,7 +194,7 @@ function update_env_right(
     R = permutedims(R, (2, 3, 5, 4, 1)) #[lct, lc, lcb, lt, lb]
     @cast R[(lcb, lc, lct), (lt, lb)] := R[lcb, lc, lct, lt, lb]
 
-    prs = CUSPARSE.CuSparseMatrixCSR(eltype(RE), p_lb, p_l, p_lt)
+    prs = CuSparseMatrixCSR(eltype(RE), p_lb, p_l, p_lt)
     R = prs * R  #[rcp, (rt, rb)]
     @cast R[lcp, lt, lb] := R[lcp, (lt, lb)] (lb ∈ 1:slb)
     Array(permutedims(R, (2, 1, 3)) ./ maximum(abs.(R)))  #[rt, rcp, rb]
@@ -219,7 +219,7 @@ function update_env_right(
     R = permutedims(R, (2, 3, 1))  # [rcp, rb, rt]
     @cast R[rcp, (rb, rt)] := R[rcp, rb, rt]
 
-    ps = CUSPARSE.CuSparseMatrixCSC(eltype(RE), p_rb, p_r, p_rt)
+    ps = CuSparseMatrixCSC(eltype(RE), p_rb, p_r, p_rt)
     R = ps * R  # [(rcb, rc, rct), (rb, rt)]
 
     @cast R[rcb, rc, rct, rb, rt] := R[(rcb, rc, rct), (rb, rt)] (rcb ∈ 1:srcb, rc ∈ 1:src, rb ∈ 1:srb)
@@ -233,7 +233,7 @@ function update_env_right(
     R = permutedims(R, (5, 3, 2, 4, 1)) #[lct, lc, lcb, lt, lb] #
     @cast R[(lcb, lc, lct), (lt, lb)] := R[lcb, lc, lct, lt, lb]
 
-    prs = CUSPARSE.CuSparseMatrixCSR(eltype(RE), p_lb, p_l, p_lt)
+    prs = CuSparseMatrixCSR(eltype(RE), p_lb, p_l, p_lt)
     R = prs * R  # [rcp, (rt, rb)]
     @cast R[lcp, lt, lb] := R[lcp, (lt, lb)] (lb ∈ 1:slb)
     Array(permutedims(R, (2, 1, 3)) ./ maximum(abs.(R)))  # [rt, rcp, rb]
@@ -256,7 +256,7 @@ function project_ket_on_bra(
 
     L = permutedims(L, (2, 1, 3))
     @cast L[lc, (lb, lt)] := L[lc, lb, lt]
-    ps = CUSPARSE.CuSparseMatrixCSC(eltype(LE), p_lb, p_l, p_lt)
+    ps = CuSparseMatrixCSC(eltype(LE), p_lb, p_l, p_lt)
     L = ps * L
 
     @cast L[lcb, lc, lct, lb, lt] := L[(lcb, lc, lct), (lb, lt)] (lcb ∈ 1:slcb, lc ∈ 1:slc, lb ∈ 1:slb)
@@ -268,13 +268,14 @@ function project_ket_on_bra(
 
     R = permutedims(R, (2, 3, 1))
     @cast R[rc, (rb, rt)] := R[rc, rb, rt]
-    ps = CUSPARSE.CuSparseMatrixCSC(eltype(LE), p_rb, p_r, p_rt)
+    ps = CuSparseMatrixCSC(eltype(LE), p_rb, p_r, p_rt)
     R = ps * R
 
     @cast R[rcb, rc, rct, rb, rt] := R[(rcb, rc, rct), (rb, rt)] (rcb ∈ 1:srcb, rc ∈ 1:src, rb ∈ 1:srb)
 
     R = permutedims(R, (5, 3, 2, 4, 1)) #[rt, rct, rc, rb, rcb]
-    @tensor LR[lt, lct, rct, rt] := L[lb, lcb, c, lt, lct] * R[rt, rct, c, rb, rcb] * B4[lb, lcb, rcb, rb] order = (lb, lcb, rcb, rb, c)
+    @tensor LR[lt, lct, rct, rt] := L[lb, lcb, c, lt, lct] * R[rt, rct, c, rb, rcb] *
+                                    B4[lb, lcb, rcb, rb] order = (lb, lcb, rcb, rb, c)
 
     @cast LR[lt, (lct, rct), rt] := LR[lt, lct, rct, rt]
     Array(LR ./ maximum(abs.(LR)))
@@ -297,7 +298,7 @@ function project_ket_on_bra(
 
     L = permutedims(L, (2, 1, 3))
     @cast L[lc, (lb, lt)] := L[lc, lb, lt]
-    ps = CUSPARSE.CuSparseMatrixCSC(eltype(LE), p_lt, p_l, p_lb)
+    ps = CuSparseMatrixCSC(eltype(LE), p_lt, p_l, p_lb)
     L = ps * L
 
     @cast L[lct, lc, lcb, lb, lt] := L[(lct, lc, lcb), (lb, lt)] (lct ∈ 1:slct, lc ∈ 1:slc, lb ∈ 1:slb)
@@ -310,13 +311,14 @@ function project_ket_on_bra(
 
     R = permutedims(R, (2, 3, 1))
     @cast R[rc, (rb, rt)] := R[rc, rb, rt]
-    ps = CUSPARSE.CuSparseMatrixCSC(eltype(LE), p_rb, p_r, p_rt)
+    ps = CuSparseMatrixCSC(eltype(LE), p_rb, p_r, p_rt)
     R = ps * R
 
     @cast R[rct, rc, rcb, rb, rt] := R[(rct, rc, rcb), (rb, rt)] (rcb ∈ 1:srcb, rc ∈ 1:src, rb ∈ 1:srb)
 
     R = permutedims(R, (5, 3, 2, 4, 1)) #[rt, rcb, rc, rb, rct]
-    @tensor LR[lt, lcb, rcb, rt] := L[lb, lct, c, lt, lcb] * R[rt, rcb, c, rb, rct] * B4[lb, lct, rct, rb] order = (lb, lct, rct, rb, c)
+    @tensor LR[lt, lcb, rcb, rt] := L[lb, lct, c, lt, lcb] * R[rt, rcb, c, rb, rct] *
+                                    B4[lb, lct, rct, rb] order = (lb, lct, rct, rb, c)
     @cast LR[lt, (lcb, rcb), rt] := LR[lt, lcb, rcb, rt]
 
     Array(LR ./ maximum(abs.(LR)))

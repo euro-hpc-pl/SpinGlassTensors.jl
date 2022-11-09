@@ -1,3 +1,12 @@
+function CUDA.CUSPARSE.CuSparseMatrixCSC(::Type{R}, pr::Vector{Int}) where R <: Real
+    CuSparseMatrixCSC(
+        CuArray(collect(1:length(pr) + 1)),
+        CuArray(pr),
+        CUDA.ones(R, length(pr)),
+        (maximum(pr), length(pr))
+    )
+end
+
 function update_env_left(
     LE::S, A::S, M::T, B::S, ::Val{:n}
 ) where {S <: ArrayOrCuArray{3}, T <: SparseSiteTensor}
@@ -19,7 +28,7 @@ function update_env_left(
         Lr_d .*= reshape(CuArray(M.loc_exp[from:to]), 1, 1, :)
         pr = M.projs[3][from:to]
 
-        ipr = CUSPARSE.CuSparseMatrixCSC(F, pr)
+        ipr = CuSparseMatrixCSC(F, pr)
         sb, st, _ = size(Lr_d)
         @cast Lr_d[(x, y), z] := Lr_d[x, y, z]
         L[1:maximum(pr), :, :] = L[1:maximum(pr), :, :] .+ reshape(ipr * Lr_d', (:, sb, st))
@@ -49,7 +58,7 @@ function update_env_left(
         Lr_d .*= reshape(CuArray(M.loc_exp[from:to]), 1, 1, :)
         pr = M.projs[3][from:to]
 
-        ipr = CUSPARSE.CuSparseMatrixCSC(F, pr)
+        ipr = CuSparseMatrixCSC(F, pr)
         sb, st, _ = size(Lr_d)
         @cast Lr_d[(x, y), z] := Lr_d[x, y, z]
         L[1:maximum(pr), :, :] = L[1:maximum(pr), :, :] .+ reshape(ipr * Lr_d', (:, sb, st))
@@ -79,7 +88,7 @@ function update_env_right(
         Rr_d .*= reshape(CuArray(M.loc_exp[from:to]), 1, 1, :)
         pr = M.projs[1][from:to]
 
-        ipr = CUSPARSE.CuSparseMatrixCSC(F, pr)
+        ipr = CuSparseMatrixCSC(F, pr)
         sb, st, _ = size(Rr_d)
         @cast Rr_d[(x, y), z] := Rr_d[x, y, z]
         R[1:maximum(pr), :, :] = R[1:maximum(pr), :, :] .+ reshape(ipr * Rr_d', (:, sb, st))
@@ -109,7 +118,7 @@ function update_env_right(
         Rr_d .*= reshape(CuArray(M.loc_exp[from:to]), 1, 1, :)
         pr = M.projs[1][from:to]
 
-        ipr = CUSPARSE.CuSparseMatrixCSC(F, pr)
+        ipr = CuSparseMatrixCSC(F, pr)
         sb, st, _ = size(Rr_d)
         @cast Rr_d[(x, y), z] := Rr_d[x, y, z]
         R[1:maximum(pr), :, :] = R[1:maximum(pr), :, :] .+ reshape(ipr * Rr_d', (:, sb, st))
@@ -139,7 +148,7 @@ function project_ket_on_bra(
         Ar_d .*= reshape(CuArray(M.loc_exp[from:to]), 1, 1, :)
         pu = M.projs[2][from:to]
 
-        ipu = CUSPARSE.CuSparseMatrixCSC(F, pu)
+        ipu = CuSparseMatrixCSC(F, pu)
         sb, st, _ = size(Ar_d)
         @cast Ar_d[(x, y), z] := Ar_d[x, y, z]
         A[1:maximum(pu), :, :] = A[1:maximum(pu), :, :] .+ reshape(ipu * Ar_d', (:, sb, st))
@@ -169,20 +178,11 @@ function project_ket_on_bra(
         Ar_d .*= reshape(CuArray(M.loc_exp[from:to]), 1, 1, :)
         pu = M.projs[4][from:to]
 
-        ipu = CUSPARSE.CuSparseMatrixCSC(F, pu)
+        ipu = CuSparseMatrixCSC(F, pu)
         sb, st, _ = size(Ar_d)
         @cast Ar_d[(x, y), z] := Ar_d[x, y, z]
         A[1:maximum(pu), :, :] = A[1:maximum(pu), :, :] .+ reshape(ipu * Ar_d', (:, sb, st))
         from = to + 1
     end
     Array(permutedims(A, (2, 1, 3)))
-end
-
-function CUDA.CUSPARSE.CuSparseMatrixCSC(::Type{R}, pr::Vector{Int}) where R <: Number
-    CUSPARSE.CuSparseMatrixCSC(
-        CuArray(collect(1:length(pr) + 1)),
-        CuArray(pr),
-        CUDA.ones(R, length(pr)),
-        (maximum(pr), length(pr))
-    )
 end

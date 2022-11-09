@@ -1,11 +1,9 @@
 module SpinGlassTensors
     using LinearAlgebra, MKL
     using TensorOperations, TensorCast
-    using CUDA
+    using CUDA, CUDA.CUSPARSE
     using NNlib, NNlibCUDA
     using Memoize
-
-    #using DocStringExtensions
 
     include("base.jl")
     include("linear_algebra_ext.jl")

@@ -11,9 +11,9 @@ module SpinGlassTensors
     include("contractions.jl")
     include("dense.jl")
     include("gauges.jl")
-    include("sparse_central_tensor.jl")
-    include("sparse_diagonal_tensor.jl")
-    include("sparse_site_tensor.jl")
-    include("sparse_virtual_tensor.jl")
+    include("sparse_tensors/central.jl")
+    include("sparse_tensors/diagonal.jl")
+    include("sparse_tensors/site.jl")
+    include("sparse_tensors/virtual.jl")
 
 end # module

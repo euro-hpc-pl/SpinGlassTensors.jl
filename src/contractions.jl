@@ -75,8 +75,8 @@ function contract_up(A::Array{T, 3}, B::AbstractMatrix{T}) where T <: Real
     @tensor C[l, u, r] := B[u, σ] * A[l, σ, r]
     C
 end
-
-function contract_down(A::Array{T, 2}, B::Array{T, 3}) where T <: Real
+# TODO: change AbstractMatrix -> MAtrix
+function contract_down(A::AbstractMatrix{T}, B::Array{T, 3}) where T <: Real
     @tensor C[l, d, r] := A[σ, d] * B[l, σ, r]
     C
 end

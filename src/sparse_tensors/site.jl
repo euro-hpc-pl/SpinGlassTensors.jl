@@ -1,9 +1,9 @@
-CUDA_MAX_BATCH_SIZE = 2 ^ 20
+CUDA_MAX_BATCH_SIZE = 2 ^ 20 # TODO: this needs to be controlled based on available memory
 
 function CUDA.CUSPARSE.CuSparseMatrixCSC(::Type{R}, pr::Vector{Int}) where R <: Real
     n = length(pr)
     CuSparseMatrixCSC(
-        CuArray(collect(1:n+1)),
+        CuArray(1:n+1),
         CuArray(pr),
         CUDA.ones(R, n),
         (maximum(pr), n)

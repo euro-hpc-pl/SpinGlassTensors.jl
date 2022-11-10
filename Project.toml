@@ -4,25 +4,20 @@ authors = ["Anna Maria Dziubyna <annamariadziubyna@gmail.com>", "Bartłomiej Gar
 version = "0.1.5"
 
 [deps]
-DocStringExtensions = "ffbed154-4ef7-542d-bbb7-c09d3a79fcae"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 MKL = "33e6dc65-8f57-5167-99aa-e5a354878fb2"
-LowRankApprox = "898213cb-b102-5a47-900c-97e73b919f73"
 Memoize = "c03570c3-d221-55d1-a50c-7939bbd78826"
 TensorCast = "02d47bb6-7ce6-556a-be16-bb1710789e2b"
 TensorOperations = "6aa20fa7-93e2-5fca-9bc0-fbd0db3c71a2"
 NNlib = "872c559c-99b0-510c-b3b7-b6c96a88d5cd"
 NNlibCUDA = "a00861dc-f156-4864-bf3c-e6376f28a68d"
 CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
-SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 
 [compat]
-DocStringExtensions = "0.8"
-LowRankApprox = "0.4, 0.5"
 Memoize = "0.4"
 TensorCast = "0.4"
 TensorOperations = "3.0.1"
-julia = "1.5, 1.6, 1.7"
+julia = "1.7, 1.8"
 MKL = "0.4.2"
 
 [extras]

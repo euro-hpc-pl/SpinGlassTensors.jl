@@ -9,7 +9,7 @@ function CUDA.CUSPARSE.CuSparseMatrixCSC(
     m = maximum(p_lb)
 
     CuSparseMatrixCSC(
-        CuArray(collect(1:ncol+1)),
+        CuArray(1:ncol+1),
         n * m * (p_lt .- 1) .+ m * (p_l .- 1) .+ p_lb,
         CUDA.ones(T, ncol),
         (n * m * maximum(p_lt), ncol)
@@ -22,8 +22,8 @@ function CUDA.CUSPARSE.CuSparseMatrixCSR(
     transpose(CuSparseMatrixCSC(T, p_lb, p_l, p_lt))
 end
 
-r2_over_r1(matrix) = size(matrix, 2) / size(matrix, 1)
-r1_over_r2(matrix) = size(matrix, 1) / size(matrix, 2)
+@inline r2_over_r1(A) = size(A, 2) / size(A, 1)
+@inline r1_over_r2(A) = 1 / r2_over_r1(A)
 
 """
 Select optimal order of attaching matrices to L

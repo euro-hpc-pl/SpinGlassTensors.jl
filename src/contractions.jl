@@ -5,7 +5,6 @@ export
     dot,
     overlap_density_matrix
 
-# TODO  remove all connenctions with old mps
 LinearAlgebra.norm(ψ::QMps) = sqrt(abs(dot(ψ, ψ)))
 
 function LinearAlgebra.dot(ψ::QMps, ϕ::QMps)
@@ -75,7 +74,7 @@ function contract_up(A::Array{T, 3}, B::AbstractMatrix{T}) where T <: Real
     @tensor C[l, u, r] := B[u, σ] * A[l, σ, r]
     C
 end
-# TODO: change AbstractMatrix -> MAtrix
+# TODO: change AbstractMatrix -> Matrix
 function contract_down(A::AbstractMatrix{T}, B::Array{T, 3}) where T <: Real
     @tensor C[l, d, r] := A[σ, d] * B[l, σ, r]
     C
@@ -128,6 +127,7 @@ function contract_down(A::SparseSiteTensor, B::Array{<:Real, 3})
     CC
 end
 
+#TODO: get rid of dense_central_tensor
 function contract_up(A::Array{<:Real, 3}, B::SparseVirtualTensor)
     h = B.con
     if typeof(h) == SparseCentralTensor

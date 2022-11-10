@@ -86,6 +86,45 @@ function attach_3_matrices_right(R, B2, h, A2)
     R
 end
 
+function attach_2_matrices(L, B2, h, R)
+    h1, h2 = size(h, 1), size(h, 2)
+    b1, b2 = size(B2, 1), size(B2, 2)
+    if r2_over_r1(h) <= r2_over_r1(B2) && h1 <= h2 && b1 <= b2
+        R = attach_central_right(R, h)  # [..., rc, ...] = [..., lc, ...] * [lc, rc]
+        @tensor R[x, y, lfb] := R[x, y, rfb] * B2[lfb, rfb]
+        @tensor LR[lft, rft] := L[lfb, lfh, lft] * R[rft, lfh, lfb]
+    elseif r2_over_r1(h) <= r2_over_r1(B2) && h1 <= h2 && b2 <= b1
+        R = attach_central_right(R, h)  # [..., rc, ...] = [..., lc, ...] * [lc, rc]
+        @tensor L[rfb, x, y] := L[lfb, x, y] * B2[lfb, rfb]
+        @tensor LR[lft, rft] := L[lfb, lfh, lft] * R[rft, lfh, lfb]
+    elseif r2_over_r1(h) <= r2_over_r1(B2) && h2 <= h1 && b1 <= b2
+        L = attach_central_left(L, h)  # [..., rc, ...] = [..., lc, ...] * [lc, rc]
+        @tensor R[x, y, lfb] := R[x, y, rfb] * B2[lfb, rfb]
+        @tensor LR[lft, rft] := L[lfb, lfh, lft] * R[rft, lfh, lfb]
+    elseif r2_over_r1(h) <= r2_over_r1(B2) && h2 <= h1 && b2 <= b1
+        L = attach_central_left(L, h)  # [..., rc, ...] = [..., lc, ...] * [lc, rc]
+        @tensor L[rfb, x, y] := L[lfb, x, y] * B2[lfb, rfb]
+        @tensor LR[lft, rft] := L[lfb, lfh, lft] * R[rft, lfh, lfb]
+    elseif r2_over_r1(B2) <= r2_over_r1(h) && h1 <= h2 && b1 <= b2
+        @tensor R[x, y, lfb] := R[x, y, rfb] * B2[lfb, rfb]
+        R = attach_central_right(R, h)  # [..., rc, ...] = [..., lc, ...] * [lc, rc]
+        @tensor LR[lft, rft] := L[lfb, lfh, lft] * R[rft, lfh, lfb]
+    elseif r2_over_r1(B2) <= r2_over_r1(h) && h1 <= h2 && b2 <= b1
+        @tensor L[rfb, x, y] := L[lfb, x, y] * B2[lfb, rfb]
+        R = attach_central_right(R, h)  # [..., rc, ...] = [..., lc, ...] * [lc, rc]
+        @tensor LR[lft, rft] := L[lfb, lfh, lft] * R[rft, lfh, lfb]
+    elseif r2_over_r1(B2) <= r2_over_r1(h) && h2 <= h1 && b1 <= b2
+        @tensor R[x, y, lfb] := R[x, y, rfb] * B2[lfb, rfb]
+        L = attach_central_left(L, h)  # [..., rc, ...] = [..., lc, ...] * [lc, rc]
+        @tensor LR[lft, rft] := L[lfb, lfh, lft] * R[rft, lfh, lfb]
+    else #r2_over_r1(B2) <= r2_over_r1(h) && h2 <= h1 && b2 <= b1
+        @tensor L[rfb, x, y] := L[lfb, x, y] * B2[lfb, rfb]
+        L = attach_central_left(L, h)  # [..., rc, ...] = [..., lc, ...] * [lc, rc]
+        @tensor LR[lft, rft] := L[lfb, lfh, lft] * R[rft, lfh, lfb]
+    end
+    LR
+end
+
 function update_env_left(
     LE::S, A::S, M::SparseVirtualTensor, B::S, ::Val{:n}
 ) where S <: ArrayOrCuArray{3}
@@ -263,21 +302,18 @@ function project_ket_on_bra(
     L = permutedims(L, (4, 1, 2, 5, 3))  # [lb, lcb, lc, lt, lct]
     @cast L[(lb, lcb), lc, (lt, lct)] := L[lb, lcb, lc, lt, lct]
 
-    L = attach_central_left(L, h)
-    @cast L[lb, lcb, lc, lt, lct] := L[(lb, lcb), lc, (lt, lct)] (lcb ∈ 1:slcb, lct ∈ 1:slct)
-
     R = permutedims(R, (2, 3, 1))
     @cast R[rc, (rb, rt)] := R[rc, rb, rt]
     ps = CuSparseMatrixCSC(eltype(LE), p_rb, p_r, p_rt)
     R = ps * R
 
     @cast R[rcb, rc, rct, rb, rt] := R[(rcb, rc, rct), (rb, rt)] (rcb ∈ 1:srcb, rc ∈ 1:src, rb ∈ 1:srb)
+    R = permutedims(R, (3, 5, 2, 1, 4)) #[rct, rt, rc, rcb, rb]
+    @cast R[(rct, rt), rc, (rcb, rb)] := R[rct, rt, rc, rcb, rb]
+    
+    LR = attach_2_matrices(L, B2, h, R)
+    @cast LR[lt, (lct, rct), rt] := LR[(lt, lct), (rct, rt)] (lct ∈ 1:slct, rct ∈ 1:srct)
 
-    R = permutedims(R, (5, 3, 2, 4, 1)) #[rt, rct, rc, rb, rcb]
-    @tensor LR[lt, lct, rct, rt] := L[lb, lcb, c, lt, lct] * R[rt, rct, c, rb, rcb] *
-                                    B4[lb, lcb, rcb, rb] order = (lb, lcb, rcb, rb, c)
-
-    @cast LR[lt, (lct, rct), rt] := LR[lt, lct, rct, rt]
     Array(LR ./ maximum(abs.(LR)))
 end
 
@@ -306,9 +342,6 @@ function project_ket_on_bra(
 
     @cast L[(lb, lct), lc, (lt, lcb)] := L[lb, lct, lc, lt, lcb]
 
-    L = attach_central_left(L, h)
-    @cast L[lb, lct, lc, lt, lcb] := L[(lb, lct), lc, (lt, lcb)] (lcb ∈ 1:slcb, lct ∈ 1:slct)
-
     R = permutedims(R, (2, 3, 1))
     @cast R[rc, (rb, rt)] := R[rc, rb, rt]
     ps = CuSparseMatrixCSC(eltype(LE), p_rb, p_r, p_rt)
@@ -316,10 +349,11 @@ function project_ket_on_bra(
 
     @cast R[rct, rc, rcb, rb, rt] := R[(rct, rc, rcb), (rb, rt)] (rcb ∈ 1:srcb, rc ∈ 1:src, rb ∈ 1:srb)
 
-    R = permutedims(R, (5, 3, 2, 4, 1)) #[rt, rcb, rc, rb, rct]
-    @tensor LR[lt, lcb, rcb, rt] := L[lb, lct, c, lt, lcb] * R[rt, rcb, c, rb, rct] *
-                                    B4[lb, lct, rct, rb] order = (lb, lct, rct, rb, c)
-    @cast LR[lt, (lcb, rcb), rt] := LR[lt, lcb, rcb, rt]
+    R = permutedims(R, (3, 5, 2, 1, 4)) #[rct, rt, rc, rcb, rb]
+    @cast R[(rcb, rt), rc, (rct, rb)] := R[rcb, rt, rc, rct, rb]
+    
+    LR = attach_2_matrices(L, B2, h, R)
+    @cast LR[lt, (lcb, rcb), rt] := LR[(lt, lcb), (rcb, rt)] (lcb ∈ 1:slcb, rcb ∈ 1:srcb)
 
     Array(LR ./ maximum(abs.(LR)))
 end

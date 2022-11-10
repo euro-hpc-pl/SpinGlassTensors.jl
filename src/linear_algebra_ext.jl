@@ -36,7 +36,7 @@ function LinearAlgebra.svd(
 
     U = U[:, begin:δ]
     Σ = Σ[begin:δ]
-    Σ ./ sum(Σ .^ 2)
+    #Σ ./= sum(Σ .^ 2)
     V = V[:, begin:δ]
 
     d = diag(U)

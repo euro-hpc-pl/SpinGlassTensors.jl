@@ -1,9 +1,12 @@
+CUDA_MAX_BATCH_SIZE = 2 ^ 20
+
 function CUDA.CUSPARSE.CuSparseMatrixCSC(::Type{R}, pr::Vector{Int}) where R <: Real
+    n = length(pr)
     CuSparseMatrixCSC(
-        CuArray(collect(1:length(pr) + 1)),
+        CuArray(collect(1:n+1)),
         CuArray(pr),
-        CUDA.ones(R, length(pr)),
-        (maximum(pr), length(pr))
+        CUDA.ones(R, n),
+        (maximum(pr), n)
     )
 end
 
@@ -13,7 +16,7 @@ function update_env_left(
     F = eltype(LE)
 
     total_size = length(M.projs[1])
-    batch_size = min(2^20, total_size)
+    batch_size = min(CUDA_MAX_BATCH_SIZE, total_size)
     from = 1
 
     L = CUDA.zeros(F, maximum(M.projs[3]), size(B, 3), size(A, 3))
@@ -43,7 +46,7 @@ function update_env_left(
     F = eltype(LE)
 
     total_size = length(M.projs[1])
-    batch_size = min(2^20, total_size)
+    batch_size = min(CUDA_MAX_BATCH_SIZE, total_size)
     from = 1
 
     L = CUDA.zeros(F, maximum(M.projs[3]), size(B, 3), size(A, 3))
@@ -73,16 +76,16 @@ function update_env_right(
     F = eltype(RE)
 
     total_size = length(M.projs[3])
-    batch_size = min(2^20, total_size)
+    batch_size = min(CUDA_MAX_BATCH_SIZE, total_size)
     from = 1
 
     R = CUDA.zeros(F,  maximum(M.projs[1]), size(A, 1), size(B, 1))
     while from <= total_size
         to = min(total_size, from + batch_size - 1)
 
-        A_d = permutedims(CuArray(A[:, M.projs[2][from : to], :]), (1, 3, 2))
-        R_d = permutedims(CuArray(RE[:, M.projs[3][from : to], :]), (1, 3, 2))
-        B_d = permutedims(CuArray(B[:, M.projs[4][from : to], :]), (3, 1, 2))
+        A_d = permutedims(CuArray(A[:, M.projs[2][from:to], :]), (1, 3, 2))
+        R_d = permutedims(CuArray(RE[:, M.projs[3][from:to], :]), (1, 3, 2))
+        B_d = permutedims(CuArray(B[:, M.projs[4][from:to], :]), (3, 1, 2))
 
         Rr_d = A_d ⊠ R_d ⊠ B_d
         Rr_d .*= reshape(CuArray(M.loc_exp[from:to]), 1, 1, :)
@@ -103,10 +106,10 @@ function update_env_right(
     F = eltype(RE)
 
     total_size = length(M.projs[3])
-    batch_size = min(2^20, total_size)
+    batch_size = min(CUDA_MAX_BATCH_SIZE, total_size)
     from = 1
 
-    R = CUDA.zeros(F,  maximum(M.projs[1]), size(A, 1), size(B, 1))
+    R = CUDA.zeros(F, maximum(M.projs[1]), size(A, 1), size(B, 1))
     while from <= total_size
         to = min(total_size, from + batch_size - 1)
 
@@ -133,7 +136,7 @@ function project_ket_on_bra(
     F = eltype(LE)
 
     total_size = length(M.projs[3])
-    batch_size = min(2^20, total_size)
+    batch_size = min(CUDA_MAX_BATCH_SIZE, total_size)
     from = 1
 
     A = CUDA.zeros(F, maximum(M.projs[2]), size(LE, 3), size(RE, 1))
@@ -163,7 +166,7 @@ function project_ket_on_bra(
     F = eltype(LE)
 
     total_size = length(M.projs[3])
-    batch_size = min(2^20, total_size)
+    batch_size = min(CUDA_MAX_BATCH_SIZE, total_size)
     from = 1
 
     A = CUDA.zeros(F, maximum(M.projs[4]), size(LE, 3), size(RE, 1))

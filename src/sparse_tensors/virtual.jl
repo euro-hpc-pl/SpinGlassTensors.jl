@@ -1,21 +1,24 @@
 function CUDA.CUSPARSE.CuSparseMatrixCSC(
     ::Type{T}, p_lb::R, p_l::R, p_lt::R
-) where {T <: Real, R <: Array{Int, 1}}
+) where {T <: Real, R <: Vector{Int}}
     @assert length(p_lb) == length(p_l) == length(p_lt)
+
     p_l, p_lb, p_lt = CuArray.((p_l, p_lb, p_lt))
     ncol = length(p_lb)
+    n = maximum(p_l)
+    m = maximum(p_lb)
 
     CuSparseMatrixCSC(
         CuArray(collect(1:ncol+1)),
-        maximum(p_l) * maximum(p_lb) * (p_lt .- 1) .+ maximum(p_lb) * (p_l .- 1) .+ p_lb,
+        n * m * (p_lt .- 1) .+ m * (p_l .- 1) .+ p_lb,
         CUDA.ones(T, ncol),
-        (maximum(p_l) * maximum(p_lb) * maximum(p_lt), ncol)
+        (n * m * maximum(p_lt), ncol)
     )
 end
 
 function CUDA.CUSPARSE.CuSparseMatrixCSR(
     ::Type{T}, p_lb::R, p_l::R, p_lt::R
-) where {T <: Real, R <: Array{Int, 1}}
+) where {T <: Real, R <: Vector{Int}}
     transpose(CuSparseMatrixCSC(T, p_lb, p_l, p_lt))
 end
 

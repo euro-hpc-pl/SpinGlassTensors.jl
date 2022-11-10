@@ -89,41 +89,77 @@ end
 function attach_2_matrices(L, B2, h, R)
     h1, h2 = size(h, 1), size(h, 2)
     b1, b2 = size(B2, 1), size(B2, 2)
-    if r2_over_r1(h) <= r2_over_r1(B2) && h1 <= h2 && b1 <= b2
-        R = attach_central_right(R, h)  # [..., rc, ...] = [..., lc, ...] * [lc, rc]
-        @tensor R[x, y, lfb] := R[x, y, rfb] * B2[lfb, rfb]
-        @tensor LR[lft, rft] := L[lfb, lfh, lft] * R[rft, lfh, lfb]
-    elseif r2_over_r1(h) <= r2_over_r1(B2) && h1 <= h2 && b2 <= b1
-        R = attach_central_right(R, h)  # [..., rc, ...] = [..., lc, ...] * [lc, rc]
-        @tensor L[rfb, x, y] := L[lfb, x, y] * B2[lfb, rfb]
-        @tensor LR[lft, rft] := L[lfb, lfh, lft] * R[rft, lfh, lfb]
-    elseif r2_over_r1(h) <= r2_over_r1(B2) && h2 <= h1 && b1 <= b2
-        L = attach_central_left(L, h)  # [..., rc, ...] = [..., lc, ...] * [lc, rc]
-        @tensor R[x, y, lfb] := R[x, y, rfb] * B2[lfb, rfb]
-        @tensor LR[lft, rft] := L[lfb, lfh, lft] * R[rft, lfh, lfb]
-    elseif r2_over_r1(h) <= r2_over_r1(B2) && h2 <= h1 && b2 <= b1
-        L = attach_central_left(L, h)  # [..., rc, ...] = [..., lc, ...] * [lc, rc]
-        @tensor L[rfb, x, y] := L[lfb, x, y] * B2[lfb, rfb]
-        @tensor LR[lft, rft] := L[lfb, lfh, lft] * R[rft, lfh, lfb]
-    elseif r2_over_r1(B2) <= r2_over_r1(h) && h1 <= h2 && b1 <= b2
-        @tensor R[x, y, lfb] := R[x, y, rfb] * B2[lfb, rfb]
-        R = attach_central_right(R, h)  # [..., rc, ...] = [..., lc, ...] * [lc, rc]
-        @tensor LR[lft, rft] := L[lfb, lfh, lft] * R[rft, lfh, lfb]
-    elseif r2_over_r1(B2) <= r2_over_r1(h) && h1 <= h2 && b2 <= b1
-        @tensor L[rfb, x, y] := L[lfb, x, y] * B2[lfb, rfb]
-        R = attach_central_right(R, h)  # [..., rc, ...] = [..., lc, ...] * [lc, rc]
-        @tensor LR[lft, rft] := L[lfb, lfh, lft] * R[rft, lfh, lfb]
-    elseif r2_over_r1(B2) <= r2_over_r1(h) && h2 <= h1 && b1 <= b2
-        @tensor R[x, y, lfb] := R[x, y, rfb] * B2[lfb, rfb]
-        L = attach_central_left(L, h)  # [..., rc, ...] = [..., lc, ...] * [lc, rc]
-        @tensor LR[lft, rft] := L[lfb, lfh, lft] * R[rft, lfh, lfb]
-    else #r2_over_r1(B2) <= r2_over_r1(h) && h2 <= h1 && b2 <= b1
-        @tensor L[rfb, x, y] := L[lfb, x, y] * B2[lfb, rfb]
-        L = attach_central_left(L, h)  # [..., rc, ...] = [..., lc, ...] * [lc, rc]
-        @tensor LR[lft, rft] := L[lfb, lfh, lft] * R[rft, lfh, lfb]
+    leg_list = [h1, h2, b1, b2]
+    _, max_index = findmax(leg_list)
+    biggest_leg = leg_list[max_index]
+
+    if biggest_leg in [h1, h2] 
+        if h1 >= h2
+            L = attach_central_left(L, h)     
+        else 
+            R = attach_central_right(R,h)
+        end
+        if  b1 >= b2
+            @tensor L[rfb, x, y] := L[lfb, x, y] * B2[lfb, rfb]
+        else
+            @tensor R[x, y, lfb] := R[x, y, rfb] * B2[lfb, rfb]
+        end
+    else 
+        if  b1 >= b2
+            @tensor L[rfb, x, y] := L[lfb, x, y] * B2[lfb, rfb]
+        else
+            @tensor R[x, y, lfb] := R[x, y, rfb] * B2[lfb, rfb]
+        end
+        if h1 >= h2
+            L = attach_central_left(L, h)     
+        else 
+            R = attach_central_right(R,h)
+        end
     end
+    @tensor LR[lft, rft] := L[lfb, lfh, lft] * R[rft, lfh, lfb] 
     LR
 end
+
+
+# function attach_2_matrices(L, B2, h, R)
+#     h1, h2 = size(h, 1), size(h, 2)
+#     b1, b2 = size(B2, 1), size(B2, 2)
+#     if r2_over_r1(h) <= r2_over_r1(B2) && h1 <= h2 && b1 <= b2
+#         R = attach_central_right(R, h)  # [..., rc, ...] = [..., lc, ...] * [lc, rc]
+#         @tensor R[x, y, lfb] := R[x, y, rfb] * B2[lfb, rfb]
+#        
+#     elseif r2_over_r1(h) <= r2_over_r1(B2) && h1 <= h2 && b2 <= b1
+#         R = attach_central_right(R, h)  # [..., rc, ...] = [..., lc, ...] * [lc, rc]
+#         @tensor L[rfb, x, y] := L[lfb, x, y] * B2[lfb, rfb]
+#         @tensor LR[lft, rft] := L[lfb, lfh, lft] * R[rft, lfh, lfb]
+#     elseif r2_over_r1(h) <= r2_over_r1(B2) && h2 <= h1 && b1 <= b2
+#         L = attach_central_left(L, h)  # [..., rc, ...] = [..., lc, ...] * [lc, rc]
+#         @tensor R[x, y, lfb] := R[x, y, rfb] * B2[lfb, rfb]
+#         @tensor LR[lft, rft] := L[lfb, lfh, lft] * R[rft, lfh, lfb]
+#     elseif r2_over_r1(h) <= r2_over_r1(B2) && h2 <= h1 && b2 <= b1
+#         L = attach_central_left(L, h)  # [..., rc, ...] = [..., lc, ...] * [lc, rc]
+#         @tensor L[rfb, x, y] := L[lfb, x, y] * B2[lfb, rfb]
+#         @tensor LR[lft, rft] := L[lfb, lfh, lft] * R[rft, lfh, lfb]
+#     elseif r2_over_r1(B2) <= r2_over_r1(h) && h1 <= h2 && b1 <= b2
+#         @tensor R[x, y, lfb] := R[x, y, rfb] * B2[lfb, rfb]
+#         R = attach_central_right(R, h)  # [..., rc, ...] = [..., lc, ...] * [lc, rc]
+#         @tensor LR[lft, rft] := L[lfb, lfh, lft] * R[rft, lfh, lfb]
+#     elseif r2_over_r1(B2) <= r2_over_r1(h) && h1 <= h2 && b2 <= b1
+#         @tensor L[rfb, x, y] := L[lfb, x, y] * B2[lfb, rfb]
+#         R = attach_central_right(R, h)  # [..., rc, ...] = [..., lc, ...] * [lc, rc]
+#         @tensor LR[lft, rft] := L[lfb, lfh, lft] * R[rft, lfh, lfb]
+#     elseif r2_over_r1(B2) <= r2_over_r1(h) && h2 <= h1 && b1 <= b2
+#         @tensor R[x, y, lfb] := R[x, y, rfb] * B2[lfb, rfb]
+#         L = attach_central_left(L, h)  # [..., rc, ...] = [..., lc, ...] * [lc, rc]
+#         @tensor LR[lft, rft] := L[lfb, lfh, lft] * R[rft, lfh, lfb]
+#     else #r2_over_r1(B2) <= r2_over_r1(h) && h2 <= h1 && b2 <= b1
+#         @tensor L[rfb, x, y] := L[lfb, x, y] * B2[lfb, rfb]
+#         L = attach_central_left(L, h)  # [..., rc, ...] = [..., lc, ...] * [lc, rc]
+#         @tensor LR[lft, rft] := L[lfb, lfh, lft] * R[rft, lfh, lfb]
+#     end
+#     @tensor LR[lft, rft] := L[lfb, lfh, lft] * R[rft, lfh, lfb] 
+#     LR
+# end
 
 function update_env_left(
     LE::S, A::S, M::SparseVirtualTensor, B::S, ::Val{:n}

@@ -310,7 +310,7 @@ function project_ket_on_bra(
     @cast R[rcb, rc, rct, rb, rt] := R[(rcb, rc, rct), (rb, rt)] (rcb ∈ 1:srcb, rc ∈ 1:src, rb ∈ 1:srb)
     R = permutedims(R, (3, 5, 2, 1, 4)) #[rct, rt, rc, rcb, rb]
     @cast R[(rct, rt), rc, (rcb, rb)] := R[rct, rt, rc, rcb, rb]
-    
+
     LR = attach_2_matrices(L, B2, h, R)
     @cast LR[lt, (lct, rct), rt] := LR[(lt, lct), (rct, rt)] (lct ∈ 1:slct, rct ∈ 1:srct)
 
@@ -351,7 +351,7 @@ function project_ket_on_bra(
 
     R = permutedims(R, (3, 5, 2, 1, 4)) #[rct, rt, rc, rcb, rb]
     @cast R[(rcb, rt), rc, (rct, rb)] := R[rcb, rt, rc, rct, rb]
-    
+
     LR = attach_2_matrices(L, B2, h, R)
     @cast LR[lt, (lcb, rcb), rt] := LR[(lt, lcb), (rcb, rt)] (lcb ∈ 1:slcb, rcb ∈ 1:srcb)
 

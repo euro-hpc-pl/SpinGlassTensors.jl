@@ -6,9 +6,7 @@ export
     canonise_truncate!,
     truncate!,
     variational_sweep!,
-    Environment,
-    projectors_to_sparse,
-    projectors_to_sparse_transposed
+    Environment
 
 mutable struct Environment <: AbstractEnvironment
     bra::QMps  # to be optimized
@@ -167,83 +165,6 @@ end
 
 projector_to_dense(::Type{T}, pr::Array{Int, 1}) where T = diagm(ones(T, maximum(pr)))[:, pr]
 projector_to_dense(pr::Array{Int, 1}) = projector_to_dense(Float64, pr)
-
-function projectors_to_sparse(p_lb::Array{Int, 1}, p_l::Array{Int, 1}, p_lt::Array{Int, 1}, env)
-    if env <: CUDA.CuArray
-        ps = projectors_to_sparse(p_lb, p_l, p_lt, Val(:cs))
-    else
-        ps = projectors_to_sparse(p_lb, p_l, p_lt, Val(:s))
-    end
-    ps
-end
-
-function projectors_to_sparse_transposed(p_lb::Array{Int, 1}, p_l::Array{Int, 1}, p_lt::Array{Int, 1}, env)
-    if env <: CUDA.CuArray
-        ps = projectors_to_sparse_transposed(p_lb, p_l, p_lt, Val(:cs))
-    else
-        ps = projectors_to_sparse_transposed(p_lb, p_l, p_lt, Val(:s))
-    end
-    ps
-end
-
-function projectors_to_sparse(p_lb::Array{Int, 1}, p_l::Array{Int, 1}, p_lt::Array{Int, 1}, ::Val{:s})
-    # asumption length(p_lb) == length(p_l) == length(p_lt)
-    columns = length(p_lb)
-    temp = Vector{Int64}()
-    ps_vect = Vector{Int64}()
-
-    # @cast temp[x,y,w] = p_lb[x, w] * p_l[y,w]
-    # reshape(temp, (x*y, w))
-    rows_p_lb = maximum(p_lb)
-    for i ∈ collect(1:columns)
-        push!(temp, rows_p_lb*(p_l[i] -1) + p_lb[i])
-    end
-
-    # @cast ps_vect[x,y,z, w] = p_lb[x, w] * p_l[y,w] * p_lt[z,w] = temp[x, y, w] * p_lt[z, w]
-     # reshape(ps_vect, (x*y*z, w))
-    temp_rows = maximum(p_lb) * maximum(p_l)
-    for i ∈ collect(1:columns)
-        push!(ps_vect, temp_rows*(p_lt[i] -1) + temp[i])
-    end
-
-    rowInd = ps_vect
-    colInd = collect(1:columns)
-    Values = ones(Float64, columns)
-    ps = sparse(rowInd, colInd, Values, temp_rows*maximum(p_lt), columns)
-    ps
-end
-
-function projectors_to_sparse(p_lb::Array{Int, 1}, p_l::Array{Int, 1}, p_lt::Array{Int, 1}, ::Val{:cs})
-    # asumption length(p_lb) == length(p_l) == length(p_lt)
-    p_l = CUDA.CuArray(p_l)
-    p_lb = CUDA.CuArray(p_lb)
-    p_lt = CUDA.CuArray(p_lt)
-
-    rowPtr = maximum(p_l) * maximum(p_lb) * (p_lt .- 1) .+ maximum(p_lb) * (p_l .- 1) .+ p_lb
-
-    columns = length(p_lb)
-    rows = maximum(p_l) * maximum(p_lb) * maximum(p_lt)
-    colPtr = CUDA.CuArray(collect(1:columns+1))
-    nzVal = CUDA.ones(Float64, columns)
-
-    CUSPARSE.CuSparseMatrixCSC(colPtr, rowPtr, nzVal, (rows, columns))
-end
-
-function projectors_to_sparse_transposed(p_lb::Array{Int, 1}, p_l::Array{Int, 1}, p_lt::Array{Int, 1}, ::Val{:cs})
-    p_l = CUDA.CuArray(p_l)
-    p_lb = CUDA.CuArray(p_lb)
-    p_lt = CUDA.CuArray(p_lt)
-
-    rowPtr = maximum(p_l) * maximum(p_lb) * (p_lt .- 1) .+ maximum(p_lb) * (p_l .- 1) .+ p_lb
-
-    columns = length(p_lb)
-    rows = maximum(p_l) * maximum(p_lb) * maximum(p_lt)
-    colPtr = CUDA.CuArray(collect(1:columns+1))
-    nzVal = CUDA.ones(Float64, columns)
-
-    CUSPARSE.CuSparseMatrixCSR(colPtr, rowPtr, nzVal, (columns, rows))
-end
-
 
 function _update_tensor_forward(
     A::S, M::T, sites, ::Val{:n}

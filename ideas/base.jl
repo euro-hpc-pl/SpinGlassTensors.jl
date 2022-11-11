@@ -1,4 +1,4 @@
-for S ∈ (:OnSite, :Diag, :Central, :Virtual, :PegasusSquare)
+for S ∈ (:OnSite, :Diag, :Central, :Virtual)
     @eval begin
         export $S
         Base.eltype(x::$S{T}) where T = T
@@ -48,18 +48,6 @@ struct Central{T <: Number} <: AbstractSparseTensor
     function Central(vec_en)
         S = promote_type(eltype.(vec_en)...)
         new{S}(vec_en)
-    end
-end
-
-struct PegasusSquare{T <: Number} <: AbstractSparseTensor
-    projs::Proj
-    loc_exp::Matrix{T}
-    bnd_exp::Vector{Matrix{T}}
-    bnd_projs::Proj
-
-    function PegasusSquar(proj, loc_exp, bnd_exp, bnd_projs)
-        S = promote_type(eltype(loc_exp), eltype(bnd_exp))
-        new{S}(proj, loc_exp, bnd_exp, bnd_projs)
     end
 end
 

@@ -30,10 +30,6 @@ struct SparseTensor{T <: AbstracTensorType} <: AbstractSparseTensor
     function SparseTensor(con::Matrix{T}, projs::Proj) where T <: Number
         new{Virtual}(size, Virtual(con, projs))
     end
-
-    function SparseTensor(proj, loc_exp, bnd_exp, bnd_projs)
-        new{PegasusSquare}(size, PegasusSquare(proj, loc_exp, bnd_exp, bnd_projs))
-    end
 end
 
 Base.eltype(ten::SparseTensor{T}) where {T} = eltype(ten)

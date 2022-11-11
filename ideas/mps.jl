@@ -1,16 +1,5 @@
 
-
-abstract type AbstractTensotNetwork{T <: Number} end
-
-const Site = Union{Int, Rational{Int}}
-const TensorMap = Dict{Site, DenseOrSparseTensor}
-const NestedTensorMap = Dict{Site, TensorMap}
-
-function Base.eltype(ten::Union{TensorMap, NestedTensorMap})
-    promote_type(eltype.(values(ten))...)
-end
-
-for (N, T) ∈ ((:MPS, :TensorMap), (:MPO, :NestedTensorMap))
+for (N, T) ∈ ((:QMps, :TensorMap), (:QMpo, :NestedTensorMap))
     @eval begin
         struct $N{T <: Number} <: AbstractTensorNetwork
             tensors::$T
@@ -25,7 +14,11 @@ for (N, T) ∈ ((:MPS, :TensorMap), (:MPO, :NestedTensorMap))
     end
 end
 
-function local_dims(mpo::MPO, dir::Symbol)
+function Base.eltype(ten::Union{TensorMap, NestedTensorMap})
+    promote_type(eltype.(values(ten))...)
+end
+
+function local_dims(mpo::QMpo, dir::Symbol)
     @assert dir ∈ (:down, :up)
     lds = Dict{Site, Int}()
     for site ∈ mpo.sites
@@ -43,12 +36,13 @@ function local_dims(mpo::MPO, dir::Symbol)
     lds
 end
 
-function IdentityMPS(::Type{T}, loc_dims::Dict{Site, Int}, Dmax::Int=1)
+function IdentityQMps(::Type{T}, loc_dims::Dict{Site, Int}, Dmax::Int=1)
     id = Dict{Site, Array{T, 3}}(
         site => zeros(T, Dmax, ld, Dmax) for (site, ld) ∈ loc_dims
     )
     site_min, ld_min = minimum(loc_dims)
     site_max, ld_max = maximum(loc_dims)
+
     if site_min == site_max
         id[site_min] = zeros(T, 1, ld_min, 1)
     else
@@ -56,8 +50,44 @@ function IdentityMPS(::Type{T}, loc_dims::Dict{Site, Int}, Dmax::Int=1)
         id[site_max] = zeros(T, Dmax, ld_max, 1)
     end
         for (site, ld) ∈ loc_dims id[site][1, :, 1] .= one(T) / sqrt(ld) end
-    MPS(id)
+    QMps(id)
 end
-IdentityMPS(::Type{T}, loc_dims::Dict, Dmax::Int=1) = IdentityMPS(Float64, loc_dims, Dmax)
 
-Base.setindex!(ket::AbstractTensorNetwork, A::Array, i::Site) = ket.tensors[i] = A
+function Base.rand(::Type{QMps{T}}, sites::Vector, D::Int, d::Int) where T <: Number
+    QMps = Dict{Site, Tensor}()
+    for i ∈ sites
+        if i == 1
+            push!(QMps, i => randn(T, 1, d, D))
+        elseif i == last(sites)
+            push!(QMps, i => randn(T, D, d, 1))
+        else
+            push!(QMps, i => randn(T, D, d, D))
+        end
+    end
+    QMps(QMps)
+end
+
+function Base.rand(
+    ::Type{QMpo{T}}, sites::Vector, D::Int, d::Int, sites_aux::Vector=[], d_aux::Int=0
+) where T <: Number
+    QMpo = Dict{Site, Dict{Site, Tensor}}()
+    QMpo_aux = Dict{Site, Tensor}()
+
+    for i ∈ sites
+        if i == 1
+            push!(QMpo_aux, i => randn(T, 1, d, d, D))
+            push!(QMpo_aux, (j => randn(T, d_aux, d_aux) for j ∈ sites_aux)...)
+            push!(QMpo, i => copy(QMpo_aux))
+        elseif i == last(sites)
+            push!(QMpo_aux, (j => randn(T, d_aux, d_aux) for j ∈ sites_aux)...)
+            push!(QMpo_aux, last(sites) => randn(T, D, d, d, 1))
+            push!(QMpo, i => copy(QMpo_aux))
+        else
+            push!(QMpo_aux, (j => randn(T, d_aux, d_aux) for j ∈ sites_aux)...)
+            push!(QMpo_aux, i => randn(T, D, d, d, D))
+            push!(QMpo, i => copy(QMpo_aux))
+        end
+        empty!(QMpo_aux)
+    end
+    QMpo(QMpo)
+end

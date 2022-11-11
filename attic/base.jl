@@ -145,6 +145,7 @@ function Base.isapprox(l::Dict, r::Dict)
     true
 end
 
+
 function verify_bonds(ψ::QMps)
     L = length(ψ.sites)
     @assert size(ψ.tensors[1], 1) == 1 "Incorrect size on the left boundary."
@@ -201,7 +202,6 @@ end
 
 random_QMpo(sites::Vector, D::Int, d::Int, sites_aux::Vector=[], d_aux::Int=0) =
 random_QMpo(Float64, sites, D, d, sites_aux, d_aux)
-
 
 function is_left_normalized(ψ::QMps)
     all(

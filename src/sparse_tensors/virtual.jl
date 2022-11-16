@@ -289,7 +289,6 @@ function project_ket_on_bra(
     slcb, slc, slct = maximum(p_lb), maximum(p_l), maximum(p_lt)
 
     @cast B2[(lb, lcb), (rcb, rb)] := B[lb, (lcb, rcb), rb] (lcb ∈ 1:slcb)
-    @cast B4[lb, lcb, rcb, rb] := B[lb, (lcb, rcb), rb] (lcb ∈ 1:slcb)
 
     L = permutedims(L, (2, 1, 3))
     @cast L[lc, (lb, lt)] := L[lc, lb, lt]
@@ -328,7 +327,6 @@ function project_ket_on_bra(
     slcb, slc, slct = maximum(p_lb), maximum(p_l), maximum(p_lt)
 
     @cast B2[(lb, lct), (rct, rb)] := B[lb, (lct, rct), rb] (lct ∈ 1:slct)
-    @cast B4[lb, lct, rct, rb] := B[lb, (lct, rct), rb] (lct ∈ 1:slct)
 
     L = permutedims(L, (2, 1, 3))
     @cast L[lc, (lb, lt)] := L[lc, lb, lt]

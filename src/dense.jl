@@ -1,7 +1,7 @@
 #TODO: clean Val{:n} and Val{:c}
 function attach_central_left(LE::ArrayOrCuArray{3}, M::ArrayOrCuArray{2})
     if typeof(LE) <: CuArray && !(typeof(M) <: CuArray) M = CuArray(M) end
-    @tensor L[nt, nc, nb] :=  LE[nt, oc, nb] * M[oc, nc]
+    @tensor L[nt, nc, nb] := LE[nt, oc, nb] * M[oc, nc]
     L
 end
 

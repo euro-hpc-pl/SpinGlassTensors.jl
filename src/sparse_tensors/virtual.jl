@@ -372,6 +372,73 @@ function update_env_right(
     Array(permutedims(Rout, (2, 1, 3)) ./ maximum(abs.(Rout))) #[lb, lcp, lt]
 end
 
+# function project_ket_on_bra(
+#     LE::S, B::S, M::SparseVirtualTensor, RE::S, ::Val{:n}
+# ) where S <: ArrayOrCuArray{3}
+#     h = M.con
+#     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
+
+#     B, L, R = CuArray.((B, LE, RE))
+#     F = eltype(LE)
+
+#     sl1, sl3 = size(L, 1), size(L, 3)
+#     sr1, sr3 = size(R, 1), size(R, 3)
+#     slcb, slc, slct = maximum(p_lb), maximum(p_l), maximum(p_lt)
+#     srcb, src, srct = maximum(p_rb), maximum(p_r), maximum(p_rt)
+
+#     batch_size = 1
+
+#     ps = CuSparseMatrixCSC(eltype(LE), p_lb, p_l, p_lt)
+#     prs = CuSparseMatrixCSC(eltype(RE), p_rb, p_r, p_rt)
+
+#     @cast B2[(lb, lcb), (rcb, rb)] := B[lb, (lcb, rcb), rb] (rcb ∈ 1:srcb)
+#     Lout = CUDA.zeros(F, size(L, 1), slcb, slc, size(L, 3), slct) #[lb, lcb, lc, lt, lct]
+#     Rout = CUDA.zeros(F, srct, size(R, 1), src, srcb, size(R, 3)) #[rct, rt, rc, rcb, rb]
+
+#     l_from = 1
+#     while l_from <= sl3
+#         l_to = min(l_from + batch_size - 1, sl3)
+#         Lslc = L[:, :, l_from : l_to]
+
+#         Lslc = permutedims(Lslc, (2, 1, 3))  # [lcp, lb, lt]
+#         @cast Lslc[lcp, (lb, lt)] := Lslc[lcp, lb, lt]
+
+#         Lslc = ps * Lslc #[(lcb, lc, lct), (lb, lt)]
+
+#         @cast Lslc[lcb, lc, lct, lb, lt] := Lslc[(lcb, lc, lct), (lb, lt)] (lcb ∈ 1:slcb, lc ∈ 1:slc, lb ∈ 1:sl1)
+#         Lslc = permutedims(Lslc, (4, 1, 2, 5, 3)) #[lb, lcb, lc, lt, lct]
+#         Lout[:, :, :, l_from:l_to, :] += Lslc #Lout[lb, lcb, lc, lt, lct]
+        
+#         l_from = l_to + 1
+#     end
+        
+#     @cast Lout[(lb, lcb), lc, (lt, lct)] := Lout[lb, lcb, lc, lt, lct]
+
+#     r_from = 1
+#     while r_from <= sr1
+#         r_to = min(r_from + batch_size - 1, sr1)
+    
+#         Rslc = R[r_from : r_to, :, :]
+#         Rslc = permutedims(Rslc, (2, 3, 1))  # [rcp, rb, rt]
+#         @cast Rslc[rcp, (rb, rt)] := Rslc[rcp, rb, rt]
+#         Rslc = prs * Rslc #[(rcb, rc, rct), (rb, rt)]
+    
+#         @cast Rslc[rcb, rc, rct, rb, rt] := Rslc[(rcb, rc, rct), (rb, rt)] (rcb ∈ 1:srcb, rc ∈ 1:src, rb ∈ 1:sr3)
+#         Rslc = permutedims(Rslc, (3, 5, 2, 1, 4)) #[rct, rt, rc, rcb, rb]
+
+#         Rout[:, r_from:r_to, :, :, :] += Rslc
+
+#         r_from = r_to + 1
+#     end
+
+#     @cast Rout[(rct, rt), rc, (rcb, rb)] := Rout[rct, rt, rc, rcb, rb]
+
+#     LR = attach_2_matrices(Lout, B2, h, Rout)
+#     @cast LR[lt, (lct, rct), rt] := LR[(lt, lct), (rct, rt)] (lct ∈ 1:slct, rct ∈ 1:srct)
+
+#     Array(LR ./ maximum(abs.(LR)))
+# end
+
 function project_ket_on_bra(
     LE::S, B::S, M::SparseVirtualTensor, RE::S, ::Val{:n}
 ) where S <: ArrayOrCuArray{3}
@@ -392,9 +459,8 @@ function project_ket_on_bra(
     prs = CuSparseMatrixCSC(eltype(RE), p_rb, p_r, p_rt)
 
     @cast B2[(lb, lcb), (rcb, rb)] := B[lb, (lcb, rcb), rb] (rcb ∈ 1:srcb)
-    Lout = CUDA.zeros(F, size(L, 1), slcb, slc, size(L, 3), slct) #[lb, lcb, lc, lt, lct]
-    Rout = CUDA.zeros(F, srct, size(R, 1), src, srcb, size(R, 3)) #[rct, rt, rc, rcb, rb]
-
+    
+    LRout = CUDA.zeros(F, sl3, slct * srct, sr1)
     l_from = 1
     while l_from <= sl3
         l_to = min(l_from + batch_size - 1, sl3)
@@ -407,36 +473,29 @@ function project_ket_on_bra(
 
         @cast Lslc[lcb, lc, lct, lb, lt] := Lslc[(lcb, lc, lct), (lb, lt)] (lcb ∈ 1:slcb, lc ∈ 1:slc, lb ∈ 1:sl1)
         Lslc = permutedims(Lslc, (4, 1, 2, 5, 3)) #[lb, lcb, lc, lt, lct]
-        Lout[:, :, :, l_from:l_to, :] += Lslc #Lout[lb, lcb, lc, lt, lct]
+        @cast Lslc[(lb, lcb), lc, (lt, lct)] := Lslc[lb, lcb, lc, lt, lct]
+
+        r_from = 1
+        while r_from <= sr1
+            r_to = min(r_from + batch_size - 1, sr1)
         
+            Rslc = R[r_from : r_to, :, :]
+            Rslc = permutedims(Rslc, (2, 3, 1))  # [rcp, rb, rt]
+            @cast Rslc[rcp, (rb, rt)] := Rslc[rcp, rb, rt]
+            Rslc = prs * Rslc #[(rcb, rc, rct), (rb, rt)]
+        
+            @cast Rslc[rcb, rc, rct, rb, rt] := Rslc[(rcb, rc, rct), (rb, rt)] (rcb ∈ 1:srcb, rc ∈ 1:src, rb ∈ 1:sr3)
+            Rslc = permutedims(Rslc, (3, 5, 2, 1, 4)) #[rct, rt, rc, rcb, rb]
+            @cast Rslc[(rct, rt), rc, (rcb, rb)] := Rslc[rct, rt, rc, rcb, rb]
+            LR = attach_2_matrices(Lslc, B2, h, Rslc)
+            @cast LR[lt, (lct, rct), rt] := LR[(lt, lct), (rct, rt)] (lct ∈ 1:slct, rct ∈ 1:srct)
+            LRout[l_from:l_to, :, r_from:r_to] += LR
+            r_from = r_to + 1
+        end
         l_from = l_to + 1
     end
         
-    @cast Lout[(lb, lcb), lc, (lt, lct)] := Lout[lb, lcb, lc, lt, lct]
-
-    r_from = 1
-    while r_from <= sr1
-        r_to = min(r_from + batch_size - 1, sr1)
-    
-        Rslc = R[r_from : r_to, :, :]
-        Rslc = permutedims(Rslc, (2, 3, 1))  # [rcp, rb, rt]
-        @cast Rslc[rcp, (rb, rt)] := Rslc[rcp, rb, rt]
-        Rslc = prs * Rslc #[(rcb, rc, rct), (rb, rt)]
-    
-        @cast Rslc[rcb, rc, rct, rb, rt] := Rslc[(rcb, rc, rct), (rb, rt)] (rcb ∈ 1:srcb, rc ∈ 1:src, rb ∈ 1:sr3)
-        Rslc = permutedims(Rslc, (3, 5, 2, 1, 4)) #[rct, rt, rc, rcb, rb]
-
-        Rout[:, r_from:r_to, :, :, :] += Rslc
-
-        r_from = r_to + 1
-    end
-
-    @cast Rout[(rct, rt), rc, (rcb, rb)] := Rout[rct, rt, rc, rcb, rb]
-
-    LR = attach_2_matrices(Lout, B2, h, Rout)
-    @cast LR[lt, (lct, rct), rt] := LR[(lt, lct), (rct, rt)] (lct ∈ 1:slct, rct ∈ 1:srct)
-
-    Array(LR ./ maximum(abs.(LR)))
+    Array(LRout ./ maximum(abs.(LRout)))
 end
 
 
@@ -460,9 +519,8 @@ function project_ket_on_bra(
     prs = CuSparseMatrixCSC(eltype(RE), p_rb, p_r, p_rt)
 
     @cast B2[(lb, lct), (rct, rb)] := B[lb, (lct, rct), rb] (rct ∈ 1:srct)
-    Lout = CUDA.zeros(F, size(L, 1), slct, slc, size(L, 3), slcb) #[lb, lct, lc, lt, lcb]
-    Rout = CUDA.zeros(F, srcb, size(R, 1), src, srct, size(R, 3)) #[rcb, rt, rc, rct, rb]
-
+    
+    LRout = CUDA.zeros(F, sl3, slcb * srcb, sr1)
     l_from = 1
     while l_from <= sl3
         l_to = min(l_from + batch_size - 1, sl3)
@@ -474,38 +532,99 @@ function project_ket_on_bra(
         Lslc = ps * Lslc #[(lcb, lc, lct), (lb, lt)]
 
         @cast Lslc[lct, lc, lcb, lb, lt] := Lslc[(lct, lc, lcb), (lb, lt)] (lcb ∈ 1:slcb, lc ∈ 1:slc, lb ∈ 1:sl1)
-        Lslc = permutedims(Lslc, (4, 1, 2, 5, 3)) #[lb, lct, lc, lt, lcb]
-        Lout[:, :, :, l_from:l_to, :] += Lslc #Lout[lb, lct, lc, lt, lcb]
+        Lslc = permutedims(Lslc, (4, 1, 2, 5, 3)) #[lb, lcb, lc, lt, lct]
+        @cast Lslc[(lb, lct), lc, (lt, lcb)] := Lslc[lb, lct, lc, lt, lcb]
+
+        r_from = 1
+        while r_from <= sr1
+            r_to = min(r_from + batch_size - 1, sr1)
         
+            Rslc = R[r_from : r_to, :, :]
+            Rslc = permutedims(Rslc, (2, 3, 1))  # [rcp, rb, rt]
+            @cast Rslc[rcp, (rb, rt)] := Rslc[rcp, rb, rt]
+            Rslc = prs * Rslc #[(rcb, rc, rct), (rb, rt)]
+        
+            @cast Rslc[rct, rc, rcb, rb, rt] := Rslc[(rct, rc, rcb), (rb, rt)] (rcb ∈ 1:srcb, rc ∈ 1:src, rb ∈ 1:sr3)
+            Rslc = permutedims(Rslc, (3, 5, 2, 1, 4)) #[rct, rt, rc, rcb, rb]
+            @cast Rslc[(rcb, rt), rc, (rct, rb)] := Rslc[rcb, rt, rc, rct, rb]
+            LR = attach_2_matrices(Lslc, B2, h, Rslc)
+            @cast LR[lt, (lcb, rcb), rt] := LR[(lt, lcb), (rcb, rt)] (lcb ∈ 1:slcb, rcb ∈ 1:srcb)
+            LRout[l_from:l_to, :, r_from:r_to] += LR
+            r_from = r_to + 1
+        end
         l_from = l_to + 1
     end
         
-    @cast Lout[(lb, lct), lc, (lt, lcb)] := Lout[lb, lct, lc, lt, lcb]
-
-    r_from = 1
-    while r_from <= sr1
-        r_to = min(r_from + batch_size - 1, sr1)
-    
-        Rslc = R[r_from : r_to, :, :]
-        Rslc = permutedims(Rslc, (2, 3, 1))  # [rcp, rb, rt]
-        @cast Rslc[rcp, (rb, rt)] := Rslc[rcp, rb, rt]
-        Rslc = prs * Rslc #[(rcb, rc, rct), (rb, rt)]
-    
-        @cast Rslc[rct, rc, rcb, rb, rt] := Rslc[(rct, rc, rcb), (rb, rt)] (rcb ∈ 1:srcb, rc ∈ 1:src, rb ∈ 1:sr3)
-        Rslc = permutedims(Rslc, (3, 5, 2, 1, 4)) #[rct, rt, rc, rcb, rb]
-
-        Rout[:, r_from:r_to, :, :, :] += Rslc
-
-        r_from = r_to + 1
-    end
-
-    @cast Rout[(rcb, rt), rc, (rct, rb)] := Rout[rcb, rt, rc, rct, rb]
-
-    LR = attach_2_matrices(Lout, B2, h, Rout)
-    @cast LR[lt, (lcb, rcb), rt] := LR[(lt, lcb), (rcb, rt)] (lcb ∈ 1:slcb, rcb ∈ 1:srcb)
-
-    Array(LR ./ maximum(abs.(LR)))
+    Array(LRout ./ maximum(abs.(LRout)))
 end
+
+
+# function project_ket_on_bra(
+#     LE::S, B::S, M::SparseVirtualTensor, RE::S, ::Val{:c}
+# ) where S <: ArrayOrCuArray{3}
+#     h = M.con
+#     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
+
+#     B, L, R = CuArray.((B, LE, RE))
+#     F = eltype(LE)
+
+#     sl1, sl3 = size(L, 1), size(L, 3)
+#     sr1, sr3 = size(R, 1), size(R, 3)
+#     slcb, slc, slct = maximum(p_lb), maximum(p_l), maximum(p_lt)
+#     srcb, src, srct = maximum(p_rb), maximum(p_r), maximum(p_rt)
+
+#     batch_size = 1
+
+#     ps = CuSparseMatrixCSC(eltype(LE), p_lt, p_l, p_lb)
+#     prs = CuSparseMatrixCSC(eltype(RE), p_rb, p_r, p_rt)
+
+#     @cast B2[(lb, lct), (rct, rb)] := B[lb, (lct, rct), rb] (rct ∈ 1:srct)
+#     Lout = CUDA.zeros(F, size(L, 1), slct, slc, size(L, 3), slcb) #[lb, lct, lc, lt, lcb]
+#     Rout = CUDA.zeros(F, srcb, size(R, 1), src, srct, size(R, 3)) #[rcb, rt, rc, rct, rb]
+
+#     l_from = 1
+#     while l_from <= sl3
+#         l_to = min(l_from + batch_size - 1, sl3)
+#         Lslc = L[:, :, l_from : l_to]
+
+#         Lslc = permutedims(Lslc, (2, 1, 3))  # [lcp, lb, lt]
+#         @cast Lslc[lcp, (lb, lt)] := Lslc[lcp, lb, lt]
+
+#         Lslc = ps * Lslc #[(lcb, lc, lct), (lb, lt)]
+
+#         @cast Lslc[lct, lc, lcb, lb, lt] := Lslc[(lct, lc, lcb), (lb, lt)] (lcb ∈ 1:slcb, lc ∈ 1:slc, lb ∈ 1:sl1)
+#         Lslc = permutedims(Lslc, (4, 1, 2, 5, 3)) #[lb, lct, lc, lt, lcb]
+#         Lout[:, :, :, l_from:l_to, :] += Lslc #Lout[lb, lct, lc, lt, lcb]
+        
+#         l_from = l_to + 1
+#     end
+        
+#     @cast Lout[(lb, lct), lc, (lt, lcb)] := Lout[lb, lct, lc, lt, lcb]
+
+#     r_from = 1
+#     while r_from <= sr1
+#         r_to = min(r_from + batch_size - 1, sr1)
+    
+#         Rslc = R[r_from : r_to, :, :]
+#         Rslc = permutedims(Rslc, (2, 3, 1))  # [rcp, rb, rt]
+#         @cast Rslc[rcp, (rb, rt)] := Rslc[rcp, rb, rt]
+#         Rslc = prs * Rslc #[(rcb, rc, rct), (rb, rt)]
+    
+#         @cast Rslc[rct, rc, rcb, rb, rt] := Rslc[(rct, rc, rcb), (rb, rt)] (rcb ∈ 1:srcb, rc ∈ 1:src, rb ∈ 1:sr3)
+#         Rslc = permutedims(Rslc, (3, 5, 2, 1, 4)) #[rct, rt, rc, rcb, rb]
+
+#         Rout[:, r_from:r_to, :, :, :] += Rslc
+
+#         r_from = r_to + 1
+#     end
+
+#     @cast Rout[(rcb, rt), rc, (rct, rb)] := Rout[rcb, rt, rc, rct, rb]
+
+#     LR = attach_2_matrices(Lout, B2, h, Rout)
+#     @cast LR[lt, (lcb, rcb), rt] := LR[(lt, lcb), (rcb, rt)] (lcb ∈ 1:slcb, rcb ∈ 1:srcb)
+
+#     Array(LR ./ maximum(abs.(LR)))
+# end
 
 
 # function project_ket_on_bra(

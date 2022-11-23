@@ -123,7 +123,6 @@ function attach_2_matrices(L, B2, h, R)
     LR
 end
 
-
 function update_env_left(
     LE::S, A::S, M::SparseVirtualTensor, B::S, ::Val{:n}
 ) where S <: ArrayOrCuArray{3}
@@ -186,7 +185,6 @@ function update_env_left(
     Array(permutedims(Lout, (2, 1, 3)) ./ maximum(abs.(Lout))) #[rb, rcp, rt]
 end
 
-
 function update_env_left(
     LE::S, A::S, M::SparseVirtualTensor, B::S, ::Val{:c}
 ) where S <: ArrayOrCuArray{3}
@@ -197,8 +195,8 @@ function update_env_left(
 
     slb, srb = size(B, 1), size(B, 3)
     slt, srt = size(A, 1), size(A, 3)
-    slcb, slc, slct = maximum(p_lb), maximum(p_l), maximum(p_lt)
-    srcb, srct = maximum(p_rb), maximum(p_rt)
+    slcb, slc, slct = maximum(p_lt), maximum(p_l), maximum(p_lb)
+    srcb, srct = maximum(p_rt), maximum(p_rb)
     srcp = length(p_r)
 
     batch_size = 1
@@ -206,9 +204,8 @@ function update_env_left(
     F = eltype(LE)
     Lout = CUDA.zeros(F, srcp, srb, srt)
 
-    @cast A2[(lt, lcb), (rcb, rt)] := A[lt, (lcb, rcb), rt] (lcb ∈ 1:slcb)
-
-    ps = CuSparseMatrixCSC(eltype(LE), p_lb, p_l, p_lt)
+    @cast A2[(lt, lct), (rct, rt)] := A[lt, (lct, rct), rt] (lct ∈ 1:slct)
+    ps = CuSparseMatrixCSC(eltype(LE), p_lt, p_l, p_lb)
     prs = CuSparseMatrixCSR(eltype(LE), p_rb, p_r, p_rt)
 
     lb_from = 1
@@ -221,22 +218,21 @@ function update_env_left(
         Lslc = ps * Lslc #[(lcb, lc, lct), (lb, lt)]
 
         @cast Lslc[lcb, lc, lct, lb, lt] := Lslc[(lcb, lc, lct), (lb, lt)] (lcb ∈ 1:slcb, lc ∈ 1:slc, lt ∈ 1:slt)
-        Lslc = permutedims(Lslc, (4, 3, 2, 5, 1)) #[lb, lcb, lc, lt, lct]
-        @cast Lslc[(lb, lct), lc, (lt, lcb)] := Lslc[lb, lct, lc, lt, lcb]
+        Lslc = permutedims(Lslc, (4, 1, 2, 5, 3)) #[lb, lcb, lc, lt, lct]
+        @cast Lslc[(lb, lcb), lc, (lt, lct)] := Lslc[lb, lcb, lc, lt, lct]
 
         rb_from = 1
         while rb_from <= srb
             rb_to = min(rb_from + batch_size - 1, srb)
 
             Btemp = B[lb_from : lb_to, :, rb_from : rb_to]
-            @cast B2[(lb, lct), (rct, rb)] := Btemp[lb, (lct, rct), rb] (lct ∈ 1:slct)
+            @cast B2[(lb, lcb), (rcb, rb)] := Btemp[lb, (lcb, rcb), rb] (lcb ∈ 1:slcb)
 
             Ltemp = attach_3_matrices_left(Lslc, B2, h, A2)
-            
-            @cast Ltemp[rct, rb, rc, rcb, rt] := Ltemp[(rct, rb), rc, (rcb, rt)] (rct ∈ 1:srct, rcb ∈ 1:srcb)
 
+            @cast Ltemp[rcb, rb, rc, rct, rt] := Ltemp[(rcb, rb), rc, (rct, rt)] (rcb ∈ 1:srcb, rct ∈ 1:srct)
             Ltemp = permutedims(Ltemp, (1, 3, 4, 2, 5))  # [rcb, rc, rct, rb, rt]
-            @cast Ltemp[(rct, rc, rcb), (rb, rt)] := Ltemp[rct, rc, rcb, rb, rt]
+            @cast Ltemp[(rcb, rc, rct), (rb, rt)] := Ltemp[rcb, rc, rct, rb, rt]
 
             Ltemp = prs * Ltemp  # [rcp, (rb, rt)]
             @cast Ltemp[rcp, rb, rt] := Ltemp[rcp, (rb, rt)] (rt ∈ 1:srt)
@@ -310,7 +306,6 @@ function update_env_right(
     Array(permutedims(Rout, (2, 1, 3)) ./ maximum(abs.(Rout))) #[lb, lcp, lt]
 end
 
-
 function update_env_right(
     RE::S, A::S, M::SparseVirtualTensor, B::S, ::Val{:c}
 ) where S <: ArrayOrCuArray{3}
@@ -321,8 +316,8 @@ function update_env_right(
 
     slb, srb = size(B, 1), size(B, 3)
     slt, srt = size(A, 1), size(A, 3)
-    slcb, slc, slct = maximum(p_lb), maximum(p_l), maximum(p_lt)
-    srcb, src, srct = maximum(p_rb), maximum(p_r), maximum(p_rt)
+    slcb, slc, slct = maximum(p_lt), maximum(p_l), maximum(p_lb)
+    srcb, src, srct = maximum(p_rt), maximum(p_r), maximum(p_rb)
     slcp = length(p_l)
 
     batch_size = 1
@@ -330,9 +325,9 @@ function update_env_right(
     F = eltype(RE)
     Rout = CUDA.zeros(F, slcp, slt, slb)
 
-    @cast A2[(lt, lcb), (rcb, rt)] := A[lt, (lcb, rcb), rt] (rcb ∈ 1:srcb)
+    @cast A2[(lt, lct), (rct, rt)] := A[lt, (lct, rct), rt] (rct ∈ 1:srct)
     prs = CuSparseMatrixCSR(eltype(RE), p_lb, p_l, p_lt)
-    ps = CuSparseMatrixCSC(eltype(RE), p_rb, p_r, p_rt)
+    ps = CuSparseMatrixCSC(eltype(RE), p_rt, p_r, p_rb)
 
     rb_from = 1
     while rb_from <= srb
@@ -341,25 +336,23 @@ function update_env_right(
         Rslc = R[:, :, rb_from : rb_to]
         Rslc = permutedims(Rslc, (2, 3, 1))  # [rcp, rb, rt]
         @cast Rslc[rcp, (rb, rt)] := Rslc[rcp, rb, rt]
-
         Rslc = ps * Rslc #[(rcb, rc, rct), (rb, rt)]
-
         @cast Rslc[rcb, rc, rct, rb, rt] := Rslc[(rcb, rc, rct), (rb, rt)] (rcb ∈ 1:srcb, rc ∈ 1:src, rt ∈ 1:srt)
-        Rslc = permutedims(Rslc, (3, 4, 2, 1, 5)) #[rct, rb, rc, rcb, rt]
-        @cast Rslc[(rct, rb), rc, (rcb, rt)] := Rslc[rct, rb, rc, rcb, rt]
+        Rslc = permutedims(Rslc, (1, 4, 2, 3, 5)) #[rcb, rb, rc, rct, rt]
+        @cast Rslc[(rcb, rb), rc, (rct, rt)] := Rslc[rcb, rb, rc, rct, rt]
 
         lb_from = 1
         while lb_from <= slb
             lb_to = min(lb_from + batch_size - 1, slb)
 
             Btemp = B[lb_from : lb_to, :, rb_from : rb_to]
-            @cast B2[(lb, lct), (rct, rb)] := Btemp[lb, (lct, rct), rb] (rct ∈ 1:srct)
+            @cast B2[(lb, lcb), (rcb, rb)] := Btemp[lb, (lcb, rcb), rb] (rcb ∈ 1:srcb)
 
             Rtemp = attach_3_matrices_right(Rslc, B2, h, A2)
 
-            @cast Rtemp[lb, lct, lc, lt, lcb] := Rtemp[(lb, lct), lc, (lt, lcb)] (lct ∈ 1:slct, lt ∈ 1:slt)
+            @cast Rtemp[lb, lcb, lc, lt, lct] := Rtemp[(lb, lcb), lc, (lt, lct)] (lcb ∈ 1:slcb, lt ∈ 1:slt)
 
-            Rtemp = permutedims(Rtemp, (5, 3, 2, 4, 1)) #[lcb, lc, lct, lb, lt]
+            Rtemp = permutedims(Rtemp, (2, 3, 5, 4, 1)) #[lcb, lc, lct, lb, lt]
             @cast Rtemp[(lcb, lc, lct), (lt, lb)] := Rtemp[lcb, lc, lct, lt, lb]
             Rtemp = prs * Rtemp  # [lcp, (lb, lt)]
             @cast Rtemp[lcp, lt, lb] := Rtemp[lcp, (lt, lb)] (lt ∈ 1:slt)
@@ -431,7 +424,6 @@ function project_ket_on_bra(
     Array(LRout ./ maximum(abs.(LRout)))
 end
 
-
 function project_ket_on_bra(
     LE::S, B::S, M::SparseVirtualTensor, RE::S, ::Val{:c}
 ) where S <: ArrayOrCuArray{3}
@@ -443,17 +435,17 @@ function project_ket_on_bra(
 
     sl1, sl3 = size(L, 1), size(L, 3)
     sr1, sr3 = size(R, 1), size(R, 3)
-    slcb, slc, slct = maximum(p_lb), maximum(p_l), maximum(p_lt)
-    srcb, src, srct = maximum(p_rb), maximum(p_r), maximum(p_rt)
+    slcb, slc, slct = maximum(p_lt), maximum(p_l), maximum(p_lb)
+    srcb, src, srct = maximum(p_rt), maximum(p_r), maximum(p_rb)
 
     batch_size = 1
 
     ps = CuSparseMatrixCSC(eltype(LE), p_lt, p_l, p_lb)
-    prs = CuSparseMatrixCSC(eltype(RE), p_rb, p_r, p_rt)
+    prs = CuSparseMatrixCSC(eltype(RE), p_rt, p_r, p_rb)
 
-    @cast B2[(lb, lct), (rct, rb)] := B[lb, (lct, rct), rb] (rct ∈ 1:srct)
+    @cast B2[(lb, lcb), (rcb, rb)] := B[lb, (lcb, rcb), rb] (rcb ∈ 1:srcb)
     
-    LRout = CUDA.zeros(F, sl3, slcb * srcb, sr1)
+    LRout = CUDA.zeros(F, sl3, slct * srct, sr1)
     l_from = 1
     while l_from <= sl3
         l_to = min(l_from + batch_size - 1, sl3)
@@ -464,9 +456,9 @@ function project_ket_on_bra(
 
         Lslc = ps * Lslc #[(lcb, lc, lct), (lb, lt)]
 
-        @cast Lslc[lct, lc, lcb, lb, lt] := Lslc[(lct, lc, lcb), (lb, lt)] (lcb ∈ 1:slcb, lc ∈ 1:slc, lb ∈ 1:sl1)
+        @cast Lslc[lcb, lc, lct, lb, lt] := Lslc[(lcb, lc, lct), (lb, lt)] (lcb ∈ 1:slcb, lc ∈ 1:slc, lb ∈ 1:sl1)
         Lslc = permutedims(Lslc, (4, 1, 2, 5, 3)) #[lb, lcb, lc, lt, lct]
-        @cast Lslc[(lb, lct), lc, (lt, lcb)] := Lslc[lb, lct, lc, lt, lcb]
+        @cast Lslc[(lb, lcb), lc, (lt, lct)] := Lslc[lb, lcb, lc, lt, lct]
 
         r_from = 1
         while r_from <= sr1
@@ -477,11 +469,11 @@ function project_ket_on_bra(
             @cast Rslc[rcp, (rb, rt)] := Rslc[rcp, rb, rt]
             Rslc = prs * Rslc #[(rcb, rc, rct), (rb, rt)]
         
-            @cast Rslc[rct, rc, rcb, rb, rt] := Rslc[(rct, rc, rcb), (rb, rt)] (rcb ∈ 1:srcb, rc ∈ 1:src, rb ∈ 1:sr3)
+            @cast Rslc[rcb, rc, rct, rb, rt] := Rslc[(rcb, rc, rct), (rb, rt)] (rcb ∈ 1:srcb, rc ∈ 1:src, rb ∈ 1:sr3)
             Rslc = permutedims(Rslc, (3, 5, 2, 1, 4)) #[rct, rt, rc, rcb, rb]
-            @cast Rslc[(rcb, rt), rc, (rct, rb)] := Rslc[rcb, rt, rc, rct, rb]
+            @cast Rslc[(rct, rt), rc, (rcb, rb)] := Rslc[rct, rt, rc, rcb, rb]
             LR = attach_2_matrices(Lslc, B2, h, Rslc)
-            @cast LR[lt, (lcb, rcb), rt] := LR[(lt, lcb), (rcb, rt)] (lcb ∈ 1:slcb, rcb ∈ 1:srcb)
+            @cast LR[lt, (lct, rct), rt] := LR[(lt, lct), (rct, rt)] (lct ∈ 1:slct, rct ∈ 1:srct)
             LRout[l_from:l_to, :, r_from:r_to] += LR
             r_from = r_to + 1
         end

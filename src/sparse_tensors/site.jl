@@ -1,4 +1,9 @@
-CUDA_MAX_BATCH_SIZE = 2 ^ 20 # TODO: this needs to be controlled based on available memory
+function cuda_max_batch_size(A::S, B::S) where {S <: ArrayOrCuArray{3}}
+    s1, s3 = size(A)[begin], size(A)[end]
+    s2, s4 = size(B)[begin], size(B)[end]
+    total_memory = 2^33
+    max(Int(floor(total_memory/(8 * (s1*s2 + s2*s3 + s3*s4 + s4*s1)))), 1)
+end
 
 function CUDA.CUSPARSE.CuSparseMatrixCSC(::Type{R}, pr::Vector{Int}) where R <: Real
     n = length(pr)
@@ -16,7 +21,8 @@ function update_env_left(
     F = eltype(LE)
 
     total_size = length(M.projs[1])
-    batch_size = min(CUDA_MAX_BATCH_SIZE, total_size)
+    batch_size = cuda_max_batch_size(A, B)
+
     from = 1
 
     L = CUDA.zeros(F, maximum(M.projs[3]), size(B, 3), size(A, 3))
@@ -46,7 +52,7 @@ function update_env_left(
     F = eltype(LE)
 
     total_size = length(M.projs[1])
-    batch_size = min(CUDA_MAX_BATCH_SIZE, total_size)
+    batch_size = cuda_max_batch_size(A, B)
     from = 1
 
     L = CUDA.zeros(F, maximum(M.projs[3]), size(B, 3), size(A, 3))
@@ -76,7 +82,7 @@ function update_env_right(
     F = eltype(RE)
 
     total_size = length(M.projs[3])
-    batch_size = min(CUDA_MAX_BATCH_SIZE, total_size)
+    batch_size = cuda_max_batch_size(A, B)
     from = 1
 
     R = CUDA.zeros(F,  maximum(M.projs[1]), size(A, 1), size(B, 1))
@@ -106,7 +112,7 @@ function update_env_right(
     F = eltype(RE)
 
     total_size = length(M.projs[3])
-    batch_size = min(CUDA_MAX_BATCH_SIZE, total_size)
+    batch_size = cuda_max_batch_size(A, B)
     from = 1
 
     R = CUDA.zeros(F, maximum(M.projs[1]), size(A, 1), size(B, 1))
@@ -136,7 +142,7 @@ function project_ket_on_bra(
     F = eltype(LE)
 
     total_size = length(M.projs[3])
-    batch_size = min(CUDA_MAX_BATCH_SIZE, total_size)
+    batch_size = cuda_max_batch_size(LE, RE)
     from = 1
 
     A = CUDA.zeros(F, maximum(M.projs[2]), size(LE, 3), size(RE, 1))
@@ -166,7 +172,7 @@ function project_ket_on_bra(
     F = eltype(LE)
 
     total_size = length(M.projs[3])
-    batch_size = min(CUDA_MAX_BATCH_SIZE, total_size)
+    batch_size = cuda_max_batch_size(LE, RE)
     from = 1
 
     A = CUDA.zeros(F, maximum(M.projs[4]), size(LE, 3), size(RE, 1))

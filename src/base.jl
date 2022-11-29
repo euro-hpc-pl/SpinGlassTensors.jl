@@ -19,6 +19,7 @@ export
     random_QMps,
     random_QMpo,
     bond_dimension,
+    bond_dimensions,
     verify_bonds,
     is_left_normalized,
     is_right_normalized
@@ -135,6 +136,7 @@ IdentityQMps(loc_dims::Dict, Dmax::Int=1) = IdentityQMps(Float64, loc_dims, Dmax
 @inline Base.length(a::AbstractTensorNetwork) = length(a.tensors)
 @inline LinearAlgebra.rank(ψ::QMps) = Tuple(size(A, 2) for A ∈ values(ψ.tensors))
 @inline bond_dimension(ψ::QMps) = maximum(size.(values(ψ.tensors), 3))
+@inline bond_dimensions(ψ::QMps) = [size(ψ.tensors[n]) for n in ψ.sites]
 @inline Base.copy(ψ::QMps) = QMps(copy(ψ.tensors))
 @inline Base.:(≈)(a::QMps, b::QMps) = isapprox(a.tensors, b.tensors)
 @inline Base.:(≈)(a::QMpo, b::QMpo) = all([isapprox(a.tensors[i], b.tensors[i]) for i ∈ keys(a.tensors)])

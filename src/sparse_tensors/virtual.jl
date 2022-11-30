@@ -134,18 +134,19 @@ function update_env_left(
     slb, srb = size(B, 1), size(B, 3)
     slt, srt = size(A, 1), size(A, 3)
     srcp = length(p_r)
-    prs = CuSparseMatrixCSR(eltype(LE), p_rb, p_r, p_rt)
     if type == Val{:n}()
         slcb, slc, slct = maximum(p_lb), maximum(p_l), maximum(p_lt)
         srcb, srct = maximum(p_rb), maximum(p_rt)
+        prs = CuSparseMatrixCSR(eltype(LE), p_rb, p_r, p_rt)
         ps = CuSparseMatrixCSC(eltype(LE), p_lb, p_l, p_lt)
     else
         slcb, slc, slct = maximum(p_lt), maximum(p_l), maximum(p_lb)
         srcb, srct = maximum(p_rt), maximum(p_rb)
+        prs = CuSparseMatrixCSR(eltype(LE), p_rt, p_r, p_rb)
         ps = CuSparseMatrixCSC(eltype(LE), p_lt, p_l, p_lb)
     end
 
-    batch_size = 1
+    batch_size = 4
 
     F = eltype(LE)
     Lout = CUDA.zeros(F, srcp, srb, srt)
@@ -202,19 +203,20 @@ function update_env_right(
     slb, srb = size(B, 1), size(B, 3)
     slt, srt = size(A, 1), size(A, 3)
     slcp = length(p_l)
-    prs = CuSparseMatrixCSR(eltype(RE), p_lb, p_l, p_lt)
 
     if type == Val{:n}()
         slcb, slc, slct = maximum(p_lb), maximum(p_l), maximum(p_lt)
         srcb, src, srct = maximum(p_rb), maximum(p_r), maximum(p_rt)
+        prs = CuSparseMatrixCSR(eltype(RE), p_lb, p_l, p_lt)
         ps = CuSparseMatrixCSC(eltype(RE), p_rb, p_r, p_rt)
     else
         slcb, slc, slct = maximum(p_lt), maximum(p_l), maximum(p_lb)
         srcb, src, srct = maximum(p_rt), maximum(p_r), maximum(p_rb)
+        prs = CuSparseMatrixCSR(eltype(RE), p_lt, p_l, p_lb)
         ps = CuSparseMatrixCSC(eltype(RE), p_rt, p_r, p_rb)
     end
 
-    batch_size = 1
+    batch_size = 4
 
     F = eltype(RE)
     Rout = CUDA.zeros(F, slcp, slt, slb)
@@ -281,7 +283,7 @@ function project_ket_on_bra(
         prs = CuSparseMatrixCSC(eltype(RE), p_rt, p_r, p_rb)
     end
 
-    batch_size = 1
+    batch_size = 4
 
     @cast B2[(lb, lcb), (rcb, rb)] := B[lb, (lcb, rcb), rb] (rcb ∈ 1:srcb)
     

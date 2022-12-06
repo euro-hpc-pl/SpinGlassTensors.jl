@@ -146,7 +146,7 @@ function update_env_left(
         ps = CuSparseMatrixCSC(eltype(LE), p_lt, p_l, p_lb)
     end
 
-    batch_size = 4
+    batch_size = 2
 
     F = eltype(LE)
     Lout = CUDA.zeros(F, srcp, srb, srt)
@@ -216,7 +216,7 @@ function update_env_right(
         ps = CuSparseMatrixCSC(eltype(RE), p_rt, p_r, p_rb)
     end
 
-    batch_size = 4
+    batch_size = 2
 
     F = eltype(RE)
     Rout = CUDA.zeros(F, slcp, slt, slb)
@@ -283,7 +283,7 @@ function project_ket_on_bra(
         prs = CuSparseMatrixCSC(eltype(RE), p_rt, p_r, p_rb)
     end
 
-    batch_size = 4
+    batch_size = 2
 
     @cast B2[(lb, lcb), (rcb, rb)] := B[lb, (lcb, rcb), rb] (rcb ∈ 1:srcb)
     

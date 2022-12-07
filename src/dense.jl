@@ -89,3 +89,60 @@ function project_ket_on_bra(
                           N[n, z, p, s] * RE[r, p, q] order = (k, l, y, n, o, z, p, q)
     A
 end
+
+
+"""
+      K
+      |
+   -- M -- RE
+      |    |
+   -- B ---
+"""
+
+function update_reduced_env_right(
+    RE::AbstractArray{Float64, 2}, m::Int, M::Dict, B::AbstractArray{Float64, 3}
+)
+    kk = sort(collect(keys(M)))
+
+    if kk[1] < 0
+        K = zeros(size(M[kk[1]], 1))
+        K[m] = 1.
+
+        for ii ∈ kk[1:end]
+            if ii == 0 break end
+            Mm = M[ii]
+            K = _project_on_border(K, Mm)
+        end
+    else
+        K = zeros(size(M[0], 2))
+        K[m] = 1.
+    end
+
+    update_reduced_env_right(K, RE, M[0], B)
+end
+
+
+function update_reduced_env_right(
+    K::Array{T, 1},
+    RE::Array{T, 2},
+    M::Array{T, 4},
+    B::Array{T, 3}
+) where T <: Real
+    @tensor R[x, y] := K[d] * M[y, d, β, γ] * B[x, γ, α] * RE[α, β] order = (d, β, γ, α)
+    R
+end
+
+
+function update_reduced_env_right(RR::S, M0::S) where S <: AbstractArray{Float64, 2}
+    @tensor RR[x, y] := M0[y, z] * RR[x, z]
+    RR
+end
+
+
+function _project_on_border(
+    K::S, M::T
+    ) where {S <: AbstractArray{Float64, 1}, T <: AbstractArray{Float64, 2}}
+    @tensor K[a] := K[b] * M[b, a]
+    K
+end
+

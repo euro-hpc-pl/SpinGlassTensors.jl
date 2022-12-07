@@ -1,6 +1,8 @@
 export
     attach_central_left,
-    attach_central_right
+    attach_central_right,
+    update_reduced_env_right,
+    _project_on_border
 
 function attach_central_left(L::ArrayOrCuArray{3}, M::SparseCentralTensor)
     e11, e12, e21, e22 = ArrayOrCuArray(L).((M.e11, M.e12, M.e21, M.e22))
@@ -64,4 +66,20 @@ function attach_central_right(R::ArrayOrCuArray{3}, M::SparseCentralTensor)
         @cast R[l1, l2, r2, tb] := e12[l1, r2] * e22[l2, r2] * R[l1, l2, r2, tb]
     end
     permutedims(reshape(sum(R, dims=3), (sl1 * sl2, st, sb)), (2, 1, 3))
+end
+
+function update_reduced_env_right(
+    RR::S, M::T
+    ) where {S <: AbstractArray{Float64, 2}, T <: SparseCentralTensor}
+    RR = reshape(RR, size(RR, 1), size(RR, 2), 1)
+    RR = attach_central_right(RR, M)
+    dropdims(RR, dims=3)
+end
+
+function _project_on_border(
+    K::S, M::T
+    ) where {S <: AbstractArray{Float64, 1}, T <: SparseCentralTensor}
+    K = reshape(K, 1, size(K, 1), 1)
+    K = attach_central_left(K, M)
+    dropdims(K, dims=(1, 3))
 end

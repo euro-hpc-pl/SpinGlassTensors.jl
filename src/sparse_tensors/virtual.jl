@@ -230,9 +230,9 @@ function update_env_right(
         Rslc = R[:, :, rb_from : rb_to]
         Rslc = permutedims(Rslc, (2, 3, 1))  # [rcp, rb, rt]
         @cast Rslc[rcp, (rb, rt)] := Rslc[rcp, rb, rt]
-        Rslc = ps * Rslc #[(rcb, rc, rct), (rb, rt)]
+        Rslc = ps * Rslc  # [(rcb, rc, rct), (rb, rt)]
         @cast Rslc[rcb, rc, rct, rb, rt] := Rslc[(rcb, rc, rct), (rb, rt)] (rcb ∈ 1:srcb, rc ∈ 1:src, rt ∈ 1:srt)
-        Rslc = permutedims(Rslc, (1, 4, 2, 3, 5)) #[rcb, rb, rc, rct, rt]
+        Rslc = permutedims(Rslc, (1, 4, 2, 3, 5))  # [rcb, rb, rc, rct, rt]
         @cast Rslc[(rcb, rb), rc, (rct, rt)] := Rslc[rcb, rb, rc, rct, rt]
 
         lb_from = 1
@@ -324,3 +324,36 @@ function project_ket_on_bra(
         
     Array(LRout ./ maximum(abs.(LRout)))
 end
+
+
+function update_reduced_env_right(
+    K::Array{T, 1},
+    RE::Array{T, 2},
+    M::SparseVirtualTensor,
+    B::Array{T, 3}
+) where T <: Real
+
+    K, B, RE = CuArray.((K, B, RE))
+    h = M.con
+
+    p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
+
+    @cast K2[t1, t2] := K[(t1, t2)] (t1 ∈ 1:maximum(p_lt))
+    @cast B2[l, lb, rb, r] := B[l, (lb, rb), r] (lb ∈ 1:maximum(p_lb))
+    B2 = permutedims(B2, (2, 1, 3, 4))  # [lb, l, rb, r]
+    @cast B2[(lb, l), (rb, r)] := B2[lb, l, rb, r]
+
+    ps = CuSparseMatrixCSC(eltype(RE), p_rt, p_r, p_rb)
+    RE = permutedims(RE, (2, 1))
+    Rtemp = ps * RE
+    @cast Rtemp[rt, rc, (rb, b)] := Rtemp[(rt, rc, rb), b] (rb ∈ 1:maximum(p_rb), rc ∈ 1:maximum(p_r))
+
+    Rtemp = attach_3_matrices_right(Rtemp, K2, h, B2)  # [lt, lc, (lb, l)]
+
+    @cast Rtemp[(lt, lc, lb), l] := Rtemp[lt, lc, (lb, l)] (lb ∈ 1:maximum(p_lb))
+    ips = CuSparseMatrixCSR(eltype(RE), p_lt, p_l, p_lb)
+    Rnew = permutedims(ips * Rtemp, (2, 1))
+
+    Array(Rnew)
+end
+

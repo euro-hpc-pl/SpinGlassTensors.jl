@@ -1,21 +1,14 @@
 
 for (N, T) ∈ ((:QMps, :TensorMap), (:QMpo, :NestedTensorMap))
     @eval begin
+        export $N
         struct $N{T <: Number} <: AbstractTensorNetwork
             tensors::$T
             sites::Vector{Site}
 
-            function $N(tensors)
-                S = eltype(tensors)
-                new{S}(tensors, sort(collect(keys(tensors))))
-            end
+            $N(ten) = new{eltype(tensors)}(ten, sort(collect(keys(ten))))
         end
-        export $N
     end
-end
-
-function Base.eltype(ten::Union{TensorMap, NestedTensorMap})
-    promote_type(eltype.(values(ten))...)
 end
 
 function local_dims(mpo::QMpo, dir::Symbol)
@@ -36,10 +29,9 @@ function local_dims(mpo::QMpo, dir::Symbol)
     lds
 end
 
+# TODO this should be defined by the action of I
 function IdentityQMps(::Type{T}, loc_dims::Dict{Site, Int}, Dmax::Int=1)
-    id = Dict{Site, Array{T, 3}}(
-        site => zeros(T, Dmax, ld, Dmax) for (site, ld) ∈ loc_dims
-    )
+    id = Dict{Site, Array{T, 3}}(site => zeros(T, Dmax, ld, Dmax) for (site, ld) ∈ loc_dims)
     site_min, ld_min = minimum(loc_dims)
     site_max, ld_max = maximum(loc_dims)
 

@@ -15,24 +15,24 @@ struct SparseTensor{T <: AbstracTensorType} <: AbstractSparseTensor
     size::Dims
     data::T
 
-    function SparseTensor(loc_exp::Vector{T}, projs::Proj) where T <: Number
-        new{OnSite}(size, Site(loc_exp, projs))
+    function SparseTensor{P}(loc_exp::Vector{T}, projs::Proj) where {P <: OnSite, T <: Number}
+        new{P}(size, P(loc_exp, projs))
     end
 
-    function SparseTensor(e1::Matrix{T}, e2::Matrix{T}) where T <: Number
-        new{Diag}(size, Diag(e1, e2))
+    function SparseTensor{P}(e1::Matrix{T}, e2::Matrix{T}) where {P <: Diag, T <: Number}
+        new{P}(size, P(e1, e2))
     end
 
-    function SparseTensor(vec_em)
-        new{Central}(size, Central(vec_em))
+    function SparseTensor{Central}(vec_em) where P <: Central
+        new{P}(size, P(vec_em))
     end
 
-    function SparseTensor(con::Matrix{T}, projs::Proj) where T <: Number
-        new{Virtual}(size, Virtual(con, projs))
+    function SparseTensor{P}(con::Matrix{T}, projs::Proj) where {P <: Virtual, T <: Number}
+        new{P}(size, P(con, projs))
     end
 end
 
-Base.eltype(ten::SparseTensor{T}) where {T} = eltype(ten)
+Base.eltype(ten::SparseTensor{T}) where T = eltype(ten)
 
 struct Tensor{T <: Number} <: AbstractTensor
     size::Dims

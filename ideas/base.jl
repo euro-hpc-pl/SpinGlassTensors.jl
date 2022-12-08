@@ -16,39 +16,27 @@ struct OnSite{T <: Number}
     loc_exp::Vector{T}
     projs::Proj
 
-    function OnSite(loc_exp, projs)
-        S = eltype(loc_exp)
-        new{S}(loc_exp, projs)
-    end
+    OnSite(loc_exp, projs) = new{eltype(loc_exp)}(loc_exp, projs)
 end
 
 struct Diag{T <: Number} <: AbstractSparseTensor
     e1::Matrix{T}
     e2::Matrix{T}
 
-    function Diag(e1, e2)
-        S = promote_type(eltype(e1), eltype(e2))
-        new{S}(e1, e2)
-    end
+    Diag(e1, e2) = new{promote_type(eltype(e1), eltype(e2))}(e1, e2)
 end
 
 struct Virtual{T <: Number} <: AbstractSparseTensor
     con::Matrix{T}
     projs::Proj
-
-    function Virtual(con, projs)
-        S = eltype(con)
-        new{S}(con, projs)
-    end
+    s
+    Virtual(con, projs) = new{eltype(con)}(con, projs)
 end
 
 struct Central{T <: Number} <: AbstractSparseTensor
     vec_en::Vector{Matrix{T}}
 
-    function Central(vec_en)
-        S = promote_type(eltype.(vec_en)...)
-        new{S}(vec_en)
-    end
+    Central(vec_en) = new{promote_type(eltype.(vec_en)...)}(vec_en)
 end
 
 function Base.eltype(ten::Union{TensorMap, NestedTensorMap})

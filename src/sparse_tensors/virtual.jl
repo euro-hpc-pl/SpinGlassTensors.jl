@@ -259,7 +259,7 @@ function update_env_right(
     Array(permutedims(Rout, (2, 1, 3)) ./ maximum(abs.(Rout))) #[lb, lcp, lt]
 end
 
-function project_ket_on_bra( 
+function project_ket_on_bra(
     LE::S, B::S, M::SparseVirtualTensor, RE::S, type::Union{Val{:n}, Val{:c}}
 ) where S <: ArrayOrCuArray{3}
     h = M.con
@@ -273,12 +273,12 @@ function project_ket_on_bra(
 
     if type == Val{:n}()
         slcb, slc, slct = maximum(p_lb), maximum(p_l), maximum(p_lt)
-        srcb, src, srct = maximum(p_rb), maximum(p_r), maximum(p_rt)    
+        srcb, src, srct = maximum(p_rb), maximum(p_r), maximum(p_rt)
         ps = CuSparseMatrixCSC(eltype(LE), p_lb, p_l, p_lt)
         prs = CuSparseMatrixCSC(eltype(RE), p_rb, p_r, p_rt)
     else
         slcb, slc, slct = maximum(p_lt), maximum(p_l), maximum(p_lb)
-        srcb, src, srct = maximum(p_rt), maximum(p_r), maximum(p_rb)    
+        srcb, src, srct = maximum(p_rt), maximum(p_r), maximum(p_rb)
         ps = CuSparseMatrixCSC(eltype(LE), p_lt, p_l, p_lb)
         prs = CuSparseMatrixCSC(eltype(RE), p_rt, p_r, p_rb)
     end
@@ -286,7 +286,7 @@ function project_ket_on_bra(
     batch_size = 2
 
     @cast B2[(lb, lcb), (rcb, rb)] := B[lb, (lcb, rcb), rb] (rcb ∈ 1:srcb)
-    
+
     LRout = CUDA.zeros(F, sl3, slct * srct, sr1)
     l_from = 1
     while l_from <= sl3
@@ -305,12 +305,12 @@ function project_ket_on_bra(
         r_from = 1
         while r_from <= sr1
             r_to = min(r_from + batch_size - 1, sr1)
-        
+
             Rslc = R[r_from : r_to, :, :]
             Rslc = permutedims(Rslc, (2, 3, 1))  # [rcp, rb, rt]
             @cast Rslc[rcp, (rb, rt)] := Rslc[rcp, rb, rt]
             Rslc = prs * Rslc #[(rcb, rc, rct), (rb, rt)]
-        
+
             @cast Rslc[rcb, rc, rct, rb, rt] := Rslc[(rcb, rc, rct), (rb, rt)] (rcb ∈ 1:srcb, rc ∈ 1:src, rb ∈ 1:sr3)
             Rslc = permutedims(Rslc, (3, 5, 2, 1, 4)) #[rct, rt, rc, rcb, rb]
             @cast Rslc[(rct, rt), rc, (rcb, rb)] := Rslc[rct, rt, rc, rcb, rb]
@@ -321,7 +321,7 @@ function project_ket_on_bra(
         end
         l_from = l_to + 1
     end
-        
+
     Array(LRout ./ maximum(abs.(LRout)))
 end
 
@@ -356,4 +356,3 @@ function update_reduced_env_right(
 
     Array(Rnew)
 end
-

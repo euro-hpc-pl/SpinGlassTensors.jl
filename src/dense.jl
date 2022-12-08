@@ -98,7 +98,6 @@ end
       |    |
    -- B ---
 """
-
 function update_reduced_env_right(
     RE::AbstractArray{Float64, 2}, m::Int, M::Dict, B::AbstractArray{Float64, 3}
 )
@@ -121,28 +120,17 @@ function update_reduced_env_right(
     update_reduced_env_right(K, RE, M[0], B)
 end
 
-
-function update_reduced_env_right(
-    K::Array{T, 1},
-    RE::Array{T, 2},
-    M::Array{T, 4},
-    B::Array{T, 3}
-) where T <: Real
+function update_reduced_env_right(K::Array{T, 1}, RE::Array{T, 2}, M::Array{T, 4}, B::Array{T, 3}) where T <: Real
     @tensor R[x, y] := K[d] * M[y, d, β, γ] * B[x, γ, α] * RE[α, β] order = (d, β, γ, α)
     R
 end
-
 
 function update_reduced_env_right(RR::S, M0::S) where S <: AbstractArray{Float64, 2}
     @tensor RR[x, y] := M0[y, z] * RR[x, z]
     RR
 end
 
-
-function _project_on_border(
-    K::S, M::T
-    ) where {S <: AbstractArray{Float64, 1}, T <: AbstractArray{Float64, 2}}
+function _project_on_border(K::S, M::T) where {S <: AbstractArray{Float64, 1}, T <: AbstractArray{Float64, 2}}
     @tensor K[a] := K[b] * M[b, a]
     K
 end
-

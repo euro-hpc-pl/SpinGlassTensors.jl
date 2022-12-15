@@ -1,12 +1,14 @@
 export
     variational_compress!,
-    _left_nbrs_site,
-    _right_nbrs_site,
+    left_nbrs_site,
+    right_nbrs_site,
     canonise!,
     canonise_truncate!,
     truncate!,
     variational_sweep!,
     Environment
+
+abstract type AbstractEnvironment end
 
 mutable struct Environment <: AbstractEnvironment
     bra::QMps  # to be optimized
@@ -93,7 +95,7 @@ end
 """
 Largest x in sites: x < site
 """
-function _left_nbrs_site(site::Site, sites)
+function left_nbrs_site(site::Site, sites)
     ls = filter(i -> i < site, sites)
     if isempty(ls) return -Inf end
     maximum(ls)
@@ -102,7 +104,7 @@ end
 """
 Smallest x in sites: x > site
 """
-function _right_nbrs_site(site::Site, sites)
+function right_nbrs_site(site::Site, sites)
     ms = filter(i -> i > site, sites)
     if isempty(ms) return Inf end
     minimum(ms)
@@ -111,13 +113,13 @@ end
 function update_env_left!(env::Environment, site::Site, trans::Symbol=:n)
     if site <= first(env.bra.sites) return end
 
-    ls = _left_nbrs_site(site, env.bra.sites)
+    ls = left_nbrs_site(site, env.bra.sites)
     LL = update_env_left(env.env[(ls, :left)], env.bra[ls], env.mpo[ls], env.ket[ls], trans)
 
-    rs = _right_nbrs_site(ls, env.mpo.sites)
+    rs = right_nbrs_site(ls, env.mpo.sites)
     while rs < site
         LL = update_env_left(LL, env.mpo[rs], trans)
-        rs = _right_nbrs_site(rs, env.mpo.sites)
+        rs = right_nbrs_site(rs, env.mpo.sites)
     end
     push!(env.env, (site, :left) => LL)
 end
@@ -125,20 +127,20 @@ end
 function update_env_right!(env::Environment, site::Site, trans::Symbol=:n)
     if site >= last(env.bra.sites) return end
 
-    rs = _right_nbrs_site(site, env.bra.sites)
+    rs = right_nbrs_site(site, env.bra.sites)
     RR = update_env_right(env.env[(rs, :right)], env.bra[rs], env.mpo[rs], env.ket[rs], trans)
 
-    ls = _left_nbrs_site(rs, env.mpo.sites)
+    ls = left_nbrs_site(rs, env.mpo.sites)
     while ls > site
         RR = update_env_right(RR, env.mpo[ls], trans)
-        ls = _left_nbrs_site(ls, env.mpo.sites)
+        ls = left_nbrs_site(ls, env.mpo.sites)
     end
     push!(env.env, (site, :right) => RR)
 end
 
 function clear_env_containing_site!(env::Environment, site::Site)
-    delete!(env.env, (_left_nbrs_site(site, env.ket.sites), :right))
-    delete!(env.env, (_right_nbrs_site(site, env.ket.sites), :left))
+    delete!(env.env, (left_nbrs_site(site, env.ket.sites), :right))
+    delete!(env.env, (right_nbrs_site(site, env.ket.sites), :left))
 end
 
 """

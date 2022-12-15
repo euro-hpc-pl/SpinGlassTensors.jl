@@ -6,27 +6,37 @@ export
     QMpo,
     local_dims,
     IdentityQMps,
-    random_QMps,
-    random_QMpo,
+    #random_QMps,
+    #random_QMpo,
     bond_dimension,
     bond_dimensions,
     verify_bonds,
     is_left_normalized,
     is_right_normalized
 
+abstract type AbstractTensorNetwork end
+abstract type AbstractMPS end
+abstract type AbstractMPO end
 
-@inline Base.getindex(a::AbstractTensorNetwork, i) = getindex(a.tensors, i)
+const TensorMap{T} = Dict{Site, Tensor{T}}
+const NestedTensorMap{T} = Dict{Site, TensorMap{T}}
 
-struct QMps <: AbstractTensorNetwork
-    tensors::Dict{Site, Tensor}
+struct QMps{T <: Real} <: AbstractTensorNetwork
+    tensors::TensorMap{T}
     sites::Vector{Site}
-    QMps(ten) = new(ten, sort(collect(keys(ten))))
+
+    function QMps(ten::TensorMap{T}) where T
+        new{T}(ten, sort(collect(keys(ten))))
+    end
 end
 
-struct QMpo <: AbstractTensorNetwork
-    tensors::Dict{Site, Dict{Site, Tensor}}
+struct QMpo{T <: Real} <: AbstractTensorNetwork
+    tensors::NestedTensorMap{T}
     sites::Vector{Site}
-    QMpo(ten) = new(ten, sort(collect(keys(ten))))
+
+    function QMpo(ten::NestedTensorMap{T}) where T
+        new{T}(ten, sort(collect(keys(ten))))
+    end
 end
 
 function local_dims(mpo::QMpo, dir::Symbol)
@@ -48,7 +58,9 @@ function local_dims(mpo::QMpo, dir::Symbol)
 end
 
 function IdentityQMps(::Type{T}, loc_dims::Dict, Dmax::Int=1) where T <: Number
-    id = Dict{Site, Tensor}(site => zeros(T, Dmax, ld, Dmax) for (site, ld) ∈ loc_dims)
+    id = Dict{Site, Tensor{T}}(
+        site => zeros(T, Dmax, ld, Dmax) for (site, ld) ∈ loc_dims
+    )
     site_min, ld_min = minimum(loc_dims)
     site_max, ld_max = maximum(loc_dims)
     if site_min == site_max
@@ -57,11 +69,14 @@ function IdentityQMps(::Type{T}, loc_dims::Dict, Dmax::Int=1) where T <: Number
         id[site_min] = zeros(T, 1, ld_min, Dmax)
         id[site_max] = zeros(T, Dmax, ld_max, 1)
     end
-    for (site, ld) ∈ loc_dims id[site][1, :, 1] .= one(T) / sqrt(ld) end
+    for (site, ld) ∈ loc_dims
+        id[site][1, :, 1] .= one(T) / sqrt(ld)
+    end
     QMps(id)
 end
 IdentityQMps(loc_dims::Dict, Dmax::Int=1) = IdentityQMps(Float64, loc_dims, Dmax)
 
+@inline Base.getindex(a::AbstractTensorNetwork, i) = getindex(a.tensors, i)
 @inline Base.size(a::AbstractTensorNetwork) = (length(a.tensors), )
 @inline Base.length(a::AbstractTensorNetwork) = length(a.tensors)
 @inline LinearAlgebra.rank(ψ::QMps) = Tuple(size(A, 2) for A ∈ values(ψ.tensors))
@@ -70,14 +85,18 @@ IdentityQMps(loc_dims::Dict, Dmax::Int=1) = IdentityQMps(Float64, loc_dims, Dmax
 @inline Base.copy(ψ::QMps) = QMps(copy(ψ.tensors))
 @inline Base.:(≈)(a::QMps, b::QMps) = isapprox(a.tensors, b.tensors)
 @inline Base.:(≈)(a::QMpo, b::QMpo) = all([isapprox(a.tensors[i], b.tensors[i]) for i ∈ keys(a.tensors)])
+@inline Base.setindex!(ket::AbstractTensorNetwork, A::AbstractArray, i::Site) = ket.tensors[i] = A
 
 function Base.isapprox(l::Dict, r::Dict)
-    if l === r return true end
-    if length(l) != length(r) return false end
-    for pair ∈ l if !in(pair, r, isapprox) return false end end
+    l === r && return true
+    length(l) != length(r) && return false
+    for pair ∈ l
+        !in(pair, r, isapprox) && return false
+    end
     true
 end
 
+#=
 function verify_bonds(ψ::QMps)
     L = length(ψ.sites)
     @assert size(ψ.tensors[1], 1) == 1 "Incorrect size on the left boundary."
@@ -86,13 +105,9 @@ function verify_bonds(ψ::QMps)
         @assert size(ψ.tensors[i], 3) == size(ψ.tensors[i+1], 1) "Incorrect link between $i and $(i+1)."
     end
 end
+=#
 
-@inline function Base.setindex!(
-    ket::AbstractTensorNetwork, A::AbstractArray, i::Site
-)
-    ket.tensors[i] = A
-end
-
+#=
 function random_QMps(sites::Vector, D::Int, d::Int)
     qmps = Dict{Site, Tensor}()
     for i ∈ sites
@@ -134,8 +149,48 @@ end
 
 random_QMpo(sites::Vector, D::Int, d::Int, sites_aux::Vector=[], d_aux::Int=0) =
 random_QMpo(Float64, sites, D, d, sites_aux, d_aux)
+=#
 
+function Base.rand(::Type{QMps{T}}, sites::Vector, D::Int, d::Int) where T <: Real
+    QMps = Dict{Site, Array{T, 3}}()
+    for i ∈ sites
+        if i == 1
+            push!(QMps, i => randn(T, 1, d, D))
+        elseif i == last(sites)
+            push!(QMps, i => randn(T, D, d, 1))
+        else
+            push!(QMps, i => randn(T, D, d, D))
+        end
+    end
+    QMps(QMps)
+end
 
+function Base.rand(
+    ::Type{QMpo{T}}, sites::Vector, D::Int, d::Int, sites_aux::Vector=[], d_aux::Int=0
+) where T <: Number
+    QMpo = Dict{Site, Dict{Site, Array{T, 4}}}()
+    QMpo_aux = Dict{Site, Array{T, 4}}()
+
+    for i ∈ sites
+        if i == 1
+            push!(QMpo_aux, i => randn(T, 1, d, d, D))
+            push!(QMpo_aux, (j => randn(T, d_aux, d_aux) for j ∈ sites_aux)...)
+            push!(QMpo, i => copy(QMpo_aux))
+        elseif i == last(sites)
+            push!(QMpo_aux, (j => randn(T, d_aux, d_aux) for j ∈ sites_aux)...)
+            push!(QMpo_aux, last(sites) => randn(T, D, d, d, 1))
+            push!(QMpo, i => copy(QMpo_aux))
+        else
+            push!(QMpo_aux, (j => randn(T, d_aux, d_aux) for j ∈ sites_aux)...)
+            push!(QMpo_aux, i => randn(T, D, d, d, D))
+            push!(QMpo, i => copy(QMpo_aux))
+        end
+        empty!(QMpo_aux)
+    end
+    QMpo(QMpo)
+end
+
+#=
 function is_left_normalized(ψ::QMps)
     all(
        I(size(A, 3)) ≈ @tensor Id[x, y] := conj(A)[α, σ, x] * A[α, σ, y] order = (α, σ)
@@ -149,3 +204,4 @@ function is_right_normalized(ϕ::QMps)
         for B in values(ϕ.tensors)
     )
 end
+=#

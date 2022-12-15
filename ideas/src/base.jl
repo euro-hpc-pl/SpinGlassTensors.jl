@@ -1,4 +1,4 @@
-for T ∈ (:Site, :Diag, :Central, :Virtual)
+for T ∈ (:Site, :Diagonal, :Central, :Virtual)
     @eval begin
         ST = Symbol(:Sparse, $T, :Tensor)
         export $ST

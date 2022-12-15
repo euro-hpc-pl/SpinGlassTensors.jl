@@ -17,11 +17,6 @@ export
 
 @inline Base.getindex(a::AbstractTensorNetwork, i) = getindex(a.tensors, i)
 
-const Tensor = Union{
-    AbstractArray{<:Real},
-    SparseSiteTensor, SparseVirtualTensor, SparseCentralTensor, SparseDiagonalTensor
-}
-
 struct QMps <: AbstractTensorNetwork
     tensors::Dict{Site, Tensor}
     sites::Vector{Site}

@@ -1,6 +1,7 @@
-function CUDA.CUSPARSE.CuSparseMatrixCSC(
-    ::Type{T}, p_lb::R, p_l::R, p_lt::R
-) where {T <: Real, R <: Vector{Int}}
+#function CUDA.CUSPARSE.CuSparseMatrixCSC(
+#    ::Type{T}, p_lb::R, p_l::R, p_lt::R
+#) where {T <: Real, R <: Vector{Int}}
+function CUDA.CUSPARSE.CuSparseMatrixCSC(::Type{T}, p_lb, p_l, p_lt) where T <: Real
     @assert length(p_lb) == length(p_l) == length(p_lt)
 
     p_l, p_lb, p_lt = CuArray.((p_l, p_lb, p_lt))
@@ -16,9 +17,10 @@ function CUDA.CUSPARSE.CuSparseMatrixCSC(
     )
 end
 
-function CUDA.CUSPARSE.CuSparseMatrixCSR(
-    ::Type{T}, p_lb::R, p_l::R, p_lt::R
-) where {T <: Real, R <: Vector{Int}}
+#function CUDA.CUSPARSE.CuSparseMatrixCSR(
+#    ::Type{T}, p_lb::R, p_l::R, p_lt::R
+#) where {T <: Real, R <: Vector{Int}}
+function CUDA.CUSPARSE.CuSparseMatrixCSR(::Type{T}, p_lb, p_l, p_lt) where T <: Real
     transpose(CuSparseMatrixCSC(T, p_lb, p_l, p_lt))
 end
 

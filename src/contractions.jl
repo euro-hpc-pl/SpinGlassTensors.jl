@@ -131,7 +131,7 @@ end
 #TODO: get rid of dense_central_tensor
 function contract_up(A::Array{<:Real, 3}, B::SparseVirtualTensor)
     h = B.con
-    if typeof(h) == SparseCentralTensor
+    if typeof(h) <: SparseCentralTensor
         h = dense_central_tensor(h)
     end
 
@@ -152,9 +152,9 @@ end
 
 function contract_down(A::SparseVirtualTensor, B::Array{<:Real, 3})
     h = A.con
-    if typeof(h) == SparseCentralTensor
+    if typeof(h) <: SparseCentralTensor
         h = dense_central_tensor(h)
-    end
+    end 
     sal, _, sar = size(B)
 
     p_lb, p_l, p_lt, p_rb, p_r, p_rt = A.projs

@@ -4,7 +4,7 @@ export
     update_reduced_env_right,
     _project_on_border
 
-function attach_central_left(L::ArrayOrCuArray{3}, M::SparseCentralTensor)
+function attach_central_left(L::ArrayOrCuArray{3}, M::CentralTensor)
     e11, e12, e21, e22 = ArrayOrCuArray(L).((M.e11, M.e12, M.e21, M.e22))
 
     sb, _, st = size(L)
@@ -36,7 +36,7 @@ function attach_central_left(L::ArrayOrCuArray{3}, M::SparseCentralTensor)
     permutedims(reshape(sum(L, dims=2), (sb, st, sr1 * sr2)), (1, 3, 2))
 end
 
-function attach_central_right(R::ArrayOrCuArray{3}, M::SparseCentralTensor)
+function attach_central_right(R::ArrayOrCuArray{3}, M::CentralTensor)
     e11, e12, e21, e22 = ArrayOrCuArray(R).((M.e11, M.e12, M.e21, M.e22))
 
     st, _, sb = size(R)
@@ -68,13 +68,13 @@ function attach_central_right(R::ArrayOrCuArray{3}, M::SparseCentralTensor)
     permutedims(reshape(sum(R, dims=3), (sl1 * sl2, st, sb)), (2, 1, 3))
 end
 
-function update_reduced_env_right(RR::Array{<:Real, 2}, M::SparseCentralTensor)
+function update_reduced_env_right(RR::Array{<:Real, 2}, M::CentralTensor)
     RR = reshape(RR, size(RR, 1), size(RR, 2), 1)
     RR = attach_central_right(RR, M)
     dropdims(RR, dims=3)
 end
 
-function _project_on_border(K::Array{<:Real, 1}, M::SparseCentralTensor)
+function _project_on_border(K::Array{<:Real, 1}, M::CentralTensor)
     K = reshape(K, 1, size(K, 1), 1)
     K = attach_central_left(K, M)
     dropdims(K, dims=(1, 3))

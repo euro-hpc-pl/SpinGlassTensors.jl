@@ -4,10 +4,10 @@ export
     Sites,
     State,
     Tensor,
-    SparseSiteTensor,
-    SparseVirtualTensor,
-    SparseDiagonalTensor,
-    SparseCentralTensor,
+    SiteTensor,
+    VirtualTensor,
+    DiagonalTensor,
+    CentralTensor,
     dense_central_tensor,
     cuda_dense_central_tensor
 
@@ -21,81 +21,122 @@ const Site = Union{Int, Rational{Int}}
 const Sites = NTuple{N, Site} where N
 const State = Union{Vector, NTuple}
 
-const MatOrCentral{T} = Union{Matrix{T}, SparseCentralTensor{T}}
-
 #TODO: remove AbstractArray from this
 const Proj{N} = NTuple{N, AbstractArray{Int}}
 const ArrayOrCuArray{N} = Union{AbstractArray{<:Real, N}, CuArray{<:Real, N}}
 
 ArrayOrCuArray(L) = typeof(L) <: CuArray ? CuArray : Array
 
-struct SparseSiteTensor{T <: Real} <: AbstractSparseTensor
+struct SiteTensor{T <: Real} <: AbstractSparseTensor
     loc_exp::Vector{T}
     projs::Proj{N} where N
+    size::Dims
 
-    function SparseSiteTensor(loc_exp, projs)
+    function SiteTensor(loc_exp, projs)
         T = eltype(loc_exp)
-        new{T}(loc_exp, projs)
+        new{T}(loc_exp, projs, maximum.(projs))
     end
 end
 
-struct SparseCentralTensor{T <: Real} <: AbstractSparseTensor
+struct CentralTensor{T <: Real} <: AbstractSparseTensor
     e11::Matrix{T}
     e12::Matrix{T}
     e21::Matrix{T}
     e22::Matrix{T}
-    sizes::Dims{2}
+    size::Dims{2}
 
-    function SparseCentralTensor(e11, e12, e21, e22, size)
+    function CentralTensor(e11, e12, e21, e22, size)
         T = promote_type(eltype.((e11, e12, e21, e22))...)
         new{T}(e11, e12, e21, e22, size)
     end
 end
 
-Base.eltype(ten::SparseCentralTensor{T}) where T = T
-Base.size(M::SparseCentralTensor, n::Int) = M.sizes[n]
-Base.size(M::SparseCentralTensor) = M.sizes
+const MatOrCentral{T} = Union{Matrix{T}, CentralTensor{T}}
 
-# Base.Array(ten::SparseCentralTensor)
-function dense_central_tensor(ten::SparseCentralTensor)
+#Base.eltype(ten::CentralTensor{T}) where T = T
+#Base.size(M::CentralTensor, n::Int) = M.size[n]
+#Base.size(M::CentralTensor) = M.size
+
+# Base.Array(ten::CentralTensor)
+function dense_central_tensor(ten::CentralTensor)
     @cast V[(u1, u2), (d1, d2)] := ten.e11[u1, d1] * ten.e21[u2, d1] * ten.e12[u1, d2] * ten.e22[u2, d2]
     V ./ maximum(V)
 end
 
-# CUDA.CuArray(ten::SparseCentralTensor)
-function cuda_dense_central_tensor(ten::SparseCentralTensor)
+# CUDA.CuArray(ten::CentralTensor)
+function cuda_dense_central_tensor(ten::CentralTensor)
     e11, e12 ,e21, e22 = CuArray.((ten.e11, ten.e12, ten.e21, ten.e22))
     @cast V[(u1, u2), (d1, d2)] := e11[u1, d1] * e21[u2, d1] * e12[u1, d2] * e22[u2, d2]
     V ./ maximum(V)
 end
 
-struct SparseDiagonalTensor{T <: Real} <: AbstractSparseTensor
-    e1#::Matrix{T}
-    e2#::Matrix{T}
-    sizes::Dims{2}
+struct DiagonalTensor{T <: Real} <: AbstractSparseTensor
+    e1::MatOrCentral{T}
+    e2::MatOrCentral{T}
+    size::Dims{2}
 
-    function SparseDiagonalTensor(e1, e2, sizes)
+    function DiagonalTensor(e1, e2, size)
         T = promote_type(eltype.((e1, e2))...)
-        new{T}(e1, e2, sizes)
+        new{T}(e1, e2, size)
     end
 end
 
-Base.size(M::SparseDiagonalTensor, n::Int) = M.sizes[n]
-Base.size(M::SparseDiagonalTensor) = M.sizes
+#Base.size(M::DiagonalTensor, n::Int) = M.size[n]
+#Base.size(M::DiagonalTensor) = M.size
 
-struct SparseVirtualTensor{T <: Real} <: AbstractSparseTensor
-    con#::MatOrCentral{T}
-    projs::NTuple#::Proj{N} where N
+struct VirtualTensor{T <: Real} <: AbstractSparseTensor
+    con::MatOrCentral{T}
+    projs::Proj{N} where N
+    size::Dims
 
-    SparseVirtualTensor(con, projs) = new{eltype(con)}(con, projs)
+    function VirtualTensor(con, projs)
+        T = eltype(con)
+        new{T}(con, projs, maximum.(projs))
+    end
 end
 
-Base.size(tens::AbstractSparseTensor) = maximum.(tens.projs)
+#Base.size(tens::AbstractSparseTensor) = maximum.(tens.projs)
 
-const Tensor{T} = Union{
-    AbstractArray{T},
-    SparseSiteTensor{T},
-    SparseVirtualTensor{T},
-    SparseCentralTensor{T},
-    SparseDiagonalTensor{T}
-}
+#=
+function Base.zeros(A::SiteTensor{T}, B::Array{T, 3}) where T <: Real
+    sal, _, sar = size(B)
+    sbl, _, sbt, sbr = maximum.(A.projs[1:4])
+    zeros(T, sal, sbl, sbr, sar, sbt)
+end
+
+function Base.zeros(A::Array{T, 3}, B::SiteTensor{T}) where T <: Real
+    sal, _, sar = size(A)
+    sbl, sbt, sbr = maximum.(B.projs[1:3])
+    zeros(T, sal, sbl, sbt, sar, sbr)
+end
+
+function Base.zero(A::VirtualTensor{T}, B::Array{T, 3}) where T <: Real
+    sal, _, sar = size(B)
+    p_lb, p_l, _, p_rb, p_r, _ = A.projs
+    zeros(T, sal, length(p_l), maximum(p_lb), maximum(p_rb), sar, length(p_r))
+end
+
+function zeros(A::Array{T, 3}, B::VirtualTensor{T}) where T <: Real
+    sal, _, sar = size(A)
+    _, p_l, p_lt, _, p_r, p_rt = B.projs
+    zeros(sal, length(p_l), maximum(p_lt), maximum(p_rt), sar, length(p_r))
+end
+=#
+
+const SparseTensor{T} = Union{SiteTensor{T}, VirtualTensor{T}, CentralTensor{T}, DiagonalTensor{T}}
+const Tensor{T} = Union{AbstractArray{T}, SparseTensor{T}}
+
+Base.eltype(ten::SparseTensor{T}) where T = T
+Base.size(ten::SparseTensor, n::Int) = ten.size[n]
+Base.size(ten::SparseTensor) = ten.size
+
+#=
+for S ∈ (:Site, :Virtual, :Central, :Diagonal)
+    @eval begin
+        T = Symbol($S, :Tensor)
+        Base.eltype(ten::$T{R}) where R = R
+        Base.size(ten::$T, n::Int) = ten.size[n]
+        Base.size(ten::$T) = ten.size
+    end
+end
+=#

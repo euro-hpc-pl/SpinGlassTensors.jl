@@ -1,4 +1,4 @@
-function attach_central_left(B::Array{<:Real, 3}, C::SparseDiagonalTensor)
+function attach_central_left(B::Array{<:Real, 3}, C::DiagonalTensor)
     @cast BB[l, s1, (s2, r)] := B[l, (s1, s2), r] (s2 ∈ 1:size(C.e2, 1))
     BB = attach_central_left(BB, C.e1)
     @cast BB[(l, q1), s2, r] := BB[l, q1, (s2, r)] (s2 ∈ 1:size(C.e2, 1))
@@ -9,7 +9,7 @@ function attach_central_left(B::Array{<:Real, 3}, C::SparseDiagonalTensor)
     BB
 end
 
-function attach_central_right(B::Array{<:Real, 3}, C::SparseDiagonalTensor)
+function attach_central_right(B::Array{<:Real, 3}, C::DiagonalTensor)
     @cast BB[l, s2, (s1, r)] := B[l, (s2, s1), r] (s1 ∈ 1:size(C.e1, 2))
     BB = attach_central_right(BB, C.e2)
     @cast BB[(l, q2), s1, r] := BB[l, q2, (s1, r)] (s1 ∈ 1:size(C.e1, 2))
@@ -20,7 +20,7 @@ function attach_central_right(B::Array{<:Real, 3}, C::SparseDiagonalTensor)
     BB
 end
 
-function _project_on_border(K::Array{<:Real, 1}, M::SparseDiagonalTensor)
+function _project_on_border(K::Array{<:Real, 1}, M::DiagonalTensor)
     sa, sb = size(M.e1, 1), size(M.e2, 1)
     qa, qb = size(M.e1, 2), size(M.e2, 2)
     K = reshape(K, 1, sa, sb)

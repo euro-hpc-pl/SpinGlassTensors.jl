@@ -37,7 +37,7 @@ end
 
 function update_env_left(
     LE::S, A::S, M::T, B::S, type::Union{Val{:n}, Val{:c}}
-) where {S <: ArrayOrCuArray{3}, T <: SparseSiteTensor}
+) where {S <: ArrayOrCuArray{3}, T <: SiteTensor}
     B = permutedims(B, (3, 1, 2))
     LE = permutedims(LE, (1, 3, 2))
     A = permutedims(A, (1, 3, 2))
@@ -46,7 +46,7 @@ function update_env_left(
 end
 
 function update_env_right(
-    RE::S, A::S, M::SparseSiteTensor, B::S, type::Union{Val{:n}, Val{:c}}
+    RE::S, A::S, M::SiteTensor, B::S, type::Union{Val{:n}, Val{:c}}
 ) where S <: ArrayOrCuArray{3}
     A = permutedims(A, (1, 3, 2))
     RE = permutedims(RE, (1, 3, 2))
@@ -56,7 +56,7 @@ function update_env_right(
 end
 
 function project_ket_on_bra(
-    LE::S, B::S, M::SparseSiteTensor, RE::S, type::Union{Val{:n}, Val{:c}}
+    LE::S, B::S, M::SiteTensor, RE::S, type::Union{Val{:n}, Val{:c}}
 ) where S <: ArrayOrCuArray{3}
     LE = permutedims(LE, (3, 1, 2))
     B = permutedims(B, (1, 3, 2))
@@ -66,7 +66,7 @@ function project_ket_on_bra(
 end
 
 function update_reduced_env_right(
-    K::Array{T, 1}, RE::Array{T, 2}, M::SparseSiteTensor, B::Array{T, 3}
+    K::Array{T, 1}, RE::Array{T, 2}, M::SiteTensor, B::Array{T, 3}
 ) where T <: Real
     B, RE, loc_exp, K = CUDA.CuArray.((B, RE, M.loc_exp, K))
 

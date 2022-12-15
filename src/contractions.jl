@@ -64,7 +64,7 @@ function contract_left(A::Array{T, 3}, B::AbstractMatrix{T}) where T <: Real
     C
 end
 
-function contract_left(A::Array{<:Real, 3}, M::SparseCentralTensor)
+function contract_left(A::Array{<:Real, 3}, M::CentralTensor)
     B = dense_central_tensor(M)
     @matmul C[(x, y), u, r] := sum(σ) B[y, σ] * A[(x, σ), u, r] (σ ∈ 1:size(B, 2))
     C
@@ -91,15 +91,15 @@ function contract_down(A::Array{T, 4}, B::Array{T, 3}) where T <: Real
     C
 end
 
-function contract_down(M::SparseCentralTensor, A::Array{<:Real, 3})
+function contract_down(M::CentralTensor, A::Array{<:Real, 3})
     attach_central_left(A, M)
 end
 
-function contract_down(M::SparseDiagonalTensor, A::Array{<:Real, 3})
+function contract_down(M::DiagonalTensor, A::Array{<:Real, 3})
     attach_central_left(A, M)
 end
 
-function contract_up(A::Array{<:Real, 3}, B::SparseSiteTensor)
+function contract_up(A::Array{<:Real, 3}, B::SiteTensor)
     sal, _, sar = size(A)
     sbl, sbt, sbr = maximum.(B.projs[1:3])
     C = zeros(sal, sbl, sbt, sar, sbr)
@@ -112,10 +112,10 @@ function contract_up(A::Array{<:Real, 3}, B::SparseSiteTensor)
     CC
 end
 
-contract_up(A::Array{<:Real, 3}, M::SparseCentralTensor) = attach_central_right(A, M)
-contract_up(A::Array{<:Real, 3}, M::SparseDiagonalTensor) = attach_central_right(A, M)
+contract_up(A::Array{<:Real, 3}, M::CentralTensor) = attach_central_right(A, M)
+contract_up(A::Array{<:Real, 3}, M::DiagonalTensor) = attach_central_right(A, M)
 
-function contract_down(A::SparseSiteTensor, B::Array{<:Real, 3})
+function contract_down(A::SiteTensor, B::Array{<:Real, 3})
     sal, _, sar = size(B)
     sbl, _, sbt, sbr = maximum.(A.projs[1:4])
     C = zeros(sal, sbl, sbr, sar, sbt)
@@ -129,9 +129,9 @@ function contract_down(A::SparseSiteTensor, B::Array{<:Real, 3})
 end
 
 #TODO: get rid of dense_central_tensor
-function contract_up(A::Array{<:Real, 3}, B::SparseVirtualTensor)
+function contract_up(A::Array{<:Real, 3}, B::VirtualTensor)
     h = B.con
-    if typeof(h) <: SparseCentralTensor
+    if typeof(h) <: CentralTensor
         h = dense_central_tensor(h)
     end
 
@@ -150,11 +150,11 @@ function contract_up(A::Array{<:Real, 3}, B::SparseVirtualTensor)
     CC
 end
 
-function contract_down(A::SparseVirtualTensor, B::Array{<:Real, 3})
+function contract_down(A::VirtualTensor, B::Array{<:Real, 3})
     h = A.con
-    if typeof(h) <: SparseCentralTensor
+    if typeof(h) <: CentralTensor
         h = dense_central_tensor(h)
-    end 
+    end
     sal, _, sar = size(B)
 
     p_lb, p_l, p_lt, p_rb, p_r, p_rt = A.projs

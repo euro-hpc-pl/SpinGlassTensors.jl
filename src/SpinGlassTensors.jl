@@ -6,6 +6,7 @@ module SpinGlassTensors
     using Memoize
 
     include("base.jl")
+    include("mps.jl")
     include("linear_algebra_ext.jl")
     include("compressions.jl")
     include("contractions.jl")

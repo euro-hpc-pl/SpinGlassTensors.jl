@@ -16,7 +16,7 @@ const State = Union{Vector, NTuple}
 
 #TODO: remove AbstractArray from this
 const Proj{N} = NTuple{N, AbstractArray{Int}}
-const ArrayOrCuArray{N} = Union{AbstractArray{<:Real, N}, CuArray{<:Real, N}}
+const ArrayOrCuArray{N} = Union{AbstractArray{<:Real, N}, CuArray{<:Real, N}} # add T here
 
 ArrayOrCuArray(L) = typeof(L) <: CuArray ? CuArray : Array
 
@@ -79,7 +79,6 @@ struct VirtualTensor{T <: Real} <: AbstractSparseTensor
     end
 end
 
-#=
 function Base.zeros(A::SiteTensor{T}, B::Array{T, 3}) where T <: Real
     sal, _, sar = size(B)
     sbl, _, sbt, sbr = maximum.(A.projs[1:4])
@@ -103,7 +102,6 @@ function Base.zeros(A::Array{T, 3}, B::VirtualTensor{T}) where T <: Real
     _, p_l, p_lt, _, p_r, p_rt = B.projs
     zeros(sal, length(p_l), maximum(p_lt), maximum(p_rt), sar, length(p_r))
 end
-=#
 
 const SparseTensor{T} = Union{SiteTensor{T}, VirtualTensor{T}, CentralTensor{T}, DiagonalTensor{T}}
 const Tensor{T} = Union{AbstractArray{T}, SparseTensor{T}}

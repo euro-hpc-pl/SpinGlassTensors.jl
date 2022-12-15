@@ -6,8 +6,6 @@ export
     QMpo,
     local_dims,
     IdentityQMps,
-    #random_QMps,
-    #random_QMpo,
     bond_dimension,
     bond_dimensions,
     verify_bonds,
@@ -74,19 +72,19 @@ function IdentityQMps(::Type{T}, loc_dims::Dict, Dmax::Int=1) where T <: Number
     end
     QMps(id)
 end
-IdentityQMps(loc_dims::Dict, Dmax::Int=1) = IdentityQMps(Float64, loc_dims, Dmax)
 
 @inline Base.getindex(a::AbstractTensorNetwork, i) = getindex(a.tensors, i)
 @inline Base.size(a::AbstractTensorNetwork) = (length(a.tensors), )
 @inline Base.length(a::AbstractTensorNetwork) = length(a.tensors)
 @inline LinearAlgebra.rank(ψ::QMps) = Tuple(size(A, 2) for A ∈ values(ψ.tensors))
 @inline bond_dimension(ψ::QMps) = maximum(size.(values(ψ.tensors), 3))
-@inline bond_dimensions(ψ::QMps) = [size(ψ.tensors[n]) for n in ψ.sites]
+@inline bond_dimensions(ψ::QMps) = [size(ψ.tensors[n]) for n ∈ ψ.sites]
 @inline Base.copy(ψ::QMps) = QMps(copy(ψ.tensors))
 @inline Base.:(≈)(a::QMps, b::QMps) = isapprox(a.tensors, b.tensors)
 @inline Base.:(≈)(a::QMpo, b::QMpo) = all([isapprox(a.tensors[i], b.tensors[i]) for i ∈ keys(a.tensors)])
 @inline Base.setindex!(ket::AbstractTensorNetwork, A::AbstractArray, i::Site) = ket.tensors[i] = A
 
+#=
 function Base.isapprox(l::Dict, r::Dict)
     l === r && return true
     length(l) != length(r) && return false
@@ -95,60 +93,6 @@ function Base.isapprox(l::Dict, r::Dict)
     end
     true
 end
-
-#=
-function verify_bonds(ψ::QMps)
-    L = length(ψ.sites)
-    @assert size(ψ.tensors[1], 1) == 1 "Incorrect size on the left boundary."
-    @assert size(ψ.tensors[L], 3) == 1 "Incorrect size on the right boundary."
-    for i ∈ 1:L-1
-        @assert size(ψ.tensors[i], 3) == size(ψ.tensors[i+1], 1) "Incorrect link between $i and $(i+1)."
-    end
-end
-=#
-
-#=
-function random_QMps(sites::Vector, D::Int, d::Int)
-    qmps = Dict{Site, Tensor}()
-    for i ∈ sites
-        if i == 1
-            push!(qmps, i => randn(1, d, D))
-        elseif i == last(sites)
-            push!(qmps, i => randn(D, d, 1))
-        else
-            push!(qmps, i => randn(D, d, D))
-        end
-    end
-    QMps(qmps)
-end
-
-function random_QMpo(
-    ::Type{T}, sites::Vector, D::Int, d::Int, sites_aux::Vector=[], d_aux::Int=0
-) where T <: Number
-    qmpo = Dict{Site, Dict{Site, Tensor}}()
-    qmpo_aux = Dict{Site, Tensor}()
-
-    for i ∈ sites
-        if i == 1
-            push!(qmpo_aux, i => randn(T, 1, d, d, D))
-            push!(qmpo_aux, (j => randn(T, d_aux, d_aux) for j ∈ sites_aux)...)
-            push!(qmpo, i => copy(qmpo_aux))
-        elseif i == last(sites)
-            push!(qmpo_aux, (j => randn(T, d_aux, d_aux) for j ∈ sites_aux)...)
-            push!(qmpo_aux, last(sites) => randn(T, D, d, d, 1))
-            push!(qmpo, i => copy(qmpo_aux))
-        else
-            push!(qmpo_aux, (j => randn(T, d_aux, d_aux) for j ∈ sites_aux)...)
-            push!(qmpo_aux, i => randn(T, D, d, d, D))
-            push!(qmpo, i => copy(qmpo_aux))
-        end
-        empty!(qmpo_aux)
-    end
-    QMpo(qmpo)
-end
-
-random_QMpo(sites::Vector, D::Int, d::Int, sites_aux::Vector=[], d_aux::Int=0) =
-random_QMpo(Float64, sites, D, d, sites_aux, d_aux)
 =#
 
 function Base.rand(::Type{QMps{T}}, sites::Vector, D::Int, d::Int) where T <: Real
@@ -191,6 +135,15 @@ function Base.rand(
 end
 
 #=
+function verify_bonds(ψ::QMps)
+    L = length(ψ.sites)
+    @assert size(ψ.tensors[1], 1) == 1 "Incorrect size on the left boundary."
+    @assert size(ψ.tensors[L], 3) == 1 "Incorrect size on the right boundary."
+    for i ∈ 1:L-1
+        @assert size(ψ.tensors[i], 3) == size(ψ.tensors[i+1], 1) "Incorrect link between $i and $(i+1)."
+    end
+end
+
 function is_left_normalized(ψ::QMps)
     all(
        I(size(A, 3)) ≈ @tensor Id[x, y] := conj(A)[α, σ, x] * A[α, σ, y] order = (α, σ)

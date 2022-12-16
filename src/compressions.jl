@@ -32,13 +32,7 @@ mutable struct Environment{T <: Real} <: AbstractEnvironment
 end
 
 function variational_compress!(
-    bra::QMps{T},
-    mpo::QMpo{T},
-    ket::QMps{T},
-    tol::Real=1E-10,
-    max_sweeps::Int=4,
-    trans::Symbol=:n,
-    args...
+    bra::QMps{T}, mpo::QMpo{T}, ket::QMps{T}, tol::Real=1E-10, max_sweeps::Int=4, trans::Symbol=:n, args...
 ) where T <: Real
     env = Environment(bra, mpo, ket, trans)
     overlap = Inf
@@ -146,7 +140,7 @@ end
 """
 function update_env_left(
     LE::S, A₀::S, M::T, B₀::S, trans::Symbol=:n
-) where {S <: CuArrayOrArray{R, 3}, T <: AbstractDict} where R <: Real
+) where {S <: CuArrayOrArray{R, 3}, T <: TensorMap{R}} where R <: Real
     sites = sort(collect(keys(M)))
     A = _update_tensor_forward(A₀, M, sites, Val(trans))
     B = _update_tensor_backwards(B₀, M, sites, Val(trans))
@@ -155,16 +149,16 @@ end
 
 function update_env_left(
     LE::S, M::T, trans::Symbol=:n
-) where {S <: CuArrayOrArray{R, 3}, T <: AbstractDict} where R <: Real
+) where {S <: CuArrayOrArray{R, 3}, T <: TensorMap{R}} where R <: Real
     attach_central_left(LE, M[0])
 end
 
 projector_to_dense(::Type{T}, pr::Array{Int, 1}) where T = diagm(ones(T, maximum(pr)))[:, pr]
-projector_to_dense(pr::Array{Int, 1}) = projector_to_dense(Float64, pr)
+projector_to_dense(pr::Array{Int, 1}) = projector_to_dense(Float64, pr) # TODO to be removed
 
 function _update_tensor_forward(
     A::S, M::T, sites, ::Val{:n}
-) where {S <: CuArrayOrArray{R, 3}, T <: AbstractDict} where R <: Real
+) where {S <: CuArrayOrArray{R, 3}, T <: TensorMap{R}} where R <: Real
     B = copy(A)
     for i ∈ sites
         i == 0 && break
@@ -175,7 +169,7 @@ end
 
 function _update_tensor_forward(
     A::S, M::T, sites, ::Val{:c}
-) where {S <: CuArrayOrArray{R, 3}, T <: AbstractDict} where R <: Real
+) where {S <: CuArrayOrArray{R, 3}, T <: TensorMap{R}} where R <: Real
     B = copy(A)
     for i ∈ reverse(sites)
         i == 0 && break
@@ -186,7 +180,7 @@ end
 
 function _update_tensor_backwards(
     A::S, M::T, sites, ::Val{:n}
-) where {S <: CuArrayOrArray{R, 3}, T <: AbstractDict} where R <: Real
+) where {S <: CuArrayOrArray{R, 3}, T <: TensorMap{R}} where R <: Real
     B = copy(A)
     for i ∈ reverse(sites)
         i == 0 && break
@@ -197,7 +191,7 @@ end
 
 function _update_tensor_backwards(
     A::S, M::T, sites, ::Val{:c}
-) where {S <: CuArrayOrArray{R, 3}, T <: AbstractDict} where R <: Real
+) where {S <: CuArrayOrArray{R, 3}, T <: TensorMap{R}} where R <: Real
     B = copy(A)
     for i ∈ sites
         i == 0 && break
@@ -208,7 +202,7 @@ end
 
 function update_env_right(
     RE::S, A₀::S1, M::T, B₀::S, trans::Symbol
-) where {T <: AbstractDict, S <: CuArrayOrArray{R, 3}, S1 <: CuArrayOrArray{R, 3}} where R <: Real
+) where {T <: TensorMap{R}, S <: CuArrayOrArray{R, 3}, S1 <: CuArrayOrArray{R, 3}} where R <: Real
     sites = sort(collect(keys(M)))
     A = _update_tensor_forward(A₀, M, sites, Val(trans))
     B = _update_tensor_backwards(B₀, M, sites, Val(trans))
@@ -224,7 +218,7 @@ end
 """
 function update_env_right(
     RE::S, M::T, trans::Symbol
-) where {S <:  CuArrayOrArray{R, 3}, T <: AbstractDict} where R <: Real
+) where {S <: CuArrayOrArray{R, 3}, T <: TensorMap{R}} where R <: Real
     attach_central_right(RE, M[0])
 end
 
@@ -240,7 +234,7 @@ end
 
 function project_ket_on_bra(
     LE::S, B₀::S, M::T, RE::S, ::Val{:n}
-) where {S <: CuArrayOrArray{R, 3}, T <: AbstractDict} where R <: Real
+) where {S <: CuArrayOrArray{R, 3}, T <: TensorMap{R}} where R <: Real
     C = sort(collect(M), by = x -> x[1])
     TT = B₀
     for (_, v) ∈ reverse(C)
@@ -256,7 +250,7 @@ end
 
 function project_ket_on_bra(
     LE::S, B₀::S, M::T, RE::S, ::Val{:c}
-) where {S <:  CuArrayOrArray{R, 3}, T <: AbstractDict} where R <: Real
+) where {S <:  CuArrayOrArray{R, 3}, T <: TensorMap{R}} where R <: Real
     C = sort(collect(M), by = x -> x[1])
     TT = B₀
     for (_, v) ∈ C
@@ -278,7 +272,7 @@ function measure_env(env::Environment, site::Site, trans::Symbol)
     @tensor L[t, c, b] * R[b, c, t]
 end
 
-function truncate!(ψ::QMps, s::Symbol, Dcut::Int=typemax(Int), tolS::Real=eps(), args...)
+function truncate!(ψ::QMps{T}, s::Symbol, Dcut::Int=typemax(Int), tolS::T=eps(), args...) where T <: Real
     @assert s ∈ (:left, :right)
     if s == :right
         _right_sweep!(ψ, args...)
@@ -294,35 +288,25 @@ canonise!(ψ::QMps, ::Val{:right}) = _left_sweep!(ψ, typemax(Int))
 canonise!(ψ::QMps, ::Val{:left}) = _right_sweep!(ψ, typemax(Int))
 
 function variational_sweep!(
-    bra::QMps{T},
-    mpo::QMpo{T},
-    ket::QMps{T},
-    ::Val{:left},
-    trans::Symbol=:n,
-    args...
+    bra::QMps{T}, mpo::QMpo{T}, ket::QMps{T}, ::Val{:left}, trans::Symbol=:n, args...
 ) where T <: Real
     env = Environment(bra, mpo, ket, trans)
     _right_sweep_var!(env, trans, args...)
 end
 
 function variational_sweep!(
-    bra::QMps{T},
-    mpo::QMpo{T},
-    ket::QMps{T},
-    ::Val{:right},
-    trans::Symbol=:n,
-    args...
+    bra::QMps{T}, mpo::QMpo{T}, ket::QMps{T}, ::Val{:right}, trans::Symbol=:n, args...
 ) where T <: Real
     env = Environment(bra, mpo, ket, trans)
     _left_sweep_var!(env, trans, args...)
 end
 
-function canonise_truncate!(ψ::QMps, dir::Symbol, Dcut::Int=typemax(Int), tolS::Real=eps(), args...)
+function canonise_truncate!(ψ::QMps{T}, dir::Symbol, Dcut::Int=typemax(Int), tolS::T=eps(), args...) where T <: Real
     @assert dir ∈ (:left, :right)
     (dir == :right ? _left_sweep! : _right_sweep!)(ψ, Dcut, tolS, args...)
 end
 
-function _right_sweep!(ψ::QMps{T}, Dcut::Int=typemax(Int), tolS::Real=eps(), args...) where T
+function _right_sweep!(ψ::QMps{T}, Dcut::Int=typemax(Int), tolS::T=eps(), args...) where T
     R = ones(T, 1, 1)
     for i ∈ ψ.sites
         A = ψ[i]
@@ -334,7 +318,7 @@ function _right_sweep!(ψ::QMps{T}, Dcut::Int=typemax(Int), tolS::Real=eps(), ar
     end
 end
 
-function _left_sweep!(ψ::QMps{T}, Dcut::Int=typemax(Int), tolS::Real=eps(), args...) where T
+function _left_sweep!(ψ::QMps{T}, Dcut::Int=typemax(Int), tolS::T=eps(), args...) where T <: Real
     R = ones(T, 1, 1)
     for i ∈ reverse(ψ.sites)
         B = ψ[i]

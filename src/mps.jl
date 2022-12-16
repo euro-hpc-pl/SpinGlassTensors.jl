@@ -3,21 +3,24 @@ export
     Sites,
     State,
     AbstractTensorNetwork,
-    AbstractMPS,
-    AbstractMPO,
+    #AbstractMPS,
+    #AbstractMPO,
     QMps,
     QMpo,
     local_dims,
     IdentityQMps,
     bond_dimension,
     bond_dimensions,
-    verify_bonds,
-    is_left_normalized,
-    is_right_normalized
+    NestedTensorMap,
+    TensorMap
+
+    #verify_bonds,
+    #is_left_normalized,
+    #is_right_normalized
 
 abstract type AbstractTensorNetwork end
-abstract type AbstractMPS end
-abstract type AbstractMPO end
+#abstract type AbstractMPS end
+#abstract type AbstractMPO end
 
 const Site = Union{Int, Rational{Int}}
 const Sites = NTuple{N, Site} where N

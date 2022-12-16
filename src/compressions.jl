@@ -10,42 +10,36 @@ export
 
 abstract type AbstractEnvironment end
 
-mutable struct Environment <: AbstractEnvironment
-    bra::QMps  # to be optimized
-    mpo::QMpo
-    ket::QMps
+mutable struct Environment{T <: Real} <: AbstractEnvironment
+    bra::QMps{T}  # to be optimized
+    mpo::QMpo{T}
+    ket::QMps{T}
     trans::Symbol
     env::Dict
 
     function Environment(
-        bra::QMps,
-        mpo::QMpo,
-        ket::QMps,
-        trans::Symbol=:n
-    )
+        bra::QMps{T}, mpo::QMpo{T}, ket::QMps{T}, trans::Symbol=:n
+    ) where T <: Real
         @assert trans ∈ (:n, :c)
-        @assert bra.sites == ket.sites
-        @assert issubset(bra.sites, mpo.sites)
+        @assert bra.sites == ket.sites && issubset(bra.sites, mpo.sites)
 
-        env0 = Dict(
-            (first(bra.sites), :left) => ones(1, 1, 1),
-            (last(bra.sites), :right) => ones(1, 1, 1)
-        )
-        env = new(bra, mpo, ket, trans, env0)
+        id = ones(T, 1, 1, 1)
+        env0 = Dict((first(bra.sites), :left) => id, (last(bra.sites), :right) => id)
+        env = new{T}(bra, mpo, ket, trans, env0)
         for site ∈ env.bra.sites update_env_left!(env, site, trans) end
         env
     end
 end
 
 function variational_compress!(
-    bra::QMps,
-    mpo::QMpo,
-    ket::QMps,
+    bra::QMps{T},
+    mpo::QMpo{T},
+    ket::QMps{T},
     tol::Real=1E-10,
     max_sweeps::Int=4,
     trans::Symbol=:n,
     args...
-)
+) where T <: Real
     env = Environment(bra, mpo, ket, trans)
     overlap = Inf
     overlap_before = measure_env(env, last(env.bra.sites), trans)
@@ -152,7 +146,7 @@ end
 """
 function update_env_left(
     LE::S, A₀::S, M::T, B₀::S, trans::Symbol=:n
-) where {S <: ArrayOrCuArray{3}, T <: AbstractDict}
+) where {S <: CuArrayOrArray{R, 3}, T <: AbstractDict} where R <: Real
     sites = sort(collect(keys(M)))
     A = _update_tensor_forward(A₀, M, sites, Val(trans))
     B = _update_tensor_backwards(B₀, M, sites, Val(trans))
@@ -161,7 +155,7 @@ end
 
 function update_env_left(
     LE::S, M::T, trans::Symbol=:n
-) where {S <: ArrayOrCuArray{3}, T <: AbstractDict}
+) where {S <: CuArrayOrArray{R, 3}, T <: AbstractDict} where R <: Real
     attach_central_left(LE, M[0])
 end
 
@@ -170,55 +164,51 @@ projector_to_dense(pr::Array{Int, 1}) = projector_to_dense(Float64, pr)
 
 function _update_tensor_forward(
     A::S, M::T, sites, ::Val{:n}
-) where {S <: ArrayOrCuArray{3}, T <: AbstractDict}
+) where {S <: CuArrayOrArray{R, 3}, T <: AbstractDict} where R <: Real
     B = copy(A)
     for i ∈ sites
-        if i == 0 break end
-        C = M[i]
-        B = attach_central_left(B, C)
+        i == 0 && break
+        B = attach_central_left(B, M[i])
     end
     B
 end
 
 function _update_tensor_forward(
     A::S, M::T, sites, ::Val{:c}
-) where {S <: ArrayOrCuArray{3}, T <: AbstractDict}
+) where {S <: CuArrayOrArray{R, 3}, T <: AbstractDict} where R <: Real
     B = copy(A)
     for i ∈ reverse(sites)
-        if i == 0 break end
-        C = M[i]
-        B = attach_central_right(B, C)
+        i == 0 && break
+        B = attach_central_right(B, M[i])
     end
     B
 end
 
 function _update_tensor_backwards(
     A::S, M::T, sites, ::Val{:n}
-) where {S <: ArrayOrCuArray{3}, T <: AbstractDict}
+) where {S <: CuArrayOrArray{R, 3}, T <: AbstractDict} where R <: Real
     B = copy(A)
     for i ∈ reverse(sites)
-        if i == 0 break end
-        C = M[i]
-        B = attach_central_right(B, C)
+        i == 0 && break
+        B = attach_central_right(B, M[i])
     end
     B
 end
 
 function _update_tensor_backwards(
     A::S, M::T, sites, ::Val{:c}
-) where {S <: ArrayOrCuArray{3}, T <: AbstractDict}
+) where {S <: CuArrayOrArray{R, 3}, T <: AbstractDict} where R <: Real
     B = copy(A)
     for i ∈ sites
-        if i == 0 break end
-        C = M[i]
-        B = attach_central_left(B, C)
+        i == 0 && break
+        B = attach_central_left(B, M[i])
     end
     B
 end
 
 function update_env_right(
     RE::S, A₀::S1, M::T, B₀::S, trans::Symbol
-) where {T <: AbstractDict, S <: ArrayOrCuArray{3}, S1 <: ArrayOrCuArray{3}}
+) where {T <: AbstractDict, S <: CuArrayOrArray{R, 3}, S1 <: CuArrayOrArray{R, 3}} where R <: Real
     sites = sort(collect(keys(M)))
     A = _update_tensor_forward(A₀, M, sites, Val(trans))
     B = _update_tensor_backwards(B₀, M, sites, Val(trans))
@@ -234,7 +224,7 @@ end
 """
 function update_env_right(
     RE::S, M::T, trans::Symbol
-) where {S <: ArrayOrCuArray{3}, T <: AbstractDict}
+) where {S <:  CuArrayOrArray{R, 3}, T <: AbstractDict} where R <: Real
     attach_central_right(RE, M[0])
 end
 
@@ -250,7 +240,7 @@ end
 
 function project_ket_on_bra(
     LE::S, B₀::S, M::T, RE::S, ::Val{:n}
-) where {S <: ArrayOrCuArray{3}, T <: AbstractDict}
+) where {S <: CuArrayOrArray{R, 3}, T <: AbstractDict} where R <: Real
     C = sort(collect(M), by = x -> x[1])
     TT = B₀
     for (_, v) ∈ reverse(C)
@@ -266,7 +256,7 @@ end
 
 function project_ket_on_bra(
     LE::S, B₀::S, M::T, RE::S, ::Val{:c}
-) where {S <: ArrayOrCuArray{3}, T <: AbstractDict}
+) where {S <:  CuArrayOrArray{R, 3}, T <: AbstractDict} where R <: Real
     C = sort(collect(M), by = x -> x[1])
     TT = B₀
     for (_, v) ∈ C
@@ -288,7 +278,7 @@ function measure_env(env::Environment, site::Site, trans::Symbol)
     @tensor L[t, c, b] * R[b, c, t]
 end
 
-function truncate!(ψ::QMps, s::Symbol, Dcut::Int=typemax(Int), tolS::Real=1E-16, args...)
+function truncate!(ψ::QMps, s::Symbol, Dcut::Int=typemax(Int), tolS::Real=eps(), args...)
     @assert s ∈ (:left, :right)
     if s == :right
         _right_sweep!(ψ, args...)
@@ -304,25 +294,25 @@ canonise!(ψ::QMps, ::Val{:right}) = _left_sweep!(ψ, typemax(Int))
 canonise!(ψ::QMps, ::Val{:left}) = _right_sweep!(ψ, typemax(Int))
 
 function variational_sweep!(
-    bra::QMps,
-    mpo::QMpo,
-    ket::QMps,
+    bra::QMps{T},
+    mpo::QMpo{T},
+    ket::QMps{T},
     ::Val{:left},
     trans::Symbol=:n,
     args...
-)
+) where T <: Real
     env = Environment(bra, mpo, ket, trans)
     _right_sweep_var!(env, trans, args...)
 end
 
 function variational_sweep!(
-    bra::QMps,
-    mpo::QMpo,
-    ket::QMps,
+    bra::QMps{T},
+    mpo::QMpo{T},
+    ket::QMps{T},
     ::Val{:right},
     trans::Symbol=:n,
     args...
-)
+) where T <: Real
     env = Environment(bra, mpo, ket, trans)
     _left_sweep_var!(env, trans, args...)
 end

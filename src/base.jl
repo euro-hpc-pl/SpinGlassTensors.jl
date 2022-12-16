@@ -8,7 +8,6 @@ export
 abstract type AbstractSparseTensor end
 
 const Proj{N} = NTuple{N, Array{Int, 1}}
-const ArrayOrCuArray{N} = Union{Array{<:Real, N}, CuArray{<:Real, N}} # To be rm
 const CuArrayOrArray{T, N} = Union{Array{T, N}, CuArray{T, N}}
 
 ArrayOrCuArray(L) = typeof(L) <: CuArray ? CuArray : Array

@@ -85,9 +85,6 @@ contract_down(M::CentralTensor{T}, A::Array{T, 3}) where T <: Real = attach_cent
 contract_down(M::DiagonalTensor{T}, A::Array{T, 3}) where T <: Real = attach_central_left(A, M)
 
 function contract_up(A::Array{T, 3}, B::SiteTensor{T}) where T <: Real
-    #sal, _, sar = size(A)
-    #sbl, sbt, sbr = maximum.(B.projs[1:3])
-    #C = zeros(T, sal, sbl, sbt, sar, sbr)
     C = zeros(A, B)
     for (σ, lexp) ∈ enumerate(B.loc_exp)
         AA = @inbounds @view A[:, B.projs[4][σ], :]
@@ -100,10 +97,6 @@ contract_up(A::Array{T, 3}, M::CentralTensor{T}) where T <: Real = attach_centra
 contract_up(A::Array{T, 3}, M::DiagonalTensor{T}) where T <: Real = attach_central_right(A, M)
 
 function contract_down(A::SiteTensor{T}, B::Array{T, 3}) where T <: Real
-    #sal, _, sar = size(B)
-    #sbl, _, sbt, sbr = maximum.(A.projs[1:4])
-    #C = zeros(T, sal, sbl, sbr, sar, sbt)
-
     C = zeros(A, B)
     for (σ, lexp) ∈ enumerate(A.loc_exp)
         AA = @inbounds @view B[:, A.projs[2][σ], :]
@@ -112,13 +105,13 @@ function contract_down(A::SiteTensor{T}, B::Array{T, 3}) where T <: Real
     @cast CC[(x, y), z, (b, a)] := C[x, y, z, b, a]
 end
 
-#TODO: get rid of dense_central_tensor
 function contract_up(A::Array{T, 3}, B::VirtualTensor{T}) where T <: Real
     h = B.con
     if typeof(h) <: CentralTensor h = Array(h) end
 
     sal, _, sar = size(A)
     p_lb, p_l, p_lt, p_rb, p_r, p_rt = B.projs
+
     @cast A4[x, k, l, y] := A[x, (k, l), y] (k ∈ 1:maximum(p_lb))
 
     C = zeros(T, sal, length(p_l), maximum(p_lt), maximum(p_rt), sar, length(p_r))
@@ -137,8 +130,8 @@ function contract_down(A::VirtualTensor{T}, B::Array{T, 3}) where T <: Real
     if typeof(h) <: CentralTensor h = Array(h) end
 
     sal, _, sar = size(B)
-
     p_lb, p_l, p_lt, p_rb, p_r, p_rt = A.projs
+
     @cast B4[x, k, l, y] := B[x, (k, l), y] (k ∈ 1:maximum(p_lt))
 
     C = zeros(T, sal, length(p_l), maximum(p_lb), maximum(p_rb), sar, length(p_r))

@@ -56,9 +56,7 @@ function LinearAlgebra.dot(ϕ::QMps{R}, ψ::QMpo{R}) where R <: Real
     QMps(D)
 end
 
-
-#TODO: remove AbstractMatrix
-function contract_left(A::Array{T, 3}, B::AbstractMatrix{T}) where T <: Real
+function contract_left(A::Array{T, 3}, B::Matrix{T}) where T <: Real
     @matmul C[(x, y), u, r] := sum(σ) B[y, σ] * A[(x, σ), u, r] (σ ∈ 1:size(B, 2))
 end
 
@@ -67,12 +65,11 @@ function contract_left(A::Array{T, 3}, M::CentralTensor{T}) where T <: Real
     @matmul C[(x, y), u, r] := sum(σ) B[y, σ] * A[(x, σ), u, r] (σ ∈ 1:size(B, 2))
 end
 
-function contract_up(A::Array{T, 3}, B::AbstractMatrix{T}) where T <: Real
+function contract_up(A::Array{T, 3}, B::Matrix{T}) where T <: Real
     @tensor C[l, u, r] := B[u, σ] * A[l, σ, r]
 end
 
-# TODO: change AbstractMatrix -> Matrix
-function contract_down(A::AbstractMatrix{T}, B::Array{T, 3}) where T <: Real
+function contract_down(A::Matrix{T}, B::Array{T, 3}) where T <: Real
     @tensor C[l, d, r] := A[σ, d] * B[l, σ, r]
 end
 
@@ -88,10 +85,10 @@ contract_down(M::CentralTensor{T}, A::Array{T, 3}) where T <: Real = attach_cent
 contract_down(M::DiagonalTensor{T}, A::Array{T, 3}) where T <: Real = attach_central_left(A, M)
 
 function contract_up(A::Array{T, 3}, B::SiteTensor{T}) where T <: Real
-    sal, _, sar = size(A)
-    sbl, sbt, sbr = maximum.(B.projs[1:3])
-    C = zeros(T, sal, sbl, sbt, sar, sbr)
-
+    #sal, _, sar = size(A)
+    #sbl, sbt, sbr = maximum.(B.projs[1:3])
+    #C = zeros(T, sal, sbl, sbt, sar, sbr)
+    C = zeros(A, B)
     for (σ, lexp) ∈ enumerate(B.loc_exp)
         AA = @inbounds @view A[:, B.projs[4][σ], :]
         @inbounds C[:, B.projs[1][σ], B.projs[2][σ], :, B.projs[3][σ]] += lexp .* AA
@@ -103,10 +100,11 @@ contract_up(A::Array{T, 3}, M::CentralTensor{T}) where T <: Real = attach_centra
 contract_up(A::Array{T, 3}, M::DiagonalTensor{T}) where T <: Real = attach_central_right(A, M)
 
 function contract_down(A::SiteTensor{T}, B::Array{T, 3}) where T <: Real
-    sal, _, sar = size(B)
-    sbl, _, sbt, sbr = maximum.(A.projs[1:4])
-    C = zeros(T, sal, sbl, sbr, sar, sbt)
+    #sal, _, sar = size(B)
+    #sbl, _, sbt, sbr = maximum.(A.projs[1:4])
+    #C = zeros(T, sal, sbl, sbr, sar, sbt)
 
+    C = zeros(A, B)
     for (σ, lexp) ∈ enumerate(A.loc_exp)
         AA = @inbounds @view B[:, A.projs[2][σ], :]
         @inbounds C[:, A.projs[1][σ], A.projs[4][σ], :, A.projs[3][σ]] += lexp .* AA
@@ -120,7 +118,6 @@ function contract_up(A::Array{T, 3}, B::VirtualTensor{T}) where T <: Real
     if typeof(h) <: CentralTensor h = Array(h) end
 
     sal, _, sar = size(A)
-
     p_lb, p_l, p_lt, p_rb, p_r, p_rt = B.projs
     @cast A4[x, k, l, y] := A[x, (k, l), y] (k ∈ 1:maximum(p_lb))
 

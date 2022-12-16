@@ -1,9 +1,3 @@
-
-function CUDA.CUSPARSE.CuSparseMatrixCSC(::Type{R}, pr::Vector{Int}) where R <: Real
-    n = length(pr)
-    CuSparseMatrixCSC(CuArray(1:n+1), CuArray(pr), CUDA.ones(R, n), (maximum(pr), n))
-end
-
 function contract_sparse_with_three(X1, X2, X3, loc_exp, p1, p2, p3, pout)
     s1, s2, _ = size(X1)
     s3, s4, _ = size(X3)

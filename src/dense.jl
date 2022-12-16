@@ -91,7 +91,6 @@ function update_reduced_env_right(RE::Array{T, 2}, m::Int, M::TensorMap{T}, B::A
     if kk[1] < 0
         K = zeros(T, size(M[kk[1]], 1))
         K[m] = one(T)
-
         for ii ∈ kk[1:end]
             ii == 0 && break
             K = _project_on_border(K, M[ii])

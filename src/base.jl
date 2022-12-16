@@ -3,7 +3,8 @@ export
     SiteTensor,
     VirtualTensor,
     DiagonalTensor,
-    CentralTensor
+    CentralTensor,
+    CentralOrDiagonal
 
 abstract type AbstractSparseTensor end
 
@@ -97,6 +98,7 @@ end
 
 const SparseTensor{T} = Union{SiteTensor{T}, VirtualTensor{T}, CentralTensor{T}, DiagonalTensor{T}}
 const Tensor{T} = Union{Array{T}, SparseTensor{T}}
+const CentralOrDiagonal{T} = Union{CentralTensor{T}, DiagonalTensor{T}}
 
 Base.eltype(ten::Tensor{T}) where T = T
 Base.size(ten::SparseTensor, n::Int) = ten.size[n]

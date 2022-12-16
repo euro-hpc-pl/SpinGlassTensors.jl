@@ -60,10 +60,8 @@ function contract_left(A::Array{T, 3}, B::Matrix{T}) where T <: Real
     @matmul C[(x, y), u, r] := sum(σ) B[y, σ] * A[(x, σ), u, r] (σ ∈ 1:size(B, 2))
 end
 
-function contract_left(A::Array{T, 3}, M::CentralTensor{T}) where T <: Real
-    B = Array(M)
-    @matmul C[(x, y), u, r] := sum(σ) B[y, σ] * A[(x, σ), u, r] (σ ∈ 1:size(B, 2))
-end
+contract_left(A::Array{T, 3}, M::CentralTensor{T}) where T <: Real = contract_left(A, Array(M))
+
 
 function contract_up(A::Array{T, 3}, B::Matrix{T}) where T <: Real
     @tensor C[l, u, r] := B[u, σ] * A[l, σ, r]
@@ -81,8 +79,7 @@ function contract_down(A::Array{T, 4}, B::Array{T, 3}) where T <: Real
     @matmul C[(x, y), z, (b, a)] := sum(σ) A[y, σ, a, z] * B[x, σ, b]
 end
 
-contract_down(M::CentralTensor{T}, A::Array{T, 3}) where T <: Real = attach_central_left(A, M)
-contract_down(M::DiagonalTensor{T}, A::Array{T, 3}) where T <: Real = attach_central_left(A, M)
+contract_down(M::CentralOrDiagonal{T}, A::Array{T, 3}) where T <: Real = attach_central_left(A, M)
 
 function contract_up(A::Array{T, 3}, B::SiteTensor{T}) where T <: Real
     C = zeros(A, B)
@@ -93,8 +90,7 @@ function contract_up(A::Array{T, 3}, B::SiteTensor{T}) where T <: Real
     @cast CC[(x, y), z, (b, a)] := C[x, y, z, b, a]
 end
 
-contract_up(A::Array{T, 3}, M::CentralTensor{T}) where T <: Real = attach_central_right(A, M)
-contract_up(A::Array{T, 3}, M::DiagonalTensor{T}) where T <: Real = attach_central_right(A, M)
+contract_up(A::Array{T, 3}, M::CentralOrDiagonal{T}) where T <: Real = attach_central_right(A, M)
 
 function contract_down(A::SiteTensor{T}, B::Array{T, 3}) where T <: Real
     C = zeros(A, B)
@@ -111,37 +107,32 @@ function contract_up(A::Array{T, 3}, B::VirtualTensor{T}) where T <: Real
 
     sal, _, sar = size(A)
     p_lb, p_l, p_lt, p_rb, p_r, p_rt = B.projs
+    C = zeros(T, sal, length(p_l), maximum(p_lt), maximum(p_rt), sar, length(p_r))
 
     @cast A4[x, k, l, y] := A[x, (k, l), y] (k ∈ 1:maximum(p_lb))
-
-    C = zeros(T, sal, length(p_l), maximum(p_lt), maximum(p_rt), sar, length(p_r))
 
     for l ∈ 1:length(p_l), r ∈ 1:length(p_r)
         AA = @inbounds @view A4[:, p_lb[l], p_rb[r], :]
         @inbounds C[:, l, p_lt[l], p_rt[r], :, r] += h[p_l[l], p_r[r]] .* AA
     end
     @cast CC[(x, y), (t1, t2), (b, a)] := C[x, y, t1, t2, b, a]
-    CC
 end
 
 function contract_down(A::VirtualTensor{T}, B::Array{T, 3}) where T <: Real
     h = A.con
-
     if typeof(h) <: CentralTensor h = Array(h) end
 
     sal, _, sar = size(B)
     p_lb, p_l, p_lt, p_rb, p_r, p_rt = A.projs
+    C = zeros(T, sal, length(p_l), maximum(p_lb), maximum(p_rb), sar, length(p_r))
 
     @cast B4[x, k, l, y] := B[x, (k, l), y] (k ∈ 1:maximum(p_lt))
-
-    C = zeros(T, sal, length(p_l), maximum(p_lb), maximum(p_rb), sar, length(p_r))
 
     for l ∈ 1:length(p_l), r ∈ 1:length(p_r)
         BB = @inbounds @view B4[:, p_lt[l], p_rt[r], :]
         @inbounds C[:, l, p_lb[l], p_rb[r], :, r] += h[p_l[l], p_r[r]] .* BB
     end
     @cast CC[(x, y), (t1, t2), (b, a)] := C[x, y, t1, t2, b, a]
-    CC
 end
 
 function overlap_density_matrix(ϕ::QMps{T}, ψ::QMps{T}, k::Site) where T <: Real

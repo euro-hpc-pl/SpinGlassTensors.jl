@@ -78,13 +78,13 @@ function attach_2_matrices(L, B2, h, R)
         else
             R = attach_central_right(R, h)
         end
-        if  b1 >= b2
+        if b1 >= b2
             @tensor L[rfb, x, y] := L[lfb, x, y] * B2[lfb, rfb]
         else
             @tensor R[x, y, lfb] := R[x, y, rfb] * B2[lfb, rfb]
         end
     else
-        if  b1 >= b2
+        if b1 >= b2
             @tensor L[rfb, x, y] := L[lfb, x, y] * B2[lfb, rfb]
         else
             @tensor R[x, y, lfb] := R[x, y, rfb] * B2[lfb, rfb]
@@ -96,7 +96,6 @@ function attach_2_matrices(L, B2, h, R)
         end
     end
     @tensor LR[lft, rft] := L[lfb, lfh, lft] * R[rft, lfh, lfb]
-    LR
 end
 
 function update_env_left(
@@ -113,19 +112,18 @@ function update_env_left(
     if type == Val{:n}()
         slcb, slc, slct = maximum(p_lb), maximum(p_l), maximum(p_lt)
         srcb, srct = maximum(p_rb), maximum(p_rt)
-        prs = CuSparseMatrixCSR(eltype(LE), p_rb, p_r, p_rt)
-        ps = CuSparseMatrixCSC(eltype(LE), p_lb, p_l, p_lt)
+        prs = CuSparseMatrixCSR(T, p_rb, p_r, p_rt)
+        ps = CuSparseMatrixCSC(T, p_lb, p_l, p_lt)
     else
         slcb, slc, slct = maximum(p_lt), maximum(p_l), maximum(p_lb)
         srcb, srct = maximum(p_rt), maximum(p_rb)
-        prs = CuSparseMatrixCSR(eltype(LE), p_rt, p_r, p_rb)
-        ps = CuSparseMatrixCSC(eltype(LE), p_lt, p_l, p_lb)
+        prs = CuSparseMatrixCSR(T, p_rt, p_r, p_rb)
+        ps = CuSparseMatrixCSC(T, p_lt, p_l, p_lb)
     end
 
     batch_size = 2
 
-    F = eltype(LE)
-    Lout = CUDA.zeros(F, srcp, srb, srt)
+    Lout = CUDA.zeros(T, srcp, srb, srt)
 
     @cast A2[(lt, lct), (rct, rt)] := A[lt, (lct, rct), rt] (lct ∈ 1:slct)
 
@@ -133,7 +131,7 @@ function update_env_left(
     while lb_from <= slb
         lb_to = min(lb_from + batch_size - 1, slb)
 
-        Lslc = L[lb_from : lb_to, :, :]
+        Lslc = L[lb_from:lb_to, :, :]
         Lslc = permutedims(Lslc, (2, 1, 3))  # [lcp, lb, lt]
         @cast Lslc[lcp, (lb, lt)] := Lslc[lcp, lb, lt]
         Lslc = ps * Lslc #[(lcb, lc, lct), (lb, lt)]

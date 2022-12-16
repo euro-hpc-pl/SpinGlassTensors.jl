@@ -1,4 +1,7 @@
 export
+    Site,
+    Sites,
+    State,
     AbstractTensorNetwork,
     AbstractMPS,
     AbstractMPO,
@@ -15,6 +18,10 @@ export
 abstract type AbstractTensorNetwork end
 abstract type AbstractMPS end
 abstract type AbstractMPO end
+
+const Site = Union{Int, Rational{Int}}
+const Sites = NTuple{N, Site} where N
+const State = Union{Vector, NTuple}
 
 const TensorMap{T} = Dict{Site, Tensor{T}}
 const NestedTensorMap{T} = Dict{Site, TensorMap{T}}

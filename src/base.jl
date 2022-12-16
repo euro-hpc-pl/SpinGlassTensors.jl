@@ -1,7 +1,4 @@
 export
-    Site,
-    Sites,
-    State,
     Tensor,
     SiteTensor,
     VirtualTensor,
@@ -10,13 +7,9 @@ export
 
 abstract type AbstractSparseTensor end
 
-const Site = Union{Int, Rational{Int}}
-const Sites = NTuple{N, Site} where N
-const State = Union{Vector, NTuple}
-
-#TODO: remove AbstractArray from this
-const Proj{N} = NTuple{N, AbstractArray{Int}}
-const ArrayOrCuArray{N} = Union{AbstractArray{<:Real, N}, CuArray{<:Real, N}} # add T here
+const Proj{N} = NTuple{N, Array{Int, 1}}
+const ArrayOrCuArray{N} = Union{Array{<:Real, N}, CuArray{<:Real, N}} # To be rm
+const CuArrayOrArray{T, N} = Union{Array{T, N}, CuArray{T, N}}
 
 ArrayOrCuArray(L) = typeof(L) <: CuArray ? CuArray : Array
 
@@ -104,7 +97,7 @@ function Base.zeros(A::Array{T, 3}, B::VirtualTensor{T}) where T <: Real
 end
 
 const SparseTensor{T} = Union{SiteTensor{T}, VirtualTensor{T}, CentralTensor{T}, DiagonalTensor{T}}
-const Tensor{T} = Union{AbstractArray{T}, SparseTensor{T}}
+const Tensor{T} = Union{Array{T}, SparseTensor{T}}
 
 Base.eltype(ten::Tensor{T}) where T = T
 Base.size(ten::SparseTensor, n::Int) = ten.size[n]

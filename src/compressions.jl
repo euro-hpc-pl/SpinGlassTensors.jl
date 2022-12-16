@@ -75,7 +75,7 @@ function _left_sweep_var!(env::Environment, trans::Symbol=:n, args...)
         @cast B[x, (y, z)] := A[x, y, z]
         _, Q = rq_fact(B, args...)
         @cast C[x, σ, y] := Q[x, (σ, y)] (σ ∈ 1:size(A, 2))
-        env.bra[site] = C
+        env.bra[site] = Array(C)
         clear_env_containing_site!(env, site)
     end
 end
@@ -87,7 +87,7 @@ function _right_sweep_var!(env::Environment, trans::Symbol=:n, args...)
         @cast B[(x, y), z] := A[x, y, z]
         Q, _ = qr_fact(B, args...)
         @cast C[x, σ, y] := Q[(x, σ), y] (σ ∈ 1:size(A, 2))
-        env.bra[site] = C
+        env.bra[site] = Array(C)
         clear_env_containing_site!(env, site)
     end
 end
@@ -327,35 +327,31 @@ function variational_sweep!(
     _left_sweep_var!(env, trans, args...)
 end
 
-function canonise_truncate!(ψ::QMps, s::Symbol, Dcut::Int=typemax(Int), tolS::Real=1E-16, args...)
-    @assert s ∈ (:left, :right)
-    if s == :right
-        _left_sweep!(ψ, Dcut, tolS, args...)
-    else
-        _right_sweep!(ψ, Dcut, tolS, args...)
-    end
+function canonise_truncate!(ψ::QMps, dir::Symbol, Dcut::Int=typemax(Int), tolS::Real=eps(), args...)
+    @assert dir ∈ (:left, :right)
+    (dir == :right ? _left_sweep! : _right_sweep!)(ψ, Dcut, tolS, args...)
 end
 
-function _right_sweep!(ψ::QMps, Dcut::Int=typemax(Int), tolS::Real=1E-16, args...)
-    R = ones(eltype(ψ[1]), 1, 1)
+function _right_sweep!(ψ::QMps{T}, Dcut::Int=typemax(Int), tolS::Real=eps(), args...) where T
+    R = ones(T, 1, 1)
     for i ∈ ψ.sites
         A = ψ[i]
-        @matmul M̃[(x, σ), y] := sum(α) R[x, α] * A[α, σ, y]
-        Q, R = qr_fact(M̃, Dcut, tolS, args...)
+        @matmul M[(x, σ), y] := sum(α) R[x, α] * A[α, σ, y]
+        Q, R = qr_fact(M, Dcut, tolS, args...)
         R ./= maximum(abs.(R))
         @cast A[x, σ, y] := Q[(x, σ), y] (σ ∈ 1:size(A, 2))
-        ψ[i] = A
+        ψ[i] = Array(A)
     end
 end
 
-function _left_sweep!(ψ::QMps, Dcut::Int=typemax(Int), tolS::Real=1E-16, args...)
-    R = ones(eltype(ψ[1]), 1, 1)
+function _left_sweep!(ψ::QMps{T}, Dcut::Int=typemax(Int), tolS::Real=eps(), args...) where T
+    R = ones(T, 1, 1)
     for i ∈ reverse(ψ.sites)
         B = ψ[i]
-        @matmul M̃[x, (σ, y)] := sum(α) B[x, σ, α] * R[α, y]
-        R, Q = rq_fact(M̃, Dcut, tolS, args...)
+        @matmul M[x, (σ, y)] := sum(α) B[x, σ, α] * R[α, y]
+        R, Q = rq_fact(M, Dcut, tolS, args...)
         R ./= maximum(abs.(R))
         @cast B[x, σ, y] := Q[x, (σ, y)] (σ ∈ 1:size(B, 2))
-        ψ[i] = B
+        ψ[i] = Array(B)
     end
 end

@@ -126,8 +126,8 @@ function attach_2_matrices(L, B2, h, R)
 end
 
 function update_env_left(
-    LE::S, A::S, M::VirtualTensor, B::S, type::Union{Val{:n}, Val{:c}}
-) where S <: ArrayOrCuArray{3}
+    LE::S, A::S, M::VirtualTensor{T}, B::S, type::Union{Val{:n}, Val{:c}}
+) where {S <: CuArrayOrArray{T, 3}} where T <: Real
     A, B, L = CuArray.((A, B, LE))
 
     h = M.con
@@ -195,8 +195,8 @@ function update_env_left(
 end
 
 function update_env_right(
-    RE::S, A::S, M::VirtualTensor, B::S, type::Union{Val{:n}, Val{:c}}
-) where S <: ArrayOrCuArray{3}
+    RE::S, A::S, M::VirtualTensor{T}, B::S, type::Union{Val{:n}, Val{:c}}
+) where {S <: CuArrayOrArray{T, 3}} where T <: Real
     A, B, R = CuArray.((A, B, RE))
 
     h = M.con
@@ -262,8 +262,8 @@ function update_env_right(
 end
 
 function project_ket_on_bra(
-    LE::S, B::S, M::VirtualTensor, RE::S, type::Union{Val{:n}, Val{:c}}
-) where S <: ArrayOrCuArray{3}
+    LE::S, B::S, M::VirtualTensor{T}, RE::S, type::Union{Val{:n}, Val{:c}}
+) where {S <: CuArrayOrArray{T, 3}} where T <: Real
     h = M.con
     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
 
@@ -329,10 +329,7 @@ end
 
 
 function update_reduced_env_right(
-    K::Array{T, 1},
-    RE::Array{T, 2},
-    M::VirtualTensor,
-    B::Array{T, 3}
+    K::Array{T, 1}, RE::Array{T, 2}, M::VirtualTensor{T}, B::Array{T, 3}
 ) where T <: Real
 
     K, B, RE = CuArray.((K, B, RE))

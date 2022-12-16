@@ -154,27 +154,6 @@ function contract_down(A::VirtualTensor{T}, B::Array{T, 3}) where T <: Real
     CC
 end
 
-#=
-function overlap_density_matrix(ϕ::QMps, ψ::QMps, k::Site)
-    @assert ψ.sites == ϕ.sites
-    C, D = ones(1, 1), ones(1, 1)
-    for i ∈ ψ.sites
-        if i < k
-            A, B = ψ[i], ϕ[i]
-            @tensor C[x, y] := conj(B)[β, σ, x] * C[β, α] * A[α, σ, y] order = (α, β, σ)
-        end
-    end
-    for i ∈ reverse(ψ.sites)
-        if i > k
-            A, B = ψ[i], ϕ[i]
-            @tensor D[x, y] := conj(B)[x, σ, β] * D[β, α] * A[y, σ, α] order = (α, β, σ)
-        end
-    end
-    A, B = ψ[k], ϕ[k]
-    @tensor E[x, y] := C[b, a] * conj(B)[b, x, β] * A[a, y, α] * D[β, α]
-    E
-end
-=#
 function overlap_density_matrix(ϕ::QMps{T}, ψ::QMps{T}, k::Site) where T <: Real
     @assert ψ.sites == ϕ.sites
     C = _overlap_forward(ϕ, ψ, k)

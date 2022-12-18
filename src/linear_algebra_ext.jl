@@ -25,11 +25,9 @@ end
 
 function LinearAlgebra.svd(A::AbstractMatrix{T}, Dcut::Int=typemax(Int), tol::T=eps(), args...) where T <: Real
     U, Σ, V = svd(A, args...)
-
     δ = min(Dcut, sum(Σ .> Σ[1] * max(eps(), tol)))
     U, Σ, V = U[:, 1:δ], Σ[1:δ], V[:, 1:δ]
     Σ ./= sum(Σ .^ 2)
-
-    ϕ = Diagonal(phase.(diag(U); atol=tol))
-    U * ϕ, Σ, V * ϕ
+    ϕ = reshape((phase.(diag(U); atol=tol)), 1, :)
+    U .* ϕ, Σ, V .* ϕ
 end

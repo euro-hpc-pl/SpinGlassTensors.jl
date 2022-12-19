@@ -8,6 +8,7 @@ module SpinGlassTensors
     include("base.jl")
     include("mps.jl")
     include("linear_algebra_ext.jl")
+    include("canonise.jl")
     include("compressions.jl")
     include("contractions.jl")
     include("dense.jl")

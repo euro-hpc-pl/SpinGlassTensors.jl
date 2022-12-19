@@ -16,7 +16,7 @@ ArrayOrCuArray(L) = typeof(L) <: CuArray ? CuArray : Array
 
 struct SiteTensor{T <: Real} <: AbstractSparseTensor
     loc_exp::Vector{T}
-    projs::Proj{4}  # TODO p1, p2, p3, p4 ?
+    projs::Proj{4}  # == p1, p2, p3, p4
     size::Dims
 
     function SiteTensor(loc_exp, projs; size=maximum.(projs))
@@ -42,9 +42,9 @@ struct CentralTensor{T <: Real} <: AbstractSparseTensor
     end
 end
 
-function mpo_transpose(ten::CentralTensor)
-    CentralTensor(transpose.((ten.e11, ten.e21, ten.e12, ten.e22))..., ten.size[[2, 1]])
-end
+mpo_transpose(ten::CentralTensor) = CentralTensor(
+    transpose.((ten.e11, ten.e21, ten.e12, ten.e22))..., ten.size[[2, 1]]
+)
 
 const MatOrCentral{T} = Union{Matrix{T}, CentralTensor{T}}
 
@@ -72,9 +72,9 @@ struct DiagonalTensor{T <: Real} <: AbstractSparseTensor
     end
 end
 
-function mpo_transpose(ten::DiagonalTensor)
-    DiagonalTensor(mpo_transpose(ten.e2), mpo_transpose(ten.e1), ten.size[[2, 1]])
-end
+mpo_transpose(ten::DiagonalTensor) = DiagonalTensor(
+    mpo_transpose.((ten.e2, ten.e1))..., ten.size[[2, 1]]
+)
 
 struct VirtualTensor{T <: Real} <: AbstractSparseTensor
     con::MatOrCentral{T}
@@ -87,14 +87,11 @@ struct VirtualTensor{T <: Real} <: AbstractSparseTensor
     end
 end
 
-function mpo_transpose(ten::VirtualTensor)
-    VirtualTensor(ten.con, ten.projs[[3, 2, 1, 6, 5, 4]])
-end
-
+mpo_transpose(ten::VirtualTensor) = VirtualTensor(ten.con, ten.projs[[3, 2, 1, 6, 5, 4]])
 mpo_transpose(ten::Array{T, 4}) where T = Array(permutedims(ten, (1, 4, 3, 2)))
 mpo_transpose(ten::Array{T, 2}) where T = Array(transpose(ten))
 
-
+# TODO should we rm those zeros?
 function Base.zeros(A::SiteTensor{T}, B::Array{T, 3}) where T <: Real
     sal, _, sar = size(B)
     sbl, _, sbt, sbr = maximum.(A.projs[1:4])

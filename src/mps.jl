@@ -1,18 +1,14 @@
 export
     Site,
     Sites,
-    State,
     AbstractTensorNetwork,
     local_dims,
     IdentityQMps
-
-
 
 abstract type AbstractTensorNetwork end
 
 const Site = Union{Int, Rational{Int}}
 const Sites = NTuple{N, Site} where N
-const State = Union{Vector, NTuple}
 
 const TensorMap{T} = Dict{Site, Tensor{T}}
 const NestedTensorMap{T} = Dict{Site, TensorMap{T}}
@@ -91,6 +87,7 @@ function Base.rand(
     )
 end
 
+# TODO rm this?
 function local_dims(mpo::QMpo, dir::Symbol)
     @assert dir ∈ (:down, :up)
     lds = Dict{Site, Int}()

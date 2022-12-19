@@ -40,28 +40,15 @@ struct QMpo{T <: Real} <: AbstractTensorNetwork
     end
 end
 
-#=
-Base.transpose(tens::NestedTensorMap{T}) where T = Dict{Site, TensorMap{T}}(site => transpose(ten) for (site, ten) in tens)
-Base.transpose(mpo::QMpo{T}) where T = QMpo{T}(transpose(mpo.tensors))
-
-function Base.transpose(ten::TensorMap{T}) where T
-    if any(length(size(ten[k])) > 2 for k ∈ keys(ten))
-        return Dict{Site, Tensor{T}}( -row => mpo_transpose(te) for (row, te) in ten)
-    end
-    return ten
-end
-=#
-
 function Base.transpose(ten::TensorMap{T}) where T <: Real
     all(length.(size.(values(ten))) .<= 2) && return ten
     TensorMap{T}(.- keys(ten) .=> mpo_transpose.(values(ten)))
 end
 
 
-
 function Base.transpose(mpo::QMpo{T}) where T <: Real
-    QMpo(NestedTensorMap{T}(site => transpose(ten) for (site, ten) in mpo.tensors))
-    #QMpo(NestedTensorMap{T}(keys(mpo.tensors) .=> transpose.(values(mpo.tensors))))
+    #QMpo(NestedTensorMap{T}(site => transpose(ten) for (site, ten) in mpo.tensors))
+    QMpo(NestedTensorMap{T}(keys(mpo.tensors) .=> transpose.(values(mpo.tensors))))
 end
 
 function local_dims(mpo::QMpo, dir::Symbol)
@@ -99,18 +86,6 @@ function IdentityQMps(::Type{T}, loc_dims::Dict, Dmax::Int=1) where T <: Number
     end
     QMps(id)
 end
-
-
-#=
-function Base.isapprox(l::Dict, r::Dict)
-    l === r && return true
-    length(l) != length(r) && return false
-    for pair ∈ l
-        !in(pair, r, isapprox) && return false
-    end
-    true
-end
-=#
 
 function Base.rand(::Type{QMps{T}}, sites::Vector, D::Int, d::Int) where T <: Real
     QMps = Dict{Site, Array{T, 3}}()

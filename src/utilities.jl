@@ -9,3 +9,15 @@
 @inline Base.copy(ψ::QMps) = QMps(copy(ψ.tensors))
 @inline Base.:(≈)(a::QMps, b::QMps) = isapprox(a.tensors, b.tensors)
 @inline Base.:(≈)(a::QMpo, b::QMpo) = all([isapprox(a.tensors[i], b.tensors[i]) for i ∈ keys(a.tensors)])
+
+
+#=
+function Base.isapprox(l::Dict, r::Dict)
+    l === r && return true
+    length(l) != length(r) && return false
+    for pair ∈ l
+        !in(pair, r, isapprox) && return false
+    end
+    true
+end
+=#

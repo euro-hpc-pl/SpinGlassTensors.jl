@@ -60,7 +60,8 @@ end
 function project_ket_on_bra(
     LE::S, B::S, C::S, M::T, N::T, RE::S, ::Val{:n}
 ) where {T <: CuArrayOrArray{R, 4}, S <: CuArrayOrArray{R, 3}} where R <: Real
-    @tensor A[x, y, z, r] := LE[k, l, x] * B[k, m, o] * M[l, y, n, m] * C[o, s, q] *
+    @tensor A[x, y, z, r] := LE[k, l, x] * B[k, m, o] *
+                             M[l, y, n, m] * C[o, s, q] *
                              N[n, z, p, s] * RE[r, p, q] order = (k, l, m, n, o, s, p, q)
 end
 
@@ -74,8 +75,9 @@ end
 function project_ket_on_bra(
     LE::S, B::S, C::S, M::T, N::T, RE::S, ::Val{:c}
 ) where {T <: CuArrayOrArray{R, 4}, S <: CuArrayOrArray{R, 3}} where R <: Real
-    @tensor A[x, m, s, r] := LE[k, l, x] * B[k, y, o] * M[l, y, n, m] * C[o, z, q] *
-                          N[n, z, p, s] * RE[r, p, q] order = (k, l, y, n, o, z, p, q)
+    @tensor A[x, m, s, r] := LE[k, l, x] * B[k, y, o] *
+                             M[l, y, n, m] * C[o, z, q] *
+                             N[n, z, p, s] * RE[r, p, q] order = (k, l, y, n, o, z, p, q)
     A
 end
 

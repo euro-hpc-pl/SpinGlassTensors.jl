@@ -26,7 +26,7 @@ const Site = Union{Int, Rational{Int}}
 const Sites = NTuple{N, Site} where N
 const State = Union{Vector, NTuple}
 
-const TensorMap{T} = Dict{Site, Tensor{T}}
+const TensorMap{T} = Dict{Site, Tensor{T}}  # TODO distinct by type mpo tensors with 4 legs (site?) from central tensors with 2 legs
 const NestedTensorMap{T} = Dict{Site, TensorMap{T}}
 
 struct QMps{T <: Real} <: AbstractTensorNetwork
@@ -46,6 +46,21 @@ struct QMpo{T <: Real} <: AbstractTensorNetwork
         new{T}(ten, sort(collect(keys(ten))))
     end
 end
+
+Base.transpose(tens::NestedTensorMap{T}) where T = Dict{Site, TensorMap{T}}(site => transpose(ten) for (site, ten) in tens)
+Base.transpose(mpo::QMpo{T}) where T = QMpo{T}(transpose(mpo.tensors))
+
+
+
+function Base.transpose(ten::TensorMap{T}) where T
+    if any(length(size(ten[k])) > 2 for k ∈ keys(ten))
+        return Dict{Site, Tensor{T}}( -row => mpo_transpose(te) for (row, te) in ten)
+    end
+    return ten
+end
+
+
+
 
 function local_dims(mpo::QMpo, dir::Symbol)
     @assert dir ∈ (:down, :up)

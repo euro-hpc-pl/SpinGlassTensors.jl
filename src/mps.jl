@@ -47,10 +47,9 @@ struct QMpo{T <: Real} <: AbstractTensorNetwork
     end
 end
 
+#=
 Base.transpose(tens::NestedTensorMap{T}) where T = Dict{Site, TensorMap{T}}(site => transpose(ten) for (site, ten) in tens)
 Base.transpose(mpo::QMpo{T}) where T = QMpo{T}(transpose(mpo.tensors))
-
-
 
 function Base.transpose(ten::TensorMap{T}) where T
     if any(length(size(ten[k])) > 2 for k ∈ keys(ten))
@@ -58,8 +57,17 @@ function Base.transpose(ten::TensorMap{T}) where T
     end
     return ten
 end
+=#
 
+function Base.transpose(ten::TensorMap{T}) where T <: Real
+    all(length.(size.(keys(ten))) .<= 2) && return ten
+    TensorMap{T}(-row => mpo_transpose(t) for (row, t) ∈ ten)
+    #TensorMap{T}(.- keys(ten) .=> mpo_transpose.(values(ten)))
+end
 
+function Base.transpose(mpo::QMpo{T}) where T <: Real
+    QMpo(NestedTensorMap{T}(keys(mpo.sites) .=> transpose.(values(mpo.tensors))))
+end
 
 
 function local_dims(mpo::QMpo, dir::Symbol)

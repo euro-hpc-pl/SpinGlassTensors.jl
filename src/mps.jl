@@ -19,7 +19,7 @@ const Site = Union{Int, Rational{Int}}
 const Sites = NTuple{N, Site} where N
 const State = Union{Vector, NTuple}
 
-const TensorMap{T} = Dict{Site, Tensor{T}}  # TODO distinct by type mpo tensors with 4 legs (site?) from central tensors with 2 legs
+const TensorMap{T} = Dict{Site, Tensor{T}}
 const NestedTensorMap{T} = Dict{Site, TensorMap{T}}
 
 struct QMps{T <: Real} <: AbstractTensorNetwork
@@ -45,34 +45,13 @@ function Base.transpose(ten::TensorMap{T}) where T <: Real
     TensorMap{T}(.- keys(ten) .=> mpo_transpose.(values(ten)))
 end
 
-
 function Base.transpose(mpo::QMpo{T}) where T <: Real
-    #QMpo(NestedTensorMap{T}(site => transpose(ten) for (site, ten) in mpo.tensors))
     QMpo(NestedTensorMap{T}(keys(mpo.tensors) .=> transpose.(values(mpo.tensors))))
 end
 
-function local_dims(mpo::QMpo, dir::Symbol)
-    @assert dir ∈ (:down, :up)
-    lds = Dict{Site, Int}()
-    for site ∈ mpo.sites
-        mkeys = sort(collect(keys(mpo[site])))
-        if any(length(size(mpo[site][k])) > 2 for k ∈ mkeys)
-            if dir == :down
-                ss = size(mpo[site][last(mkeys)])
-                push!(lds, site => length(ss) == 4 ? ss[4] : ss[2])
-            else
-                ss = size(mpo[site][first(mkeys)])
-                push!(lds, site => length(ss) == 4 ? ss[2] : ss[1])
-            end
-        end
-    end
-    lds
-end
+function IdentityQMps(::Type{T}, loc_dims::Dict, Dmax::Int=1) where T <: Real
+    id = TensorMap{T}(keys(loc_dims) .=> zeros.(T, Dmax, values(loc_dims), Dmax))
 
-function IdentityQMps(::Type{T}, loc_dims::Dict, Dmax::Int=1) where T <: Number
-    id = Dict{Site, Tensor{T}}(
-        site => zeros(T, Dmax, ld, Dmax) for (site, ld) ∈ loc_dims
-    )
     site_min, ld_min = minimum(loc_dims)
     site_max, ld_max = maximum(loc_dims)
     if site_min == site_max
@@ -81,6 +60,7 @@ function IdentityQMps(::Type{T}, loc_dims::Dict, Dmax::Int=1) where T <: Number
         id[site_min] = zeros(T, 1, ld_min, Dmax)
         id[site_max] = zeros(T, Dmax, ld_max, 1)
     end
+
     for (site, ld) ∈ loc_dims
         id[site][1, :, 1] .= one(T) / sqrt(ld)
     end
@@ -88,7 +68,7 @@ function IdentityQMps(::Type{T}, loc_dims::Dict, Dmax::Int=1) where T <: Number
 end
 
 function Base.rand(::Type{QMps{T}}, sites::Vector, D::Int, d::Int) where T <: Real
-    QMps = Dict{Site, Array{T, 3}}()
+    QMps = TensorMap{T}()
     for i ∈ sites
         if i == 1
             push!(QMps, i => randn(T, 1, d, D))
@@ -103,9 +83,9 @@ end
 
 function Base.rand(
     ::Type{QMpo{T}}, sites::Vector, D::Int, d::Int, sites_aux::Vector=[], d_aux::Int=0
-) where T <: Number
-    QMpo = Dict{Site, Dict{Site, Array{T, 4}}}()
-    QMpo_aux = Dict{Site, Array{T, 4}}()
+) where T <:Real
+    QMpo = NestedTensorMap{T}()
+    QMpo_aux = TensorMap{T}()
 
     for i ∈ sites
         if i == 1
@@ -124,6 +104,24 @@ function Base.rand(
         empty!(QMpo_aux)
     end
     QMpo(QMpo)
+end
+
+function local_dims(mpo::QMpo, dir::Symbol)
+    @assert dir ∈ (:down, :up)
+    lds = Dict{Site, Int}()
+    for site ∈ mpo.sites
+        mkeys = sort(collect(keys(mpo[site])))
+        if any(length(size(mpo[site][k])) > 2 for k ∈ mkeys)
+            if dir == :down
+                ss = size(mpo[site][last(mkeys)])
+                push!(lds, site => length(ss) == 4 ? ss[4] : ss[2])
+            else
+                ss = size(mpo[site][first(mkeys)])
+                push!(lds, site => length(ss) == 4 ? ss[2] : ss[1])
+            end
+        end
+    end
+    lds
 end
 
 @inline Base.getindex(a::AbstractTensorNetwork, i) = getindex(a.tensors, i)

@@ -11,22 +11,24 @@ abstract type AbstractSparseTensor end
 
 const Proj{N} = NTuple{N, Array{Int, 1}}
 const CuArrayOrArray{T, N} = Union{Array{T, N}, CuArray{T, N}}
-ArrayOrCuArray(L) = typeof(L) <: CuArray ? CuArray : Array
 
+ArrayOrCuArray(L) = typeof(L) <: CuArray ? CuArray : Array
 
 struct SiteTensor{T <: Real} <: AbstractSparseTensor
     loc_exp::Vector{T}
-    projs::Proj{4}  # todo?  p1, p2, p3, p4 ?
+    projs::Proj{4}  # TODO p1, p2, p3, p4 ?
     size::Dims
 
-    function SiteTensor(loc_exp, projs, size=maximum.(projs))
+    function SiteTensor(loc_exp, projs; size=maximum.(projs))
         T = eltype(loc_exp)
         new{T}(loc_exp, projs, size)
     end
 end
 
-mpo_transpose(ten::SiteTensor) = SiteTensor(ten.loc_exp, ten.projs[[1, 4, 3, 2]], ten.size[[1, 4, 3, 2]])
-
+function mpo_transpose(ten::SiteTensor)
+    perm = [1, 4, 3, 2]
+    SiteTensor(ten.loc_exp, ten.projs[perm], size=ten.size[perm])
+end
 struct CentralTensor{T <: Real} <: AbstractSparseTensor
     e11::Matrix{T}
     e12::Matrix{T}
@@ -41,19 +43,21 @@ struct CentralTensor{T <: Real} <: AbstractSparseTensor
 end
 
 function mpo_transpose(ten::CentralTensor)
-    CentralTensor(transpose(ten.e11), transpose(ten.e21), transpose(ten.e12), transpose(ten.e22), ten.size[[2, 1]])  # e21 and e12 are switched ?
+    CentralTensor(transpose.((ten.e11, ten.e21, ten.e12, ten.e22))..., ten.size[[2, 1]])
 end
 
 const MatOrCentral{T} = Union{Matrix{T}, CentralTensor{T}}
 
 function Base.Array(ten::CentralTensor)
-    @cast V[(u1, u2), (d1, d2)] := ten.e11[u1, d1] * ten.e21[u2, d1] * ten.e12[u1, d2] * ten.e22[u2, d2]
+    @cast V[(u1, u2), (d1, d2)] := ten.e11[u1, d1] * ten.e21[u2, d1] *
+                                   ten.e12[u1, d2] * ten.e22[u2, d2]
     V ./ maximum(V)
 end
 
 function CUDA.CuArray(ten::CentralTensor)
     e11, e12 ,e21, e22 = CuArray.((ten.e11, ten.e12, ten.e21, ten.e22))
-    @cast V[(u1, u2), (d1, d2)] := e11[u1, d1] * e21[u2, d1] * e12[u1, d2] * e22[u2, d2]
+    @cast V[(u1, u2), (d1, d2)] := e11[u1, d1] * e21[u2, d1] *
+                                   e12[u1, d2] * e22[u2, d2]
     V ./ maximum(V)
 end
 
@@ -75,7 +79,7 @@ end
 struct VirtualTensor{T <: Real} <: AbstractSparseTensor
     con::MatOrCentral{T}
     projs::Proj{6}  # == (p_lb, p_l, p_lt, p_rb, p_r, p_rt)
-    size::Dims  # should be the size of virtual tensor; not size of virtual legs
+    size::Dims  # TODO should be the size of virtual tensor; not size of virtual legs
 
     function VirtualTensor(con, projs)
         T = eltype(con)

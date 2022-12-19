@@ -40,13 +40,13 @@ struct QMpo{T <: Real} <: AbstractTensorNetwork
     end
 end
 
-function Base.transpose(ten::TensorMap{T}) where T <: Real
-    all(length.(size.(values(ten))) .<= 2) && return ten
-    TensorMap{T}(.- keys(ten) .=> mpo_transpose.(values(ten)))
+function Base.transpose(mpo::QMpo{T}) where T <: Real
+    QMpo(NestedTensorMap{T}(keys(mpo.tensors) .=> mpo_transpose.(values(mpo.tensors))))
 end
 
-function Base.transpose(mpo::QMpo{T}) where T <: Real
-    QMpo(NestedTensorMap{T}(keys(mpo.tensors) .=> transpose.(values(mpo.tensors))))
+function mpo_transpose(ten::TensorMap{T}) where T <: Real
+    all(length.(size.(values(ten))) .<= 2) && return ten
+    TensorMap{T}(.- keys(ten) .=> mpo_transpose.(values(ten)))
 end
 
 function IdentityQMps(::Type{T}, loc_dims::Dict, Dmax::Int=1) where T <: Real
@@ -68,42 +68,33 @@ function IdentityQMps(::Type{T}, loc_dims::Dict, Dmax::Int=1) where T <: Real
 end
 
 function Base.rand(::Type{QMps{T}}, sites::Vector, D::Int, d::Int) where T <: Real
-    QMps = TensorMap{T}()
-    for i ∈ sites
-        if i == 1
-            push!(QMps, i => randn(T, 1, d, D))
-        elseif i == last(sites)
-            push!(QMps, i => randn(T, D, d, 1))
-        else
-            push!(QMps, i => randn(T, D, d, D))
-        end
-    end
-    QMps(QMps)
+    QMps(
+        TensorMap{T}(
+            1 => rand(T, 1, d, D),
+            (i => rand(T, D, d, D) for i ∈ 2:sites-1)...,
+            sites[end] => rand(T, D, d, 1)
+        )
+    )
 end
 
 function Base.rand(
     ::Type{QMpo{T}}, sites::Vector, D::Int, d::Int, sites_aux::Vector=[], d_aux::Int=0
 ) where T <:Real
-    QMpo = NestedTensorMap{T}()
-    QMpo_aux = TensorMap{T}()
-
-    for i ∈ sites
-        if i == 1
-            push!(QMpo_aux, i => randn(T, 1, d, d, D))
-            push!(QMpo_aux, (j => randn(T, d_aux, d_aux) for j ∈ sites_aux)...)
-            push!(QMpo, i => copy(QMpo_aux))
-        elseif i == last(sites)
-            push!(QMpo_aux, (j => randn(T, d_aux, d_aux) for j ∈ sites_aux)...)
-            push!(QMpo_aux, last(sites) => randn(T, D, d, d, 1))
-            push!(QMpo, i => copy(QMpo_aux))
-        else
-            push!(QMpo_aux, (j => randn(T, d_aux, d_aux) for j ∈ sites_aux)...)
-            push!(QMpo_aux, i => randn(T, D, d, d, D))
-            push!(QMpo, i => copy(QMpo_aux))
-        end
-        empty!(QMpo_aux)
-    end
-    QMpo(QMpo)
+    QMpo(
+        NestedTensorMap{T}(
+            1 => TensorMap{T}(
+                    1 => rand(T, 1, d, d, D),
+                    (j => rand(T, d_aux, d_aux) for j ∈ sites_aux)...
+            ),
+            sites[end] => TensorMap{T}(
+                    sites[end] => rand(T, D, d, d, 1),
+                    (j => rand(T, d_aux, d_aux) for j ∈ sites_aux)...,
+            ),
+            (i => TensorMap{T}(
+                    i => rand(T, D, d, d, D),
+                    (j => rand(T, d_aux, d_aux) for j ∈ sites_aux)...) for i ∈ 2:sites-1)...
+        )
+    )
 end
 
 function local_dims(mpo::QMpo, dir::Symbol)

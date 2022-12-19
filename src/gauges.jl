@@ -1,24 +1,24 @@
 export
     optimize_gauges_for_overlaps!!
 
-#=
-function update_rq!(ψ::QMps{T}, A::Array{T, 3}, i::Int) where T <: Real
-    @cast B[x, (σ, y)] := A[x, σ, y]
-    R, Q = rq_fact(B)
-    R ./= maximum(abs.(R))
-    @cast A[x, σ, y] := Q[x, (σ, y)] (σ ∈ 1:size(A, 2))
-    ψ[i] = Array(A)
+function update_rq!(ψ::QMps{T}, AT::Array{T, 3}, i::Int) where T <: Real
+    @cast ATR[x, (σ, y)] := AT[x, σ, y]
+    RT, QT = rq_fact(ATR)
+    RT ./= maximum(abs.(RT))
+    @cast AT[x, σ, y] := QT[x, (σ, y)] (σ ∈ 1:size(AT, 2))
+    ψ_top[i] = Array(AT)
+    RT
 end
 
-function update_qr!(ψ::QMps{T}, A::Array{T, 3}, i::Int) where T <: Real
-    @cast B[(x, σ), y] := A[x, σ, y]
-    Q, R = qr_fact(B)
-    R ./= maximum(abs.(R))
-    @cast A[x, σ, y] := Q[(x, σ), y] (σ ∈ 1:size(A, 2))
-    ψ[i] = Array(A)
+function update_qr!(ψ::QMps{T}, AT::Array{T, 3}, i::Int) where T <: Real
+    @cast ATR[(x, σ), y] := AT[x, σ, y]
+    QT, RT = qr_fact(ATR)
+    RT ./= maximum(abs.(RT))
+    @cast AT[x, σ, y] := QT[(x, σ), y] (σ ∈ 1:size(AT, 2))
+    ψ[i] = Array(AT)
+    RT
 end
 
-=#
 function _gauges_right_sweep!!!(
     ψ_top::QMps{R}, ψ_bot::QMps{R}, gauges::Dict; tol::Real=1E-12
 ) where R <: Real
@@ -32,30 +32,17 @@ function _gauges_right_sweep!!!(
         @tensor ρ_t[r, s] := T[i, r, j] * conj(T)[i, s, j]
         @tensor ρ_b[r, s] := B[i, r, j] * conj(B)[i, s, j]
 
-        dρ_b = diag(ρ_b)
-        dρ_t = diag(ρ_t)
-        inds = (dρ_b .< tol) .|| (dρ_t .< tol)
-        dρ_b[inds] .= one(R)
-        dρ_t[inds] .= one(R)
+        dρ_b, dρ_t = diag.((ρ_b, ρ_t))
+        K = (dρ_b .< tol) .|| (dρ_t .< tol)
+        dρ_b[K] .= one(R)
+        dρ_t[K] .= one(R)
 
-        gauge = (dρ_b ./ dρ_t) .^ (1 / 4) # optimize
-        gauge_inv = one(R) ./ gauge
-        gauges[i] .*= gauge  # update
+        X = (dρ_b ./ dρ_t) .^ (1 / 4) # optimize
+        X_inv = one(R) ./ X
+        gauges[i] .*= X  # update
 
-        AT = T .* reshape(gauge, (1, :, 1))
-        AB = B .* reshape(gauge_inv, (1, :, 1))
-
-        @cast ATR[(x, σ), y] := AT[x, σ, y]
-        QT, RT = qr_fact(ATR)
-        RT ./= maximum(abs.(RT))
-        @cast AT[x, σ, y] := QT[(x, σ), y] (σ ∈ 1:size(AT, 2))
-        ψ_top[i] = Array(AT)
-
-        @cast ABR[(x, σ), y] := AB[x, σ, y]
-        QB, RB = qr_fact(ABR)
-        RB ./= maximum(abs.(RB))
-        @cast AB[x, σ, y] := QB[(x, σ), y] (σ ∈ 1:size(AB, 2))
-        ψ_bot[i] = Array(AB)
+        RT = update_qr!(ψ_top, T .* reshape(X, 1, :, 1), i)
+        RB = update_qr!(ψ_bot, B .* reshape(X_inv, 1, :, 1), i)
     end
 end
 

@@ -8,7 +8,7 @@ export
 abstract type AbstractEnvironment end
 
 mutable struct Environment{T <: Real} <: AbstractEnvironment
-    bra::QMps{T}  # to be optimized
+    bra::QMps{T}  # ψ to be optimized
     mpo::QMpo{T}
     ket::QMps{T}
     env::Dict
@@ -77,7 +77,7 @@ Largest x in sites: x < site
 """
 function left_nbrs_site(site::Site, sites)
     ls = filter(i -> i < site, sites)
-    if isempty(ls) return -Inf end
+    isempty(ls) && return -Inf
     maximum(ls)
 end
 
@@ -86,12 +86,12 @@ Smallest x in sites: x > site
 """
 function right_nbrs_site(site::Site, sites)
     ms = filter(i -> i > site, sites)
-    if isempty(ms) return Inf end
+    isempty(ms) && return Inf
     minimum(ms)
 end
 
 function update_env_left!(env::Environment, site::Site)
-    if site <= first(env.bra.sites) return end
+    site <= first(env.bra.sites) && return
 
     ls = left_nbrs_site(site, env.bra.sites)
     LL = update_env_left(env.env[(ls, :left)], env.bra[ls], env.mpo[ls], env.ket[ls])
@@ -105,7 +105,7 @@ function update_env_left!(env::Environment, site::Site)
 end
 
 function update_env_right!(env::Environment, site::Site)
-    if site >= last(env.bra.sites) return end
+    site >= last(env.bra.sites) && return
 
     rs = right_nbrs_site(site, env.bra.sites)
     RR = update_env_right(env.env[(rs, :right)], env.bra[rs], env.mpo[rs], env.ket[rs])
@@ -218,9 +218,7 @@ function project_ket_on_bra(
 end
 
 function measure_env(env::Environment, site::Site)
-    L = update_env_left(
-        env.env[(site, :left)], env.bra[site], env.mpo[site], env.ket[site]
-    )
+    L = update_env_left(env.env[(site, :left)], env.bra[site], env.mpo[site], env.ket[site])
     R = env.env[(site, :right)]
     @tensor L[t, c, b] * R[b, c, t]
 end

@@ -1,7 +1,27 @@
 export
     optimize_gauges_for_overlaps!!
 
-function _gauges_right_sweep!!!(ψ_top::QMps{R}, ψ_bot::QMps{R}, all_gauges::Dict; tol::Real=1E-12) where R <: Real
+#=
+function update_rq!(ψ::QMps{T}, A::Array{T, 3}, i::Int) where T <: Real
+    @cast B[x, (σ, y)] := A[x, σ, y]
+    R, Q = rq_fact(B)
+    R ./= maximum(abs.(R))
+    @cast A[x, σ, y] := Q[x, (σ, y)] (σ ∈ 1:size(A, 2))
+    ψ[i] = Array(A)
+end
+
+function update_qr!(ψ::QMps{T}, A::Array{T, 3}, i::Int) where T <: Real
+    @cast B[(x, σ), y] := A[x, σ, y]
+    Q, R = qr_fact(B)
+    R ./= maximum(abs.(R))
+    @cast A[x, σ, y] := Q[(x, σ), y] (σ ∈ 1:size(A, 2))
+    ψ[i] = Array(A)
+end
+
+=#
+function _gauges_right_sweep!!!(
+    ψ_top::QMps{R}, ψ_bot::QMps{R}, gauges::Dict; tol::Real=1E-12
+) where R <: Real
     RT = ones(R, 1, 1)
     RB = ones(R, 1, 1)
     for i ∈ ψ_top.sites
@@ -14,14 +34,13 @@ function _gauges_right_sweep!!!(ψ_top::QMps{R}, ψ_bot::QMps{R}, all_gauges::Di
 
         dρ_b = diag(ρ_b)
         dρ_t = diag(ρ_t)
-
         inds = (dρ_b .< tol) .|| (dρ_t .< tol)
         dρ_b[inds] .= one(R)
         dρ_t[inds] .= one(R)
 
         gauge = (dρ_b ./ dρ_t) .^ (1 / 4) # optimize
         gauge_inv = one(R) ./ gauge
-        all_gauges[i] .*= gauge  # update
+        gauges[i] .*= gauge  # update
 
         AT = T .* reshape(gauge, (1, :, 1))
         AB = B .* reshape(gauge_inv, (1, :, 1))
@@ -40,7 +59,9 @@ function _gauges_right_sweep!!!(ψ_top::QMps{R}, ψ_bot::QMps{R}, all_gauges::Di
     end
 end
 
-function _gauges_left_sweep!!!(ψ_top::QMps{R}, ψ_bot::QMps{R}, all_gauges::Dict; tol::Real=1E-12) where R <: Real
+function _gauges_left_sweep!!!(
+    ψ_top::QMps{R}, ψ_bot::QMps{R}, gauges::Dict; tol::Real=1E-12
+) where R <: Real
     RT = ones(R, 1, 1)
     RB = ones(R, 1, 1)
     for i ∈ reverse(ψ_top.sites)
@@ -53,15 +74,13 @@ function _gauges_left_sweep!!!(ψ_top::QMps{R}, ψ_bot::QMps{R}, all_gauges::Dic
 
         dρ_b = diag(ρ_b)
         dρ_t = diag(ρ_t)
-
         inds = (dρ_b .< tol) .|| (dρ_t .< tol)
         dρ_b[inds] .= one(R)
         dρ_t[inds] .= one(R)
 
         gauge = (dρ_b ./ dρ_t) .^ (1 / 4) # optimize
-
         gauge_inv = one(R) ./ gauge
-        all_gauges[i] .*= gauge # update
+        gauges[i] .*= gauge # update
 
         AT = T .* reshape(gauge, (1, :, 1))
         AB = B .* reshape(gauge_inv, (1, :, 1))
@@ -88,15 +107,14 @@ function optimize_gauges_for_overlaps!!(
     canonise!(ψ_bot, :right)
 
     overlap_old = dot(ψ_top, ψ_bot)
-    all_gauges = Dict(i => ones(T, size(ψ_top[i], 2)) for i ∈ ψ_top.sites)
+    gauges = Dict(i => ones(T, size(ψ_top[i], 2)) for i ∈ ψ_top.sites)
     for _ ∈ 1:max_sweeps
-        _gauges_right_sweep!!!(ψ_top, ψ_bot, all_gauges)
-        _gauges_left_sweep!!!(ψ_top, ψ_bot, all_gauges)
-
+        _gauges_right_sweep!!!(ψ_top, ψ_bot, gauges)
+        _gauges_left_sweep!!!(ψ_top, ψ_bot, gauges)
         overlap_new = dot(ψ_top, ψ_bot)
         Δ = overlap_new / overlap_old
         overlap_old = overlap_new
         if abs(Δ - one(T)) < tol break end
     end
-    all_gauges
+    gauges
 end

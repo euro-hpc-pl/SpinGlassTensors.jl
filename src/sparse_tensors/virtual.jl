@@ -99,7 +99,7 @@ function attach_2_matrices(L, B2, h, R)
 end
 
 function update_env_left(
-    LE::S, A::S, M::VirtualTensor{T}, B::S, type::Union{Val{:n}, Val{:c}}
+    LE::S, A::S, M::VirtualTensor{T}, B::S
 ) where {S <: CuArrayOrArray{T, 3}} where T <: Real
     A, B, L = CuArray.((A, B, LE))
 
@@ -109,17 +109,11 @@ function update_env_left(
     slb, srb = size(B, 1), size(B, 3)
     slt, srt = size(A, 1), size(A, 3)
     srcp = length(p_r)
-    if type == Val{:n}()
-        slcb, slc, slct = maximum(p_lb), maximum(p_l), maximum(p_lt)
-        srcb, srct = maximum(p_rb), maximum(p_rt)
-        prs = CuSparseMatrixCSR(T, p_rb, p_r, p_rt)
-        ps = CuSparseMatrixCSC(T, p_lb, p_l, p_lt)
-    else
-        slcb, slc, slct = maximum(p_lt), maximum(p_l), maximum(p_lb)
-        srcb, srct = maximum(p_rt), maximum(p_rb)
-        prs = CuSparseMatrixCSR(T, p_rt, p_r, p_rb)
-        ps = CuSparseMatrixCSC(T, p_lt, p_l, p_lb)
-    end
+
+    slcb, slc, slct = maximum(p_lb), maximum(p_l), maximum(p_lt)
+    srcb, srct = maximum(p_rb), maximum(p_rt)
+    prs = CuSparseMatrixCSR(T, p_rb, p_r, p_rt)
+    ps = CuSparseMatrixCSC(T, p_lb, p_l, p_lt)
 
     batch_size = 2
 
@@ -167,7 +161,7 @@ function update_env_left(
 end
 
 function update_env_right(
-    RE::S, A::S, M::VirtualTensor{T}, B::S, type::Union{Val{:n}, Val{:c}}
+    RE::S, A::S, M::VirtualTensor{T}, B::S
 ) where {S <: CuArrayOrArray{T, 3}} where T <: Real
     A, B, R = CuArray.((A, B, RE))
 
@@ -178,17 +172,10 @@ function update_env_right(
     slt, srt = size(A, 1), size(A, 3)
     slcp = length(p_l)
 
-    if type == Val{:n}()
-        slcb, slc, slct = maximum(p_lb), maximum(p_l), maximum(p_lt)
-        srcb, src, srct = maximum(p_rb), maximum(p_r), maximum(p_rt)
-        prs = CuSparseMatrixCSR(eltype(RE), p_lb, p_l, p_lt)
-        ps = CuSparseMatrixCSC(eltype(RE), p_rb, p_r, p_rt)
-    else
-        slcb, slc, slct = maximum(p_lt), maximum(p_l), maximum(p_lb)
-        srcb, src, srct = maximum(p_rt), maximum(p_r), maximum(p_rb)
-        prs = CuSparseMatrixCSR(eltype(RE), p_lt, p_l, p_lb)
-        ps = CuSparseMatrixCSC(eltype(RE), p_rt, p_r, p_rb)
-    end
+    slcb, slc, slct = maximum(p_lb), maximum(p_l), maximum(p_lt)
+    srcb, src, srct = maximum(p_rb), maximum(p_r), maximum(p_rt)
+    prs = CuSparseMatrixCSR(eltype(RE), p_lb, p_l, p_lt)
+    ps = CuSparseMatrixCSC(eltype(RE), p_rb, p_r, p_rt)
 
     batch_size = 2
 
@@ -234,7 +221,7 @@ function update_env_right(
 end
 
 function project_ket_on_bra(
-    LE::S, B::S, M::VirtualTensor{T}, RE::S, type::Union{Val{:n}, Val{:c}}
+    LE::S, B::S, M::VirtualTensor{T}, RE::S
 ) where {S <: CuArrayOrArray{T, 3}} where T <: Real
     h = M.con
     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
@@ -245,17 +232,10 @@ function project_ket_on_bra(
     sl1, sl3 = size(L, 1), size(L, 3)
     sr1, sr3 = size(R, 1), size(R, 3)
 
-    if type == Val{:n}()
-        slcb, slc, slct = maximum(p_lb), maximum(p_l), maximum(p_lt)
-        srcb, src, srct = maximum(p_rb), maximum(p_r), maximum(p_rt)
-        ps = CuSparseMatrixCSC(eltype(LE), p_lb, p_l, p_lt)
-        prs = CuSparseMatrixCSC(eltype(RE), p_rb, p_r, p_rt)
-    else
-        slcb, slc, slct = maximum(p_lt), maximum(p_l), maximum(p_lb)
-        srcb, src, srct = maximum(p_rt), maximum(p_r), maximum(p_rb)
-        ps = CuSparseMatrixCSC(eltype(LE), p_lt, p_l, p_lb)
-        prs = CuSparseMatrixCSC(eltype(RE), p_rt, p_r, p_rb)
-    end
+    slcb, slc, slct = maximum(p_lb), maximum(p_l), maximum(p_lt)
+    srcb, src, srct = maximum(p_rb), maximum(p_r), maximum(p_rt)
+    ps = CuSparseMatrixCSC(eltype(LE), p_lb, p_l, p_lt)
+    prs = CuSparseMatrixCSC(eltype(RE), p_rb, p_r, p_rt)
 
     batch_size = 2
 

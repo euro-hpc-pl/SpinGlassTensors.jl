@@ -34,32 +34,32 @@ function contract_sparse_with_three(
 end
 
 function update_env_left(
-    LE::S, A::S, M::T, B::S, trans::Bool
+    LE::S, A::S, M::T, B::S
 ) where {S <: ArrayOrCuArray{R, 3}, T <: SparseSiteTensor{R} where R <: Real}
     B = permutedims(B, (3, 1, 2))
     LE = permutedims(LE, (1, 3, 2))
     A = permutedims(A, (1, 3, 2))
-    Mp = M.projs[trans ? [2, 1, 4, 3] : [4, 1, 2, 3]]
+    Mp = M.projs[[2, 1, 4, 3]]
     contract_sparse_with_three(B, LE, A, M.loc_exp, Mp...)
 end
 
 function update_env_right(
-    RE::S, A::S, M::SparseSiteTensor{R}, B::S, trans::Bool
+    RE::S, A::S, M::SparseSiteTensor{R}, B::S
 ) where {S <: ArrayOrCuArray{R, 3} where R <: Real}
     A = permutedims(A, (1, 3, 2))
     RE = permutedims(RE, (1, 3, 2))
     B = permutedims(B, (3, 1, 2))
-    Mp = M.projs[trans ? [4, 3, 2, 1] : [2, 3, 4, 1]]
+    Mp = M.projs[[4, 3, 2, 1]]
     contract_sparse_with_three(A, RE, B, M.loc_exp, Mp...)
 end
 
 function project_ket_on_bra(
-    LE::S, B::S, M::SparseSiteTensor{R}, RE::S, trans::Bool
+    LE::S, B::S, M::SparseSiteTensor{R}, RE::S
 ) where {S <: ArrayOrCuArray{R, 3} where R <: Real}
     LE = permutedims(LE, (3, 1, 2))
     B = permutedims(B, (1, 3, 2))
     RE = permutedims(RE, (3, 1, 2))
-    Mp = M.projs[trans ? [1, 2, 3, 4] : [1, 4, 3, 2]]
+    Mp = M.projs[[1, 2, 3, 4]]
     contract_sparse_with_three(LE, B, RE, M.loc_exp, Mp...)
 end
 

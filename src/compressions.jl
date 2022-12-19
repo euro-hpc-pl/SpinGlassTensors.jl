@@ -11,35 +11,33 @@ mutable struct Environment{T <: Real} <: AbstractEnvironment
     bra::QMps{T}  # to be optimized
     mpo::QMpo{T}
     ket::QMps{T}
-    trans::Symbol
     env::Dict
 
     function Environment(
-        bra::QMps{T}, mpo::QMpo{T}, ket::QMps{T}, trans::Symbol=:n
+        bra::QMps{T}, mpo::QMpo{T}, ket::QMps{T}
     ) where T <: Real
-        @assert trans ∈ (:n, :c)
         @assert bra.sites == ket.sites && issubset(bra.sites, mpo.sites)
 
         id = ones(T, 1, 1, 1)
         env0 = Dict((first(bra.sites), :left) => id, (last(bra.sites), :right) => id)
-        env = new{T}(bra, mpo, ket, trans, env0)
-        for site ∈ env.bra.sites update_env_left!(env, site, trans) end
+        env = new{T}(bra, mpo, ket, env0)
+        for site ∈ env.bra.sites update_env_left!(env, site) end
         env
     end
 end
 
 function variational_compress!(
-    bra::QMps{T}, mpo::QMpo{T}, ket::QMps{T}, tol::Real=1E-10, max_sweeps::Int=4, trans::Symbol=:n, args...
+    bra::QMps{T}, mpo::QMpo{T}, ket::QMps{T}, tol::Real=1E-10, max_sweeps::Int=4, args...
 ) where T <: Real
-    env = Environment(bra, mpo, ket, trans)
+    env = Environment(bra, mpo, ket)
     overlap = Inf
-    overlap_before = measure_env(env, last(env.bra.sites), trans)
+    overlap_before = measure_env(env, last(env.bra.sites))
 
     for sweep ∈ 1:max_sweeps
-        _left_sweep_var!(env, trans, args...)
-        _right_sweep_var!(env, trans, args...)
+        _left_sweep_var!(env, args...)
+        _right_sweep_var!(env, args...)
 
-        overlap = measure_env(env, last(env.bra.sites), trans)
+        overlap = measure_env(env, last(env.bra.sites))
         Δ = abs(overlap_before - abs(overlap))
         @info "Convergence" Δ
 
@@ -53,10 +51,10 @@ function variational_compress!(
     overlap
 end
 
-function _left_sweep_var!(env::Environment, trans::Symbol=:n, args...)
+function _left_sweep_var!(env::Environment, args...)
     for site ∈ reverse(env.bra.sites)
-        update_env_right!(env, site, trans)
-        A = project_ket_on_bra(env, site, trans)
+        update_env_right!(env, site)
+        A = project_ket_on_bra(env, site)
         @cast B[x, (y, z)] := A[x, y, z]
         _, Q = rq_fact(B, args...)
         @cast C[x, σ, y] := Q[x, (σ, y)] (σ ∈ 1:size(A, 2))
@@ -65,10 +63,10 @@ function _left_sweep_var!(env::Environment, trans::Symbol=:n, args...)
     end
 end
 
-function _right_sweep_var!(env::Environment, trans::Symbol=:n, args...)
+function _right_sweep_var!(env::Environment, args...)
     for site ∈ env.bra.sites
-        update_env_left!(env, site, trans)
-        A = project_ket_on_bra(env, site, trans)
+        update_env_left!(env, site)
+        A = project_ket_on_bra(env, site)
         @cast B[(x, y), z] := A[x, y, z]
         Q, _ = qr_fact(B, args...)
         @cast C[x, σ, y] := Q[(x, σ), y] (σ ∈ 1:size(A, 2))
@@ -95,29 +93,29 @@ function right_nbrs_site(site::Site, sites)
     minimum(ms)
 end
 
-function update_env_left!(env::Environment, site::Site, trans::Symbol=:n)
+function update_env_left!(env::Environment, site::Site)
     if site <= first(env.bra.sites) return end
 
     ls = left_nbrs_site(site, env.bra.sites)
-    LL = update_env_left(env.env[(ls, :left)], env.bra[ls], env.mpo[ls], env.ket[ls], trans)
+    LL = update_env_left(env.env[(ls, :left)], env.bra[ls], env.mpo[ls], env.ket[ls])
 
     rs = right_nbrs_site(ls, env.mpo.sites)
     while rs < site
-        LL = update_env_left(LL, env.mpo[rs], trans)
+        LL = update_env_left(LL, env.mpo[rs])
         rs = right_nbrs_site(rs, env.mpo.sites)
     end
     push!(env.env, (site, :left) => LL)
 end
 
-function update_env_right!(env::Environment, site::Site, trans::Symbol=:n)
+function update_env_right!(env::Environment, site::Site)
     if site >= last(env.bra.sites) return end
 
     rs = right_nbrs_site(site, env.bra.sites)
-    RR = update_env_right(env.env[(rs, :right)], env.bra[rs], env.mpo[rs], env.ket[rs], trans)
+    RR = update_env_right(env.env[(rs, :right)], env.bra[rs], env.mpo[rs], env.ket[rs])
 
     ls = left_nbrs_site(rs, env.mpo.sites)
     while ls > site
-        RR = update_env_right(RR, env.mpo[ls], trans)
+        RR = update_env_right(RR, env.mpo[ls])
         ls = left_nbrs_site(ls, env.mpo.sites)
     end
     push!(env.env, (site, :right) => RR)
@@ -136,16 +134,16 @@ end
         -- B --
 """
 function update_env_left(
-    LE::S, A₀::S, M::T, B₀::S, trans::Symbol=:n
+    LE::S, A₀::S, M::T, B₀::S
 ) where {S <: CuArrayOrArray{R, 3}, T <: TensorMap{R}} where R <: Real
     sites = sort(collect(keys(M)))
-    A = _update_tensor_forward(A₀, M, sites, Val(trans))
-    B = _update_tensor_backwards(B₀, M, sites, Val(trans))
-    update_env_left(LE, A, M[0], B, Val(trans))
+    A = _update_tensor_forward(A₀, M, sites)
+    B = _update_tensor_backwards(B₀, M, sites)
+    update_env_left(LE, A, M[0], B)
 end
 
 function update_env_left(
-    LE::S, M::T, trans::Symbol=:n
+    LE::S, M::T
 ) where {S <: CuArrayOrArray{R, 3}, T <: TensorMap{R}} where R <: Real
     attach_central_left(LE, M[0])
 end
@@ -154,7 +152,7 @@ projector_to_dense(::Type{T}, pr::Array{Int, 1}) where T = diagm(ones(T, maximum
 projector_to_dense(pr::Array{Int, 1}) = projector_to_dense(Float64, pr) # TODO to be removed
 
 function _update_tensor_forward(
-    A::S, M::T, sites, ::Val{:n}
+    A::S, M::T, sites
 ) where {S <: CuArrayOrArray{R, 3}, T <: TensorMap{R}} where R <: Real
     B = copy(A)
     for i ∈ sites
@@ -164,46 +162,24 @@ function _update_tensor_forward(
     B
 end
 
-function _update_tensor_forward(
-    A::S, M::T, sites, ::Val{:c}
+function _update_tensor_backwards(
+    A::S, M::T, sites
 ) where {S <: CuArrayOrArray{R, 3}, T <: TensorMap{R}} where R <: Real
     B = copy(A)
     for i ∈ reverse(sites)
         i == 0 && break
         B = attach_central_right(B, M[i])
-    end
-    B
-end
-
-function _update_tensor_backwards(
-    A::S, M::T, sites, ::Val{:n}
-) where {S <: CuArrayOrArray{R, 3}, T <: TensorMap{R}} where R <: Real
-    B = copy(A)
-    for i ∈ reverse(sites)
-        i == 0 && break
-        B = attach_central_right(B, M[i])
-    end
-    B
-end
-
-function _update_tensor_backwards(
-    A::S, M::T, sites, ::Val{:c}
-) where {S <: CuArrayOrArray{R, 3}, T <: TensorMap{R}} where R <: Real
-    B = copy(A)
-    for i ∈ sites
-        i == 0 && break
-        B = attach_central_left(B, M[i])
     end
     B
 end
 
 function update_env_right(
-    RE::S, A₀::S1, M::T, B₀::S, trans::Symbol
+    RE::S, A₀::S1, M::T, B₀::S
 ) where {T <: TensorMap{R}, S <: CuArrayOrArray{R, 3}, S1 <: CuArrayOrArray{R, 3}} where R <: Real
     sites = sort(collect(keys(M)))
-    A = _update_tensor_forward(A₀, M, sites, Val(trans))
-    B = _update_tensor_backwards(B₀, M, sites, Val(trans))
-    update_env_right(RE, A, M[0], B, Val(trans))
+    A = _update_tensor_forward(A₀, M, sites)
+    B = _update_tensor_backwards(B₀, M, sites)
+    update_env_right(RE, A, M[0], B)
 end
 
 """
@@ -214,23 +190,22 @@ end
            --
 """
 function update_env_right(
-    RE::S, M::T, trans::Symbol
+    RE::S, M::T
 ) where {S <: CuArrayOrArray{R, 3}, T <: TensorMap{R}} where R <: Real
     attach_central_right(RE, M[0])
 end
 
-function project_ket_on_bra(env::Environment, site::Site, trans::Symbol)
+function project_ket_on_bra(env::Environment, site::Site)
     project_ket_on_bra(
         env.env[(site, :left)],
         env.ket[site],
         env.mpo[site],
-        env.env[(site, :right)],
-        Val(trans)
+        env.env[(site, :right)]
     )
 end
 
 function project_ket_on_bra(
-    LE::S, B₀::S, M::T, RE::S, ::Val{:n}
+    LE::S, B₀::S, M::T, RE::S
 ) where {S <: CuArrayOrArray{R, 3}, T <: TensorMap{R}} where R <: Real
     C = sort(collect(M), by = x -> x[1])
     TT = B₀
@@ -239,46 +214,30 @@ function project_ket_on_bra(
         if dimv == 2
             TT = attach_central_right(TT, v)
         else
-            TT = project_ket_on_bra(LE, TT, v, RE, Val(:n))
+            TT = project_ket_on_bra(LE, TT, v, RE)
         end
     end
     TT
 end
 
-function project_ket_on_bra(
-    LE::S, B₀::S, M::T, RE::S, ::Val{:c}
-) where {S <:  CuArrayOrArray{R, 3}, T <: TensorMap{R}} where R <: Real
-    C = sort(collect(M), by = x -> x[1])
-    TT = B₀
-    for (_, v) ∈ C
-        dimv = length(size(v))
-        if dimv == 2
-            TT = attach_central_left(TT, v)
-        else
-            TT = project_ket_on_bra(LE, TT, v, RE, Val(:c))
-        end
-    end
-    TT
-end
-
-function measure_env(env::Environment, site::Site, trans::Symbol)
+function measure_env(env::Environment, site::Site)
     L = update_env_left(
-        env.env[(site, :left)], env.bra[site], env.mpo[site], env.ket[site], trans
+        env.env[(site, :left)], env.bra[site], env.mpo[site], env.ket[site]
     )
     R = env.env[(site, :right)]
     @tensor L[t, c, b] * R[b, c, t]
 end
 
 function variational_sweep!(
-    bra::QMps{T}, mpo::QMpo{T}, ket::QMps{T}, ::Val{:left}, trans::Symbol=:n, args...
+    bra::QMps{T}, mpo::QMpo{T}, ket::QMps{T}, ::Val{:left}, args...
 ) where T <: Real
-    env = Environment(bra, mpo, ket, trans)
-    _right_sweep_var!(env, trans, args...)
+    env = Environment(bra, mpo, ket)
+    _right_sweep_var!(env, args...)
 end
 
 function variational_sweep!(
-    bra::QMps{T}, mpo::QMpo{T}, ket::QMps{T}, ::Val{:right}, trans::Symbol=:n, args...
+    bra::QMps{T}, mpo::QMpo{T}, ket::QMps{T}, ::Val{:right}, args...
 ) where T <: Real
-    env = Environment(bra, mpo, ket, trans)
-    _left_sweep_var!(env, trans, args...)
+    env = Environment(bra, mpo, ket)
+    _left_sweep_var!(env, args...)
 end

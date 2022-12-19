@@ -30,32 +30,32 @@ function contract_sparse_with_three(X1, X2, X3, loc_exp, p1, p2, p3, pout)
 end
 
 function update_env_left(
-    LE::S, A::S, M::T, B::S, type::Union{Val{:n}, Val{:c}}
+    LE::S, A::S, M::T, B::S
 ) where {S <: CuArrayOrArray{R, 3}, T <: SiteTensor{R}} where R <: Real
     B = permutedims(B, (3, 1, 2))
     LE = permutedims(LE, (1, 3, 2))
     A = permutedims(A, (1, 3, 2))
-    order = type == Val{:n}() ? [4, 1, 2, 3] : [2, 1, 4, 3]
+    order = [4, 1, 2, 3]
     contract_sparse_with_three(B, LE, A, M.loc_exp, M.projs[order]...)
 end
 
 function update_env_right(
-    RE::S, A::S, M::SiteTensor{R}, B::S, type::Union{Val{:n}, Val{:c}}
+    RE::S, A::S, M::SiteTensor{R}, B::S
 ) where {S <: CuArrayOrArray{R, 3}} where R <: Real
     A = permutedims(A, (1, 3, 2))
     RE = permutedims(RE, (1, 3, 2))
     B = permutedims(B, (3, 1, 2))
-    order = type == Val{:n}() ? [2, 3, 4, 1] : [4, 3, 2, 1]
+    order = [2, 3, 4, 1]
     contract_sparse_with_three(A, RE, B, M.loc_exp, M.projs[order]...)
 end
 
 function project_ket_on_bra(
-    LE::S, B::S, M::SiteTensor{R}, RE::S, type::Union{Val{:n}, Val{:c}}
+    LE::S, B::S, M::SiteTensor{R}, RE::S
 ) where {S <: CuArrayOrArray{R, 3}} where R <: Real
     LE = permutedims(LE, (3, 1, 2))
     B = permutedims(B, (1, 3, 2))
     RE = permutedims(RE, (3, 1, 2))
-    order = type == Val{:n}() ? [1, 4, 3, 2] : [1, 2, 3, 4]
+    order = [1, 4, 3, 2]
     contract_sparse_with_three(LE, B, RE, M.loc_exp, M.projs[order]...)
 end
 

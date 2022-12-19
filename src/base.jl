@@ -16,7 +16,7 @@ ArrayOrCuArray(L) = typeof(L) <: CuArray ? CuArray : Array
 
 struct SiteTensor{T <: Real} <: AbstractSparseTensor
     loc_exp::Vector{T}
-    projs::Proj{4}  # == p1, p2, p3, p4
+    projs::Proj{4}  # == pl, pt, pr, pb
     size::Dims
 
     function SiteTensor(loc_exp, projs; size=maximum.(projs))
@@ -29,6 +29,7 @@ function mpo_transpose(ten::SiteTensor)
     perm = [1, 4, 3, 2]
     SiteTensor(ten.loc_exp, ten.projs[perm], size=ten.size[perm])
 end
+
 struct CentralTensor{T <: Real} <: AbstractSparseTensor
     e11::Matrix{T}
     e12::Matrix{T}
@@ -79,11 +80,13 @@ mpo_transpose(ten::DiagonalTensor) = DiagonalTensor(
 struct VirtualTensor{T <: Real} <: AbstractSparseTensor
     con::MatOrCentral{T}
     projs::Proj{6}  # == (p_lb, p_l, p_lt, p_rb, p_r, p_rt)
-    size::Dims  # TODO should be the size of virtual tensor; not size of virtual legs
+    size::Dims
 
     function VirtualTensor(con, projs)
         T = eltype(con)
-        new{T}(con, projs, maximum.(projs))
+        size = (length(projs[2]), maximum(projs[3]) * maximum(projs[6]),
+                length(projs[5]), maximum(projs[1]) * maximum(projs[4]))
+        new{T}(con, projs, size)
     end
 end
 

@@ -19,13 +19,13 @@ struct SiteTensor{T <: Real} <: AbstractSparseTensor
     projs::Proj{4}  # todo?  p1, p2, p3, p4 ?
     size::Dims
 
-    function SiteTensor(loc_exp, projs)
+    function SiteTensor(loc_exp, projs, size=maximum.(projs))
         T = eltype(loc_exp)
-        new{T}(loc_exp, projs, maximum.(projs))
+        new{T}(loc_exp, projs, size)
     end
 end
 
-mpo_transpose(ten::SiteTensor{T}) where T = SiteTensor{T}(ten.loc_exp, ten.projs[1, 4, 3, 2], ten.size[1, 4, 3, 2])
+mpo_transpose(ten::SiteTensor) = SiteTensor(ten.loc_exp, ten.projs[[1, 4, 3, 2]], ten.size[[1, 4, 3, 2]])
 
 struct CentralTensor{T <: Real} <: AbstractSparseTensor
     e11::Matrix{T}
@@ -40,8 +40,8 @@ struct CentralTensor{T <: Real} <: AbstractSparseTensor
     end
 end
 
-function mpo_transpose(ten::CentralTensor{T}) where T
-    CentralTensor{T}(transpose(ten.e11), transpose(ten.e21), transpose(ten.e12), transpose(ten.e22), ten.size[2, 1])  # e21 and e12 are switched ?
+function mpo_transpose(ten::CentralTensor)
+    CentralTensor(transpose(ten.e11), transpose(ten.e21), transpose(ten.e12), transpose(ten.e22), ten.size[[2, 1]])  # e21 and e12 are switched ?
 end
 
 const MatOrCentral{T} = Union{Matrix{T}, CentralTensor{T}}
@@ -68,14 +68,14 @@ struct DiagonalTensor{T <: Real} <: AbstractSparseTensor
     end
 end
 
-function mpo_transpose(ten::DiagonalTensor{T}) where T
-    DiagonalTensor{T}(transpose(ten.e2), transpose(ten.e1), ten.size[2, 1])
+function mpo_transpose(ten::DiagonalTensor)
+    DiagonalTensor(mpo_transpose(ten.e2), mpo_transpose(ten.e1), ten.size[[2, 1]])
 end
 
 struct VirtualTensor{T <: Real} <: AbstractSparseTensor
     con::MatOrCentral{T}
     projs::Proj{6}  # == (p_lb, p_l, p_lt, p_rb, p_r, p_rt)
-    size::Dims
+    size::Dims  # should be the size of virtual tensor; not size of virtual legs
 
     function VirtualTensor(con, projs)
         T = eltype(con)
@@ -83,8 +83,8 @@ struct VirtualTensor{T <: Real} <: AbstractSparseTensor
     end
 end
 
-function mpo_transpose(ten::VirtualTensor{T}) where T
-    VirtualTensor{T}(ten.con, ten.projs[3, 2, 1, 6, 5, 4], ten.size)
+function mpo_transpose(ten::VirtualTensor)
+    VirtualTensor(ten.con, ten.projs[[3, 2, 1, 6, 5, 4]])
 end
 
 mpo_transpose(ten::Array{T, 4}) where T = Array(permutedims(ten, (1, 4, 3, 2)))

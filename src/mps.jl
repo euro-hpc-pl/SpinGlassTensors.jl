@@ -3,8 +3,6 @@ export
     Sites,
     State,
     AbstractTensorNetwork,
-    #AbstractMPS,
-    #AbstractMPO,
     QMps,
     QMpo,
     local_dims,
@@ -14,13 +12,8 @@ export
     NestedTensorMap,
     TensorMap
 
-    #verify_bonds,
-    #is_left_normalized,
-    #is_right_normalized
 
 abstract type AbstractTensorNetwork end
-#abstract type AbstractMPS end
-#abstract type AbstractMPO end
 
 const Site = Union{Int, Rational{Int}}
 const Sites = NTuple{N, Site} where N
@@ -60,12 +53,15 @@ end
 =#
 
 function Base.transpose(ten::TensorMap{T}) where T <: Real
-    all(length.(size.(keys(ten))) .<= 2) && return ten
+    all(length.(size.(values(ten))) .<= 2) && return ten
     TensorMap{T}(.- keys(ten) .=> mpo_transpose.(values(ten)))
 end
 
+
+
 function Base.transpose(mpo::QMpo{T}) where T <: Real
-    QMpo(NestedTensorMap{T}(keys(mpo.sites) .=> transpose.(values(mpo.tensors))))
+    QMpo(NestedTensorMap{T}(site => transpose(ten) for (site, ten) in mpo.tensors))
+    #QMpo(NestedTensorMap{T}(keys(mpo.tensors) .=> transpose.(values(mpo.tensors))))
 end
 
 function local_dims(mpo::QMpo, dir::Symbol)
@@ -104,17 +100,6 @@ function IdentityQMps(::Type{T}, loc_dims::Dict, Dmax::Int=1) where T <: Number
     QMps(id)
 end
 
-# TODO : move to mps_utilities
-@inline Base.getindex(a::AbstractTensorNetwork, i) = getindex(a.tensors, i)
-@inline Base.size(a::AbstractTensorNetwork) = (length(a.tensors), )
-@inline Base.length(a::AbstractTensorNetwork) = length(a.tensors)
-@inline LinearAlgebra.rank(ψ::QMps) = Tuple(size(A, 2) for A ∈ values(ψ.tensors))
-@inline bond_dimension(ψ::QMps) = maximum(size.(values(ψ.tensors), 3))
-@inline bond_dimensions(ψ::QMps) = [size(ψ.tensors[n]) for n ∈ ψ.sites]
-@inline Base.copy(ψ::QMps) = QMps(copy(ψ.tensors))
-@inline Base.:(≈)(a::QMps, b::QMps) = isapprox(a.tensors, b.tensors)
-@inline Base.:(≈)(a::QMpo, b::QMpo) = all([isapprox(a.tensors[i], b.tensors[i]) for i ∈ keys(a.tensors)])
-@inline Base.setindex!(ket::AbstractTensorNetwork, A::AbstractArray, i::Site) = ket.tensors[i] = A
 
 #=
 function Base.isapprox(l::Dict, r::Dict)
@@ -165,3 +150,6 @@ function Base.rand(
     end
     QMpo(QMpo)
 end
+
+@inline Base.getindex(a::AbstractTensorNetwork, i) = getindex(a.tensors, i)
+@inline Base.setindex!(ket::AbstractTensorNetwork, A::AbstractArray, i::Site) = ket.tensors[i] = A

@@ -61,14 +61,12 @@ end
 
 function Base.transpose(ten::TensorMap{T}) where T <: Real
     all(length.(size.(keys(ten))) .<= 2) && return ten
-    TensorMap{T}(-row => mpo_transpose(t) for (row, t) ∈ ten)
-    #TensorMap{T}(.- keys(ten) .=> mpo_transpose.(values(ten)))
+    TensorMap{T}(.- keys(ten) .=> mpo_transpose.(values(ten)))
 end
 
 function Base.transpose(mpo::QMpo{T}) where T <: Real
     QMpo(NestedTensorMap{T}(keys(mpo.sites) .=> transpose.(values(mpo.tensors))))
 end
-
 
 function local_dims(mpo::QMpo, dir::Symbol)
     @assert dir ∈ (:down, :up)

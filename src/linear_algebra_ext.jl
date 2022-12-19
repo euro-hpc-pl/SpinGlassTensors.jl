@@ -31,4 +31,3 @@ function qr_fix(QR_fact::LinearAlgebra.QRCompactWY; tol::T=eps()) where T <: Rea
     ϕ = phase.(diag(QR_fact.R); atol=tol)
     QR_fact.Q * Diagonal(ϕ), ϕ .* QR_fact.R
 end
-

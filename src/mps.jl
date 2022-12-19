@@ -83,6 +83,7 @@ function IdentityQMps(::Type{T}, loc_dims::Dict, Dmax::Int=1) where T <: Number
     QMps(id)
 end
 
+# TODO : move to mps_utilities
 @inline Base.getindex(a::AbstractTensorNetwork, i) = getindex(a.tensors, i)
 @inline Base.size(a::AbstractTensorNetwork) = (length(a.tensors), )
 @inline Base.length(a::AbstractTensorNetwork) = length(a.tensors)
@@ -143,28 +144,3 @@ function Base.rand(
     end
     QMpo(QMpo)
 end
-
-#=
-function verify_bonds(ψ::QMps)
-    L = length(ψ.sites)
-    @assert size(ψ.tensors[1], 1) == 1 "Incorrect size on the left boundary."
-    @assert size(ψ.tensors[L], 3) == 1 "Incorrect size on the right boundary."
-    for i ∈ 1:L-1
-        @assert size(ψ.tensors[i], 3) == size(ψ.tensors[i+1], 1) "Incorrect link between $i and $(i+1)."
-    end
-end
-
-function is_left_normalized(ψ::QMps)
-    all(
-       I(size(A, 3)) ≈ @tensor Id[x, y] := conj(A)[α, σ, x] * A[α, σ, y] order = (α, σ)
-       for A ∈ values(ψ.tensors)
-    )
-end
-
-function is_right_normalized(ϕ::QMps)
-    all(
-        I(size(B, 1)) ≈ @tensor Id[x, y] := B[x, σ, α] * conj(B)[y, σ, α] order = (α, σ)
-        for B in values(ϕ.tensors)
-    )
-end
-=#

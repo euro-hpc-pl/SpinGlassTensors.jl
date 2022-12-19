@@ -13,13 +13,10 @@ mutable struct Environment{T <: Real} <: AbstractEnvironment
     ket::QMps{T}
     env::Dict
 
-    function Environment(
-        bra::QMps{T}, mpo::QMpo{T}, ket::QMps{T}
-    ) where T <: Real
+    function Environment(bra::QMps{T}, mpo::QMpo{T}, ket::QMps{T}) where T <: Real
         @assert bra.sites == ket.sites && issubset(bra.sites, mpo.sites)
-
         id = ones(T, 1, 1, 1)
-        env0 = Dict((first(bra.sites), :left) => id, (last(bra.sites), :right) => id)
+        env0 = Dict((bra.sites[1], :left) => id, (bra.sites[end], :right) => id)
         env = new{T}(bra, mpo, ket, env0)
         for site ∈ env.bra.sites update_env_left!(env, site) end
         env

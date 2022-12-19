@@ -21,7 +21,7 @@ function LinearAlgebra.dot(ψ::QMps{T}, ϕ::QMps{T}) where T <: Real
 end
 
 function LinearAlgebra.dot(ψ::QMpo{R}, ϕ::QMps{R}) where R <: Real
-    D = Dict{Site, Tensor{R}}()
+    D = TensorMap{R}()
     for i ∈ reverse(ϕ.sites)
         T = sort(collect(ψ[i]), by = x -> x[begin])
         TT = ϕ[i]
@@ -39,7 +39,7 @@ function LinearAlgebra.dot(ψ::QMpo{R}, ϕ::QMps{R}) where R <: Real
 end
 
 function LinearAlgebra.dot(ϕ::QMps{R}, ψ::QMpo{R}) where R <: Real
-    D = Dict{Site, Tensor{R}}()
+    D = TensorMap{R}()
     for i ∈ reverse(ϕ.sites)
         T = sort(collect(ψ[i]), by = x -> x[begin])
         TT = ϕ[i]
@@ -61,7 +61,6 @@ function contract_left(A::Array{T, 3}, B::Matrix{T}) where T <: Real
 end
 
 contract_left(A::Array{T, 3}, M::CentralTensor{T}) where T <: Real = contract_left(A, Array(M))
-
 
 function contract_up(A::Array{T, 3}, B::Matrix{T}) where T <: Real
     @tensor C[l, u, r] := B[u, σ] * A[l, σ, r]
@@ -145,22 +144,22 @@ end
 
 function _overlap_forward(ϕ::QMps{T}, ψ::QMps{T}, k::Site) where T <: Real
     C = ones(T, 1, 1)
-    for i ∈ ψ.sites
-        if i < k
-            A, B = ψ[i], ϕ[i]
-            @tensor C[x, y] := conj(B)[β, σ, x] * C[β, α] * A[α, σ, y] order = (α, β, σ)
-        end
+    i = ψ.sites[1]
+    while i < k
+        A, B = ψ[i], ϕ[i]
+        @tensor C[x, y] := conj(B)[β, σ, x] * C[β, α] * A[α, σ, y] order = (α, β, σ)
+        i += 1
     end
     C
 end
 
 function _overlap_backwards(ϕ::QMps{T}, ψ::QMps{T}, k::Site) where T <: Real
     D = ones(T, 1, 1)
-    for i ∈ reverse(ψ.sites)
-        if i > k
-            A, B = ψ[i], ϕ[i]
-            @tensor D[x, y] := conj(B)[x, σ, β] * D[β, α] * A[y, σ, α] order = (α, β, σ)
-        end
+    i = ψ.sites[end]
+    while i > k
+        A, B = ψ[i], ϕ[i]
+        @tensor D[x, y] := conj(B)[x, σ, β] * D[β, α] * A[y, σ, α] order = (α, β, σ)
+        i -= 1
     end
     D
 end

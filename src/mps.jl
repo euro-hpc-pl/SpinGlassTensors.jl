@@ -3,14 +3,9 @@ export
     Sites,
     State,
     AbstractTensorNetwork,
-    QMps,
-    QMpo,
     local_dims,
-    IdentityQMps,
-    bond_dimension,
-    bond_dimensions,
-    NestedTensorMap,
-    TensorMap
+    IdentityQMps
+
 
 
 abstract type AbstractTensorNetwork end
@@ -22,27 +17,26 @@ const State = Union{Vector, NTuple}
 const TensorMap{T} = Dict{Site, Tensor{T}}
 const NestedTensorMap{T} = Dict{Site, TensorMap{T}}
 
-struct QMps{T <: Real} <: AbstractTensorNetwork
-    tensors::TensorMap{T}
-    sites::Vector{Site}
+for (F, M) ∈ ((:QMps, :TensorMap), (:QMpo, :NestedTensorMap))
+    @eval begin
+        export $F, $M
+        struct $F{T <: Real} <: AbstractTensorNetwork
+            tensors::$M{T}
+            sites::Vector{Site}
 
-    function QMps(ten::TensorMap{T}) where T
-        new{T}(ten, sort(collect(keys(ten))))
+            function $F(ten::$M{T}) where T
+                new{T}(ten, sort(collect(keys(ten))))
+            end
+        end
     end
 end
 
-struct QMpo{T <: Real} <: AbstractTensorNetwork
-    tensors::NestedTensorMap{T}
-    sites::Vector{Site}
+@inline Base.getindex(a::AbstractTensorNetwork, i) = getindex(a.tensors, i)
+@inline Base.setindex!(ket::AbstractTensorNetwork, A::AbstractArray, i::Site) = ket.tensors[i] = A
 
-    function QMpo(ten::NestedTensorMap{T}) where T
-        new{T}(ten, sort(collect(keys(ten))))
-    end
-end
-
-function Base.transpose(mpo::QMpo{T}) where T <: Real
-    QMpo(NestedTensorMap{T}(keys(mpo.tensors) .=> mpo_transpose.(values(mpo.tensors))))
-end
+Base.transpose(mpo::QMpo{T}) where T <: Real = QMpo(
+    NestedTensorMap{T}(keys(mpo.tensors) .=> mpo_transpose.(values(mpo.tensors)))
+)
 
 function mpo_transpose(ten::TensorMap{T}) where T <: Real
     all(length.(size.(values(ten))) .<= 2) && return ten
@@ -114,6 +108,3 @@ function local_dims(mpo::QMpo, dir::Symbol)
     end
     lds
 end
-
-@inline Base.getindex(a::AbstractTensorNetwork, i) = getindex(a.tensors, i)
-@inline Base.setindex!(ket::AbstractTensorNetwork, A::AbstractArray, i::Site) = ket.tensors[i] = A

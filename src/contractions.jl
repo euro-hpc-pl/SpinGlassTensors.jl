@@ -21,7 +21,7 @@ function LinearAlgebra.dot(ψ::QMps{T}, ϕ::QMps{T}) where T <: Real
 end
 
 function LinearAlgebra.dot(ψ::QMpo{R}, ϕ::QMps{R}) where R <: Real
-    D = MpsTensorMap{R}()
+    D = TensorMap{R}()
     for i ∈ reverse(ϕ.sites)
         T = sort(collect(ψ[i]), by = x -> x[begin])
         TT = ϕ[i]
@@ -39,7 +39,7 @@ function LinearAlgebra.dot(ψ::QMpo{R}, ϕ::QMps{R}) where R <: Real
 end
 
 function LinearAlgebra.dot(ϕ::QMps{R}, ψ::QMpo{R}) where R <: Real
-    D = MpsTensorMap{R}()
+    D = TensorMap{R}()
     for i ∈ reverse(ϕ.sites)
         T = sort(collect(ψ[i]), by = x -> x[begin])
         TT = ϕ[i]

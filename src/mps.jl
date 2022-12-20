@@ -4,23 +4,14 @@ export
     AbstractTensorNetwork,
     local_dims,
     IdentityQMps,
-    MpoTensor, QMpo, QMps
+    MpoTensor, QMpo, QMps, TensorMap
 
 abstract type AbstractTensorNetwork end
 
 const Site = Union{Int, Rational{Int}}
 const Sites = NTuple{N, Site} where N
 
-const TensorMap{T} = Dict{Site, Tensor{T}}
-
-struct MpoTensor{T <: Real}
-    tensors::TensorMap{T}
-    sites::Vector{Site}
-
-    function MpoTensor(ten::TensorMap{T}) where T
-        new{T}(ten, sort(collect(keys(ten))))
-    end
-end
+const TensorMap{T} = Dict{Site, Union{Tensor{T, 2}, Tensor{T, 3}, Tensor{T, 4}}}  # 2 and 4 for MPO;  3 for mps
 
 struct QMps{T <: Real} <: AbstractTensorNetwork
     tensors::TensorMap{T}
@@ -30,6 +21,47 @@ struct QMps{T <: Real} <: AbstractTensorNetwork
         new{T}(ten, sort(collect(keys(ten))))
     end
 end
+
+struct MpoTensor{T <: Real, N}
+    top::Vector{Tensor{T, 2}}  # for N == 2; top = []
+    ctr:: Union{Tensor{T, N}, Type{Nothing}}
+    btm::Vector{Tensor{T, 2}}  # for N == 2; btm = []
+    dims::Dims{N}
+
+    function MpoTensor(ten)# where T
+        sk = sort(collect(keys(ten)))
+        top = [ten[k] for k ∈ sk if k < 0]
+        btm = [ten[k] for k ∈ sk if k > 0]
+        ctr = get(ten, 0, Nothing)
+
+        if ctr == Nothing
+            topbtm = vcat(top, btm)
+            dims = (size(first(topbtm), 1), size(last(topbtm), 2))
+            nn = 2
+        else
+            nn = ndims(ctr)
+            if nn == 2
+                @assert length(top) == 0 && length(btm) == 0
+                dims = size(ctr)
+            elseif nn == 4
+                dims = (size(ctr, 1), 
+                    length(top) == 0 ? site(ctr, 2) : size(first(top), 1),
+                    size(ctr, 3),
+                    length(btm) == 0 ? site(ctr, 4) : size(last(btm), 2)
+                    )
+            else
+                throw(DomainError(ndims(ctr), "MpoTensor will have ndims 2 or 4"))
+            end
+        end
+        new{Float64, nn}(top, ctr, btm, dims)
+    end
+end
+
+Base.ndims(ten::MpoTensor{T, N}) where {T, N} = N
+Base.size(ten::MpoTensor, n::Int) = ten.dims[n]
+Base.size(ten::MpoTensor) = ten.dims
+
+
 
 const MpoTensorMap{T} = Dict{Site, MpoTensor{T}}
 
@@ -41,29 +73,6 @@ struct QMpo{T <: Real} <: AbstractTensorNetwork
         new{T}(ten, sort(collect(keys(ten))))
     end
 end
-
-Base.ndims(ten::MpoTensor) = maximum(ndims.(values(ten)))
-
-function Base.size(ten::MpoTensor)
-    fk = minimum(keys(ten))
-    lk = maximum(keys(ten))
-    if ndims(ten) == 2
-        return (size(ten[fk], 1), size(ten[lk], 2))
-    elseif ndims(ten) == 4
-        ddims = Dict(k => ndims(v) for (k, v) in ten)
-        k, _ = maximum(ddims)
-        v = ten[k]
-        return (size(v, 1),
-                size(ten[fk], k == fk ? 2 : 1),
-                size(v, 3),
-                size(ten[lk], k == lk ? 4 : 2)
-                )
-    else
-        throw(DomainError(ndims(ten), "MpoTensor should have ndims 2 or 4"))
-    end
-end
-
-Base.size(ten::MpoTensor, n::Int) = size(ten)[n]
 
 @inline Base.getindex(a::AbstractTensorNetwork, i) = getindex(a.tensors, i)
 @inline Base.setindex!(ket::AbstractTensorNetwork, A::AbstractArray, i::Site) = ket.tensors[i] = A
@@ -78,7 +87,7 @@ function mpo_transpose(ten::MpoTensor{T}) where T <: Real
 end
 
 function IdentityQMps(::Type{T}, loc_dims::Dict, Dmax::Int=1) where T <: Real
-    id = MpsTensorMap{T}(keys(loc_dims) .=> zeros.(T, Dmax, values(loc_dims), Dmax))
+    id = TensorMap{T}(keys(loc_dims) .=> zeros.(T, Dmax, values(loc_dims), Dmax))
 
     site_min, ld_min = minimum(loc_dims)
     site_max, ld_max = maximum(loc_dims)
@@ -97,7 +106,7 @@ end
 
 function Base.rand(::Type{QMps{T}}, sites::Vector, D::Int, d::Int) where T <: Real
     QMps(
-        MpsTensorMap{T}(
+        TensorMap{T}(
             1 => rand(T, 1, d, D),
             (i => rand(T, D, d, D) for i ∈ 2:sites-1)...,
             sites[end] => rand(T, D, d, 1)

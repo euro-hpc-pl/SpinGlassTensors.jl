@@ -4,17 +4,43 @@ export
     AbstractTensorNetwork,
     local_dims,
     IdentityQMps,
-    MpoTensor
+    MpoTensor, QMpo, QMps
 
 abstract type AbstractTensorNetwork end
 
 const Site = Union{Int, Rational{Int}}
 const Sites = NTuple{N, Site} where N
 
-const MpsTensorMap{T} = Dict{Site, Tensor{T}}
+const TensorMap{T} = Dict{Site, Tensor{T}}
 
-const MpoTensor{T} = Dict{Site, Tensor{T}}
+struct MpoTensor{T <: Real}
+    tensors::TensorMap{T}
+    sites::Vector{Site}
+
+    function MpoTensor(ten::TensorMap{T}) where T
+        new{T}(ten, sort(collect(keys(ten))))
+    end
+end
+
+struct QMps{T <: Real} <: AbstractTensorNetwork
+    tensors::TensorMap{T}
+    sites::Vector{Site}
+
+    function QMps(ten::TensorMap{T}) where T
+        new{T}(ten, sort(collect(keys(ten))))
+    end
+end
+
 const MpoTensorMap{T} = Dict{Site, MpoTensor{T}}
+
+struct QMpo{T <: Real} <: AbstractTensorNetwork
+    tensors::MpoTensorMap{T}
+    sites::Vector{Site}
+
+    function QMpo(ten::MpoTensorMap{T}) where T
+        new{T}(ten, sort(collect(keys(ten))))
+    end
+end
 
 Base.ndims(ten::MpoTensor) = maximum(ndims.(values(ten)))
 
@@ -37,24 +63,7 @@ function Base.size(ten::MpoTensor)
     end
 end
 
-maximum
-
-
 Base.size(ten::MpoTensor, n::Int) = size(ten)[n]
-
-for (F, M) ∈ ((:QMps, :MpsTensorMap), (:QMpo, :MpoTensorMap))
-    @eval begin
-        export $F, $M
-        struct $F{T <: Real} <: AbstractTensorNetwork
-            tensors::$M{T}
-            sites::Vector{Site}
-
-            function $F(ten::$M{T}) where T
-                new{T}(ten, sort(collect(keys(ten))))
-            end
-        end
-    end
-end
 
 @inline Base.getindex(a::AbstractTensorNetwork, i) = getindex(a.tensors, i)
 @inline Base.setindex!(ket::AbstractTensorNetwork, A::AbstractArray, i::Site) = ket.tensors[i] = A

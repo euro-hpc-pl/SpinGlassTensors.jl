@@ -20,8 +20,8 @@ struct SiteTensor{T <: Real, N} <: AbstractSparseTensor
     dims::Dims{N}
 
     function SiteTensor(loc_exp, projs; dims=maximum.(projs))
+        @assert length(dims) == 4  # N = 4
         T = eltype(loc_exp)
-        @assert length(dims) == 4  # we only use it for N = 4
         new{T, 4}(loc_exp, projs, dims)
     end
 end
@@ -48,9 +48,7 @@ struct CentralTensor{T <: Real, N} <: AbstractSparseTensor
     end
 end
 
-mpo_transpose(ten::CentralTensor) = CentralTensor(
-    transpose.((ten.e11, ten.e21, ten.e12, ten.e22))...
-)
+mpo_transpose(ten::CentralTensor) = CentralTensor(transpose.((ten.e11, ten.e21, ten.e12, ten.e22))...)
 
 const MatOrCentral{T, N} = Union{Matrix{T}, CentralTensor{T, N}}
 
@@ -79,9 +77,7 @@ struct DiagonalTensor{T <: Real, N} <: AbstractSparseTensor
     end
 end
 
-mpo_transpose(ten::DiagonalTensor) = DiagonalTensor(
-    mpo_transpose.((ten.e2, ten.e1))...
-)
+mpo_transpose(ten::DiagonalTensor) = DiagonalTensor(mpo_transpose.((ten.e2, ten.e1))...)
 
 struct VirtualTensor{T <: Real, N} <: AbstractSparseTensor
     con::MatOrCentral{T, 2}

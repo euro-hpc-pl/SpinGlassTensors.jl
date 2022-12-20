@@ -12,7 +12,7 @@ abstract type AbstractSparseTensor end
 const Proj{N} = NTuple{N, Array{Int, 1}}
 const CuArrayOrArray{T, N} = Union{Array{T, N}, CuArray{T, N}}
 
-ArrayOrCuArray(L) = typeof(L) <: CuArray ? CuArray : Array
+ArrayOrCuArray(L) = typeof(L) <: CuArray ? CuArray : Array # TODO do we need this?
 
 struct SiteTensor{T <: Real} <: AbstractSparseTensor
     loc_exp::Vector{T}
@@ -91,8 +91,8 @@ struct VirtualTensor{T <: Real} <: AbstractSparseTensor
 end
 
 mpo_transpose(ten::VirtualTensor) = VirtualTensor(ten.con, ten.projs[[3, 2, 1, 6, 5, 4]])
-mpo_transpose(ten::Array{T, 4}) where T = Array(permutedims(ten, (1, 4, 3, 2)))
-mpo_transpose(ten::Array{T, 2}) where T = Array(transpose(ten))
+mpo_transpose(ten::Array{<:Real, 4}) = Array(permutedims(ten, (1, 4, 3, 2)))
+mpo_transpose(ten::Array{<:Real, 2}) = Array(transpose(ten))
 
 # TODO should we rm those zeros?
 function Base.zeros(A::SiteTensor{T}, B::Array{T, 3}) where T <: Real
@@ -123,6 +123,6 @@ const SparseTensor{T} = Union{SiteTensor{T}, VirtualTensor{T}, CentralTensor{T},
 const Tensor{T} = Union{Array{T}, SparseTensor{T}}
 const CentralOrDiagonal{T} = Union{CentralTensor{T}, DiagonalTensor{T}}
 
-Base.eltype(ten::Tensor{T}) where T = T
+Base.eltype(ten::Tensor{T}) where T <: Real = T
 Base.size(ten::SparseTensor, n::Int) = ten.size[n]
 Base.size(ten::SparseTensor) = ten.size

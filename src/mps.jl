@@ -29,12 +29,12 @@ struct MpoTensor{T <: Real, N}
 
     function MpoTensor(ten::TensorMap{T}) where T
         sk = sort(collect(keys(ten)))
-        top = [ten[k] for k ∈ sk if k < 0] # values(ten)[sk .< 0]
-        bot = [ten[k] for k ∈ sk if k > 0] # values(ten)[sk .> 0]
+        top = [ten[k] for k ∈ sk if k < 0]
+        bot = [ten[k] for k ∈ sk if k > 0]
         ctr = get(ten, 0, nothing)
 
         if isnothing(ctr)
-            top_bot = vcat(top, bot)
+            top_bot = vcat(top, bot) # TODO do we need this?
             dims = (size(top_bot[1], 1), size(top_bot[end], 2))
             nn = 2
         else
@@ -44,10 +44,8 @@ struct MpoTensor{T <: Real, N}
                 dims = size(ctr)
             elseif nn == 4
                 dims = (
-                    size(ctr, 1),
-                    length(top) == 0 ? site(ctr, 2) : size(top[1], 1),
-                    size(ctr, 3),
-                    length(bot) == 0 ? site(ctr, 4) : size(bot[end], 2)
+                    size(ctr, 1), length(top) == 0 ? site(ctr, 2) : size(top[1], 1),
+                    size(ctr, 3), length(bot) == 0 ? site(ctr, 4) : size(bot[end], 2)
                 )
             else
                 throw(DomainError(ndims(ctr), "MpoTensor will have ndims 2 or 4"))
@@ -60,6 +58,7 @@ end
 Base.ndims(ten::MpoTensor{T, N}) where {T, N} = N
 Base.size(ten::MpoTensor, n::Int) = ten.dims[n]
 Base.size(ten::MpoTensor) = ten.dims
+Base.length(ten::MpoTensor) = length(ten.top) # TODO verify this!
 
 const MpoTensorMap{T} = Dict{Site, MpoTensor{T}}
 

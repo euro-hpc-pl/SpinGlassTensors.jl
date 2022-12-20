@@ -45,7 +45,7 @@ function variational_compress!(
             overlap_before = overlap
         end
     end
-    overlap
+    overlap, env
 end
 
 function _left_sweep_var!(env::Environment, args...)

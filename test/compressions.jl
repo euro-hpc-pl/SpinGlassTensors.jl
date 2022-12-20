@@ -22,7 +22,7 @@
         canonise!(ϕ, :left)
         bra = QMps(ϕ)
 
-        @time overlap = variational_compress!(bra, mpo, ket, tol, max_sweeps)
+        @time overlap, env = variational_compress!(bra, mpo, ket, tol, max_sweeps)
         println(overlap)
 
         ϕ = MPS(bra)

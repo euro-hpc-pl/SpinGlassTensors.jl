@@ -132,7 +132,7 @@ end
 """
 function update_env_left(
     LE::S, A₀::S, M::T, B₀::S
-) where {S <: CuArrayOrArray{R, 3}, T <: TensorMap{R}} where R <: Real
+) where {S <: CuArrayOrArray{R, 3}, T <: MpoTensor{R}} where R <: Real
     sites = sort(collect(keys(M)))
     A = _update_tensor_forward(A₀, M, sites)
     B = _update_tensor_backwards(B₀, M, sites)
@@ -141,7 +141,7 @@ end
 
 function update_env_left(
     LE::S, M::T
-) where {S <: CuArrayOrArray{R, 3}, T <: TensorMap{R}} where R <: Real
+) where {S <: CuArrayOrArray{R, 3}, T <: MpoTensor{R}} where R <: Real
     attach_central_left(LE, M[0])
 end
 
@@ -150,7 +150,7 @@ projector_to_dense(pr::Array{Int, 1}) = projector_to_dense(Float64, pr) # TODO t
 
 function _update_tensor_forward(
     A::S, M::T, sites
-) where {S <: CuArrayOrArray{R, 3}, T <: TensorMap{R}} where R <: Real
+) where {S <: CuArrayOrArray{R, 3}, T <: MpoTensor{R}} where R <: Real
     B = copy(A)
     for i ∈ sites
         i == 0 && break
@@ -161,7 +161,7 @@ end
 
 function _update_tensor_backwards(
     A::S, M::T, sites
-) where {S <: CuArrayOrArray{R, 3}, T <: TensorMap{R}} where R <: Real
+) where {S <: CuArrayOrArray{R, 3}, T <: MpoTensor{R}} where R <: Real
     B = copy(A)
     for i ∈ reverse(sites)
         i == 0 && break
@@ -172,7 +172,7 @@ end
 
 function update_env_right(
     RE::S, A₀::S1, M::T, B₀::S
-) where {T <: TensorMap{R}, S <: CuArrayOrArray{R, 3}, S1 <: CuArrayOrArray{R, 3}} where R <: Real
+) where {T <: MpoTensor{R}, S <: CuArrayOrArray{R, 3}, S1 <: CuArrayOrArray{R, 3}} where R <: Real
     sites = sort(collect(keys(M)))
     A = _update_tensor_forward(A₀, M, sites)
     B = _update_tensor_backwards(B₀, M, sites)
@@ -188,7 +188,7 @@ end
 """
 function update_env_right(
     RE::S, M::T
-) where {S <: CuArrayOrArray{R, 3}, T <: TensorMap{R}} where R <: Real
+) where {S <: CuArrayOrArray{R, 3}, T <: MpoTensor{R}} where R <: Real
     attach_central_right(RE, M[0])
 end
 
@@ -203,7 +203,7 @@ end
 
 function project_ket_on_bra(
     LE::S, B₀::S, M::T, RE::S
-) where {S <: CuArrayOrArray{R, 3}, T <: TensorMap{R}} where R <: Real
+) where {S <: CuArrayOrArray{R, 3}, T <: MpoTensor{R}} where R <: Real
     C = sort(collect(M), by = x -> x[1])
     TT = B₀
     for (_, v) ∈ reverse(C)

@@ -59,7 +59,7 @@ end
       |    |
    -- B ---
 """
-function update_reduced_env_right(RE::Array{T, 2}, m::Int, M::TensorMap{T}, B::Array{T, 3}) where T <: Real
+function update_reduced_env_right(RE::Array{T, 2}, m::Int, M::MpoTensor{T}, B::Array{T, 3}) where T <: Real
     kk = sort(collect(keys(M)))
     if kk[1] < 0
         K = zeros(T, size(M[kk[1]], 1))

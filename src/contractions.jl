@@ -21,7 +21,7 @@ function LinearAlgebra.dot(ψ::QMps{T}, ϕ::QMps{T}) where T <: Real
 end
 
 function LinearAlgebra.dot(ψ::QMpo{R}, ϕ::QMps{R}) where R <: Real
-    D = TensorMap{R}()
+    D = MpsTensorMap{R}()
     for i ∈ reverse(ϕ.sites)
         T = sort(collect(ψ[i]), by = x -> x[begin])
         TT = ϕ[i]
@@ -39,7 +39,7 @@ function LinearAlgebra.dot(ψ::QMpo{R}, ϕ::QMps{R}) where R <: Real
 end
 
 function LinearAlgebra.dot(ϕ::QMps{R}, ψ::QMpo{R}) where R <: Real
-    D = TensorMap{R}()
+    D = MpsTensorMap{R}()
     for i ∈ reverse(ϕ.sites)
         T = sort(collect(ψ[i]), by = x -> x[begin])
         TT = ϕ[i]
@@ -81,7 +81,9 @@ end
 contract_down(M::CentralOrDiagonal{T}, A::Array{T, 3}) where T <: Real = attach_central_left(A, M)
 
 function contract_up(A::Array{T, 3}, B::SiteTensor{T}) where T <: Real
-    C = zeros(A, B)
+    sal, _, sar = size(A)
+    sbl, sbt, sbr = maximum.(B.projs[1:3])
+    C = zeros(T, sal, sbl, sbt, sar, sbr)
     for (σ, lexp) ∈ enumerate(B.loc_exp)
         AA = @inbounds @view A[:, B.projs[4][σ], :]
         @inbounds C[:, B.projs[1][σ], B.projs[2][σ], :, B.projs[3][σ]] += lexp .* AA
@@ -92,7 +94,9 @@ end
 contract_up(A::Array{T, 3}, M::CentralOrDiagonal{T}) where T <: Real = attach_central_right(A, M)
 
 function contract_down(A::SiteTensor{T}, B::Array{T, 3}) where T <: Real
-    C = zeros(A, B)
+    sal, _, sar = size(B)
+    sbl, _, sbt, sbr = maximum.(A.projs[1:4])
+    C = zeros(T, sal, sbl, sbr, sar, sbt)
     for (σ, lexp) ∈ enumerate(A.loc_exp)
         AA = @inbounds @view B[:, A.projs[2][σ], :]
         @inbounds C[:, A.projs[1][σ], A.projs[4][σ], :, A.projs[3][σ]] += lexp .* AA

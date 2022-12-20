@@ -23,37 +23,37 @@ struct QMps{T <: Real} <: AbstractTensorNetwork
 end
 
 struct MpoTensor{T <: Real, N}
-    top::Vector{Tensor{T, 2}}  # for N == 2; top = []
+    top::Vector{Tensor{T, 2}}  # N == 2 top = []
     ctr:: Union{Tensor{T, N}, Type{Nothing}}
-    btm::Vector{Tensor{T, 2}}  # for N == 2; btm = []
+    bot::Vector{Tensor{T, 2}}  # N == 2 bot = []
     dims::Dims{N}
 
-    function MpoTensor(ten)# where T
+    function MpoTensor(ten::TensorMap{T}) where T
         sk = sort(collect(keys(ten)))
         top = [ten[k] for k ∈ sk if k < 0]
-        btm = [ten[k] for k ∈ sk if k > 0]
+        bot = [ten[k] for k ∈ sk if k > 0]
         ctr = get(ten, 0, Nothing)
 
         if ctr == Nothing
-            topbtm = vcat(top, btm)
-            dims = (size(first(topbtm), 1), size(last(topbtm), 2))
+            top_bot = vcat(top, bot)
+            dims = (size(top_bot[1], 1), size(top_bot[end], 2))
             nn = 2
         else
             nn = ndims(ctr)
             if nn == 2
-                @assert length(top) == 0 && length(btm) == 0
+                @assert length(top) == length(bot) == 0
                 dims = size(ctr)
             elseif nn == 4
-                dims = (size(ctr, 1), 
+                dims = (size(ctr, 1),
                     length(top) == 0 ? site(ctr, 2) : size(first(top), 1),
                     size(ctr, 3),
-                    length(btm) == 0 ? site(ctr, 4) : size(last(btm), 2)
+                    length(bot) == 0 ? site(ctr, 4) : size(last(bot), 2)
                     )
             else
                 throw(DomainError(ndims(ctr), "MpoTensor will have ndims 2 or 4"))
             end
         end
-        new{Float64, nn}(top, ctr, btm, dims)
+        new{T, nn}(top, ctr, bot, dims)
     end
 end
 

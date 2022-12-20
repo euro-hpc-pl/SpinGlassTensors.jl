@@ -40,7 +40,8 @@ struct CentralTensor{T <: Real, N} <: AbstractSparseTensor
 
     function CentralTensor(e11, e12, e21, e22)
         s11, s12, s21, s22 = size.((e11, e12, e21, e22))
-        @assert s11[1] == s12[1] && s21[1] == s22[1] && s11[2] == s21[2] && s12[2] == s22[2]
+        @assert s11[1] == s12[1] && s21[1] == s22[1] &&
+                s11[2] == s21[2] && s12[2] == s22[2]
         dims = (s11[1] * s21[1], s11[2] * s12[2])
         T = promote_type(eltype.((e11, e12, e21, e22))...)
         new{T, 2}(e11, e12, e21, e22, dims)
@@ -90,7 +91,7 @@ struct VirtualTensor{T <: Real, N} <: AbstractSparseTensor
     function VirtualTensor(con, projs)
         T = eltype(con)
         dims = (length(projs[2]), maximum(projs[3]) * maximum(projs[6]),
-               length(projs[5]), maximum(projs[1]) * maximum(projs[4]))
+                length(projs[5]), maximum(projs[1]) * maximum(projs[4]))
         new{T, 4}(con, projs, dims)
     end
 end
@@ -99,7 +100,9 @@ mpo_transpose(ten::VirtualTensor) = VirtualTensor(ten.con, ten.projs[[3, 2, 1, 6
 mpo_transpose(ten::Array{<:Real, 4}) = Array(permutedims(ten, (1, 4, 3, 2)))
 mpo_transpose(ten::Array{<:Real, 2}) = Array(transpose(ten))
 
-const SparseTensor{T, N} = Union{SiteTensor{T, N}, VirtualTensor{T, N}, CentralTensor{T, N}, DiagonalTensor{T, N}}
+const SparseTensor{T, N} = Union{
+    SiteTensor{T, N}, VirtualTensor{T, N}, CentralTensor{T, N}, DiagonalTensor{T, N}
+}
 const Tensor{T, N} = Union{Array{T, N}, SparseTensor{T, N}}
 const CentralOrDiagonal{T, N} = Union{CentralTensor{T, N}, DiagonalTensor{T, N}}
 
@@ -107,5 +110,3 @@ Base.eltype(ten::Tensor{T, N}) where {T <: Real, N} = T
 Base.ndims(ten::Tensor{T, N}) where {T, N} = N
 Base.size(ten::SparseTensor, n::Int) = ten.dims[n]
 Base.size(ten::SparseTensor) = ten.dims
-
-

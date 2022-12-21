@@ -27,6 +27,10 @@ struct MpoTensor{T <: Real, N}
     bot::Vector{Tensor{T, 2}}  # N == 2 bot = []
     dims::Dims{N}
 
+    function MpoTensor{T, N}(top, ctr, bot, dims) where {T, N}
+        new{T, N}(top, ctr, bot, dims)
+    end
+
     function MpoTensor(ten::TensorMap{T}) where T
         sk = sort(collect(keys(ten)))
         top = [ten[k] for k ∈ sk if k < 0]
@@ -77,9 +81,14 @@ Base.transpose(mpo::QMpo{T}) where T <: Real = QMpo(
     MpoTensorMap{T}(keys(mpo.tensors) .=> mpo_transpose.(values(mpo.tensors)))
 )
 
-function mpo_transpose(ten::MpoTensor{T}) where T <: Real
-    all(length.(size.(values(ten))) .<= 2) && return ten
-    MpoTensor{T}(.- keys(ten) .=> mpo_transpose.(values(ten)))
+mpo_transpose(M::MpoTensor{T, 2}) where T <: Real = M
+
+function mpo_transpose(M::MpoTensor{T, 4}) where T <: Real
+    top = mpo_transpose.(reverse(M.bot))
+    ctr = mpo_transpose(M.ctr)
+    bot = mpo_transpose.(reverse(M.top))
+    dims = M.dims[[1, 4, 3, 2]]
+    MpoTensor{T, 4}(top, ctr, bot, dims)
 end
 
 function IdentityQMps(::Type{T}, loc_dims::Dict, Dmax::Int=1) where T <: Real

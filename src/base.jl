@@ -16,7 +16,7 @@ ArrayOrCuArray(L) = typeof(L) <: CuArray ? CuArray : Array # TODO do we need thi
 
 struct SiteTensor{T <: Real, N} <: AbstractSparseTensor{T, N}
     loc_exp::Vector{T}
-    projs::Proj{N}  # == pl, pt, pr, pb
+    projs::Proj{4}  # == pl, pt, pr, pb
     dims::Dims{N}
 
     function SiteTensor(loc_exp, projs::Proj{4}; dims=maximum.(projs))

@@ -84,11 +84,12 @@ Base.transpose(mpo::QMpo{T}) where T <: Real = QMpo(
 mpo_transpose(M::MpoTensor{T, 2}) where T <: Real = M
 
 function mpo_transpose(M::MpoTensor{T, 4}) where T <: Real
-    top = mpo_transpose.(reverse(M.bot))
-    ctr = mpo_transpose(M.ctr)
-    bot = mpo_transpose.(reverse(M.top))
-    dims = M.dims[[1, 4, 3, 2]]
-    MpoTensor{T, 4}(top, ctr, bot, dims)
+    MpoTensor{T, 4}(
+        mpo_transpose.(reverse(M.bot)),
+        mpo_transpose(M.ctr),
+        mpo_transpose.(reverse(M.top)),
+        M.dims[[1, 4, 3, 2]]
+    )
 end
 
 function IdentityQMps(::Type{T}, loc_dims::Dict, Dmax::Int=1) where T <: Real

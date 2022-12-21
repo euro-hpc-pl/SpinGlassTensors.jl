@@ -7,20 +7,19 @@ export
     CentralOrDiagonal,
     mpo_transpose
 
-abstract type AbstractSparseTensor end
+abstract type AbstractSparseTensor{T, N} end
 
 const Proj{N} = NTuple{N, Array{Int, 1}}
 const CuArrayOrArray{T, N} = Union{Array{T, N}, CuArray{T, N}}
 
 ArrayOrCuArray(L) = typeof(L) <: CuArray ? CuArray : Array # TODO do we need this?
 
-struct SiteTensor{T <: Real, N} <: AbstractSparseTensor
+struct SiteTensor{T <: Real, N} <: AbstractSparseTensor{T, N}
     loc_exp::Vector{T}
     projs::Proj{N}  # == pl, pt, pr, pb
     dims::Dims{N}
 
-    function SiteTensor(loc_exp, projs; dims=maximum.(projs))
-        @assert length(dims) == 4  # N = 4
+    function SiteTensor(loc_exp, projs::Proj{4}; dims=maximum.(projs))
         T = eltype(loc_exp)
         new{T, 4}(loc_exp, projs, dims)
     end
@@ -31,7 +30,7 @@ function mpo_transpose(ten::SiteTensor)
     SiteTensor(ten.loc_exp, ten.projs[perm], dims=ten.dims[perm])
 end
 
-struct CentralTensor{T <: Real, N} <: AbstractSparseTensor
+struct CentralTensor{T <: Real, N} <: AbstractSparseTensor{T, N}
     e11::Matrix{T}
     e12::Matrix{T}
     e21::Matrix{T}
@@ -65,7 +64,7 @@ function CUDA.CuArray(ten::CentralTensor)
     V ./ maximum(V)
 end
 
-struct DiagonalTensor{T <: Real, N} <: AbstractSparseTensor
+struct DiagonalTensor{T <: Real, N} <: AbstractSparseTensor{T, N}
     e1::MatOrCentral{T, N}
     e2::MatOrCentral{T, N}
     dims::Dims{N}
@@ -79,7 +78,7 @@ end
 
 mpo_transpose(ten::DiagonalTensor) = DiagonalTensor(mpo_transpose.((ten.e2, ten.e1))...)
 
-struct VirtualTensor{T <: Real, N} <: AbstractSparseTensor
+struct VirtualTensor{T <: Real, N} <: AbstractSparseTensor{T, N}
     con::MatOrCentral{T, 2}
     projs::Proj{6}  # == (p_lb, p_l, p_lt, p_rb, p_r, p_rt)
     dims::Dims{N}

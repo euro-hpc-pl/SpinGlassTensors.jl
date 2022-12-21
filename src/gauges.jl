@@ -93,7 +93,6 @@ function optimize_gauges_for_overlaps!!(
     gauges
 end
 
-
 function overlap_density_matrix(ϕ::QMps{T}, ψ::QMps{T}, k::Site) where T <: Real
     @assert ψ.sites == ϕ.sites
     C = _overlap_forward(ϕ, ψ, k)

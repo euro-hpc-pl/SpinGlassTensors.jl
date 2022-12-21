@@ -93,7 +93,7 @@ struct VirtualTensor{T <: Real, N} <: AbstractSparseTensor{T, N}
     end
 end
 
-mpo_transpose(ten::VirtualTensor) = VirtualTensor(ten.con, ten.projs[[3, 2, 1, 6, 5, 4]]) 
+mpo_transpose(ten::VirtualTensor) = VirtualTensor(ten.con, ten.projs[[3, 2, 1, 6, 5, 4]])
 mpo_transpose(ten::Array{<:Real, 4}) = Array(permutedims(ten, (1, 4, 3, 2)))  # CuArrayOrArray ???
 mpo_transpose(ten::Array{<:Real, 2}) = Array(transpose(ten))  # CuArrayOrArray ???
 

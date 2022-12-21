@@ -28,21 +28,21 @@ function variational_compress!(
 ) where T <: Real
     env = Environment(bra, mpo, ket)
     overlap = Inf
-    overlap_before = measure_env(env, last(env.bra.sites))
+    overlap_0 = measure_env(env, last(env.bra.sites))
 
     for sweep ∈ 1:max_sweeps
         _left_sweep_var!(env, args...)
         _right_sweep_var!(env, args...)
 
         overlap = measure_env(env, last(env.bra.sites))
-        Δ = abs((overlap_before - overlap) / overlap)
+        Δ = abs((overlap_0 - overlap) / overlap)
         @info "Convergence" Δ
 
         if Δ < tol
             @info "Finished in $sweep sweeps of $(max_sweeps)."
             return overlap
         else
-            overlap_before = overlap
+            overlap_0 = overlap
         end
     end
     overlap, env
@@ -123,7 +123,6 @@ function clear_env_containing_site!(env::Environment, site::Site)
     delete!(env.env, (right_nbrs_site(site, env.ket.sites), :left))
 end
 
-
 function update_env_left(
     LE::S, A::S, M::T, B::S
 ) where {S <: CuArrayOrArray{R, 3}, T <: MpoTensor{R, 4}} where R <: Real
@@ -138,8 +137,6 @@ function update_env_left(   # TODO may be not needed
     attach_central_left(LE, M.ctr)
 end
 
-
-
 function update_env_right(
     RE::S, A::S1, M::T, B::S
 ) where {T <: MpoTensor{R, 4}, S <: CuArrayOrArray{R, 3}, S1 <: CuArrayOrArray{R, 3}} where R <: Real
@@ -147,7 +144,6 @@ function update_env_right(
     for v ∈ reverse(M.bot) B = attach_central_right(B, v) end
     update_env_right(RE, A, M.ctr, B)
 end
-
 
 function update_env_right(  # TODO may be not needed
     RE::S, M::T
@@ -163,7 +159,6 @@ function project_ket_on_bra(env::Environment, site::Site)
         env.env[(site, :right)]
     )
 end
-
 
 function project_ket_on_bra(
     LE::S, B::S, M::T, RE::S

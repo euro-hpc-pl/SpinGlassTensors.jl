@@ -48,15 +48,15 @@ struct MpoTensor{T <: Real, N}
         else
             nn = ndims(ctr)
             if nn == 2
-                @assert length(top) == length(bot) == 0
+                @assert isempty(top) && isempty(bot) "Both top and bot should be empty"
                 dims = size(ctr)
             elseif nn == 4
                 dims = (
-                    size(ctr, 1), length(top) == 0 ? size(ctr, 2) : size(top[1], 1),
-                    size(ctr, 3), length(bot) == 0 ? size(ctr, 4) : size(bot[end], 2)
+                    size(ctr, 1), isempty(top) ? size(ctr, 2) : size(top[1], 1),
+                    size(ctr, 3), isempty(bot) ? size(ctr, 4) : size(bot[end], 2)
                 )
             else
-                throw(DomainError(ndims(ctr), "MpoTensor will have ndims 2 or 4"))
+                throw(DomainError(ndims(ctr), "MpoTensor should have ndims 2 or 4"))
             end
         end
         new{T, nn}(top, ctr, bot, dims)

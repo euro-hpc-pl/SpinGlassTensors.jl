@@ -71,7 +71,7 @@ function update_reduced_env_right(RE::Array{T, 2}, m::Int, M::MpoTensor{T, 4}, B
     K = zeros(T, size(M, 2))
     K[m] = one(T)
     K = reshape(K, 1, size(K, 1), 1)
-    for v ∈ M.top 
+    for v ∈ M.top
         K = attach_central_left(K, v)
     end
     K = dropdims(K, dims=(1, 3))
@@ -90,4 +90,3 @@ end
 function update_reduced_env_right(RR::S, M0::S) where S <: Array{<:Real, 2}
     @tensor RR[x, y] := M0[y, z] * RR[x, z]
 end
-

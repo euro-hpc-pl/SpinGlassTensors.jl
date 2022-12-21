@@ -83,7 +83,7 @@ struct VirtualTensor{T <: Real, N} <: AbstractSparseTensor{T, N}
     projs::Proj{6}  # == (p_lb, p_l, p_lt, p_rb, p_r, p_rt)
     dims::Dims{N}
 
-    function VirtualTensor(con, projs)
+    function VirtualTensor(con, projs::Proj{6})
         T = eltype(con)
         dims = (length(projs[2]), maximum(projs[3]) * maximum(projs[6]),
                 length(projs[5]), maximum(projs[1]) * maximum(projs[4]))

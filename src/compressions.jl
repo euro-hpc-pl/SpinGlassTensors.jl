@@ -131,52 +131,28 @@ end
         -- B --
 """
 function update_env_left(
-    LE::S, A₀::S, M::T, B₀::S
-) where {S <: CuArrayOrArray{R, 3}, T <: MpoTensor{R}} where R <: Real
-    sites = sort(collect(keys(M)))
-    A = _update_tensor_forward(A₀, M, sites)
-    B = _update_tensor_backwards(B₀, M, sites)
-    update_env_left(LE, A, M[0], B)
+    LE::S, A::S, M::T, B::S
+) where {S <: CuArrayOrArray{R, 3}, T <: MpoTensor{R, 4}} where R <: Real
+    for v ∈ M.top  A = attach_central_left(A, v) end
+    for v ∈ reverse(M.bot) B = attach_central_right(B, v) end
+    update_env_left(LE, A, M.ctr, B)
 end
 
 function update_env_left(
     LE::S, M::T
-) where {S <: CuArrayOrArray{R, 3}, T <: MpoTensor{R}} where R <: Real
-    attach_central_left(LE, M[0])
+) where {S <: CuArrayOrArray{R, 3}, T <: MpoTensor{R, 2}} where R <: Real
+    attach_central_left(LE, M.ctr)
 end
 
-projector_to_dense(::Type{T}, pr::Array{Int, 1}) where T = diagm(ones(T, maximum(pr)))[:, pr]
-projector_to_dense(pr::Array{Int, 1}) = projector_to_dense(Float64, pr) # TODO to be removed
+projector_to_dense(::Type{T}, pr::Array{Int, 1}) where T = diagm(ones(T, maximum(pr)))[:, pr]  # TODO usunac
 
-function _update_tensor_forward(
-    A::S, M::T, sites
-) where {S <: CuArrayOrArray{R, 3}, T <: MpoTensor{R}} where R <: Real
-    B = copy(A)
-    for i ∈ sites
-        i == 0 && break
-        B = attach_central_left(B, M[i])
-    end
-    B
-end
-
-function _update_tensor_backwards(
-    A::S, M::T, sites
-) where {S <: CuArrayOrArray{R, 3}, T <: MpoTensor{R}} where R <: Real
-    B = copy(A)
-    for i ∈ reverse(sites)
-        i == 0 && break
-        B = attach_central_right(B, M[i])
-    end
-    B
-end
 
 function update_env_right(
-    RE::S, A₀::S1, M::T, B₀::S
-) where {T <: MpoTensor{R}, S <: CuArrayOrArray{R, 3}, S1 <: CuArrayOrArray{R, 3}} where R <: Real
-    sites = sort(collect(keys(M)))
-    A = _update_tensor_forward(A₀, M, sites)
-    B = _update_tensor_backwards(B₀, M, sites)
-    update_env_right(RE, A, M[0], B)
+    RE::S, A::S1, M::T, B::S
+) where {T <: MpoTensor{R, 4}, S <: CuArrayOrArray{R, 3}, S1 <: CuArrayOrArray{R, 3}} where R <: Real
+    for v ∈ M.top  A = attach_central_left(A, v) end
+    for v ∈ reverse(M.bot) B = attach_central_right(B, v) end
+    update_env_right(RE, A, M.ctr, B)
 end
 
 """
@@ -188,8 +164,8 @@ end
 """
 function update_env_right(
     RE::S, M::T
-) where {S <: CuArrayOrArray{R, 3}, T <: MpoTensor{R}} where R <: Real
-    attach_central_right(RE, M[0])
+) where {S <: CuArrayOrArray{R, 3}, T <: MpoTensor{R, 2}} where R <: Real
+    attach_central_right(RE, M.ctr)
 end
 
 function project_ket_on_bra(env::Environment, site::Site)
@@ -202,19 +178,12 @@ function project_ket_on_bra(env::Environment, site::Site)
 end
 
 function project_ket_on_bra(
-    LE::S, B₀::S, M::T, RE::S
-) where {S <: CuArrayOrArray{R, 3}, T <: MpoTensor{R}} where R <: Real
-    C = sort(collect(M), by = x -> x[1])
-    TT = B₀
-    for (_, v) ∈ reverse(C)
-        dimv = length(size(v))
-        if dimv == 2
-            TT = attach_central_right(TT, v)
-        else
-            TT = project_ket_on_bra(LE, TT, v, RE)
-        end
-    end
-    TT
+    LE::S, B::S, M::T, RE::S
+) where {S <: CuArrayOrArray{R, 3}, T <: MpoTensor{R, 4}} where R <: Real
+    for v ∈ reverse(M.bot) B = attach_central_right(B, v) end
+    B = project_ket_on_bra(LE, B, M.ctr, RE)
+    for v ∈ reverse(M.top) B = attach_central_right(B, v) end
+    B
 end
 
 function measure_env(env::Environment, site::Site)

@@ -23,44 +23,30 @@ end
 function LinearAlgebra.dot(ψ::QMpo{R}, ϕ::QMps{R}) where R <: Real
     D = TensorMap{R}()
     for i ∈ reverse(ϕ.sites)
-        T = sort(collect(ψ[i]), by = x -> x[begin])
-        TT = ϕ[i]
-        for (_, v) ∈ reverse(T) TT = contract_up(TT, v) end
+        M, B = ψ[i], ϕ[i]
+        for v ∈ reverse(M.bot) B = contract_up(B, v) end
+        B = contract_up(B, M.ctr)
+        for v ∈ reverse(M.top) B = contract_up(B, v) end
 
         mps_li = left_nbrs_site(i, ϕ.sites)
         mpo_li = left_nbrs_site(i, ψ.sites)
         while mpo_li > mps_li
-            TT = contract_left(TT, ψ[mpo_li][0])
+            B = contract_left(B, ψ[mpo_li].ctr)
             mpo_li = left_nbrs_site(mpo_li, ψ.sites)
         end
-        push!(D, i => TT)
+        push!(D, i => B)
     end
     QMps(D)
 end
 
-function LinearAlgebra.dot(ϕ::QMps{R}, ψ::QMpo{R}) where R <: Real
-    D = TensorMap{R}()
-    for i ∈ reverse(ϕ.sites)
-        T = sort(collect(ψ[i]), by = x -> x[begin])
-        TT = ϕ[i]
-        for (_, v) ∈ T TT = contract_down(v, TT) end
-
-        mps_li = left_nbrs_site(i, ϕ.sites)
-        mpo_li = left_nbrs_site(i, ψ.sites)
-        while mpo_li > mps_li
-            TT = contract_left(TT, ψ[mpo_li][0])
-            mpo_li = left_nbrs_site(mpo_li, ψ.sites)
-        end
-        push!(D, i => TT)
-    end
-    QMps(D)
-end
 
 function contract_left(A::Array{T, 3}, B::Matrix{T}) where T <: Real
     @matmul C[(x, y), u, r] := sum(σ) B[y, σ] * A[(x, σ), u, r] (σ ∈ 1:size(B, 2))
 end
 
-contract_left(A::Array{T, 3}, M::CentralTensor{T}) where T <: Real = contract_left(A, Array(M))
+contract_left(A::Array{T, 3}, M::CentralTensor{T, 2}) where T <: Real = contract_left(A, Array(M))  # TODO no Array
+
+contract_up(A::Array{T, 3}, B::Nothing) where T <: Real = A
 
 function contract_up(A::Array{T, 3}, B::Matrix{T}) where T <: Real
     @tensor C[l, u, r] := B[u, σ] * A[l, σ, r]

@@ -34,9 +34,9 @@ struct MpoTensor{T <: Real, N}
         ctr = get(ten, 0, nothing)
 
         if isnothing(ctr)
-            top_bot = vcat(top, bot) # TODO do we need this?
-            dims = (size(top_bot[1], 1), size(top_bot[end], 2))
-            nn = 2
+            top_bot = vcat(top, bot)
+            dims = (0, size(top_bot[1], 1), 0, size(top_bot[end], 2))
+            nn = 4
         else
             nn = ndims(ctr)
             if nn == 2
@@ -44,8 +44,8 @@ struct MpoTensor{T <: Real, N}
                 dims = size(ctr)
             elseif nn == 4
                 dims = (
-                    size(ctr, 1), length(top) == 0 ? site(ctr, 2) : size(top[1], 1),
-                    size(ctr, 3), length(bot) == 0 ? site(ctr, 4) : size(bot[end], 2)
+                    size(ctr, 1), length(top) == 0 ? size(ctr, 2) : size(top[1], 1),
+                    size(ctr, 3), length(bot) == 0 ? size(ctr, 4) : size(bot[end], 2)
                 )
             else
                 throw(DomainError(ndims(ctr), "MpoTensor will have ndims 2 or 4"))

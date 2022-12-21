@@ -44,13 +44,13 @@ function project_ket_on_bra(
                           M[l, y, n, m] * RE[z, n, o] order = (k, l, m, n, o)
 end
 
-function project_ket_on_bra(
-    LE::S, B::S, C::S, M::T, N::T, RE::S
-) where {T <: CuArrayOrArray{R, 4}, S <: CuArrayOrArray{R, 3}} where R <: Real
-    @tensor A[x, y, z, r] := LE[k, l, x] * B[k, m, o] *
-                             M[l, y, n, m] * C[o, s, q] *
-                             N[n, z, p, s] * RE[r, p, q] order = (k, l, m, n, o, s, p, q)
-end
+# function project_ket_on_bra(
+#     LE::S, B::S, C::S, M::T, N::T, RE::S
+# ) where {T <: CuArrayOrArray{R, 4}, S <: CuArrayOrArray{R, 3}} where R <: Real
+#     @tensor A[x, y, z, r] := LE[k, l, x] * B[k, m, o] *
+#                              M[l, y, n, m] * C[o, s, q] *
+#                              N[n, z, p, s] * RE[r, p, q] order = (k, l, m, n, o, s, p, q)
+# end
 
 """
       K
@@ -59,20 +59,15 @@ end
       |    |
    -- B ---
 """
-function update_reduced_env_right(RE::Array{T, 2}, m::Int, M::MpoTensor{T}, B::Array{T, 3}) where T <: Real
-    kk = sort(collect(keys(M)))
-    if kk[1] < 0
-        K = zeros(T, size(M[kk[1]], 1))
-        K[m] = one(T)
-        for ii ∈ kk[1:end]
-            ii == 0 && break
-            K = _project_on_border(K, M[ii])
-        end
-    else
-        K = zeros(T, size(M[0], 2))
-        K[m] = one(T)
+function update_reduced_env_right(RE::Array{T, 2}, m::Int, M::MpoTensor{T, 4}, B::Array{T, 3}) where T <: Real
+    K = zeros(T, size(M, 2))
+    K[m] = one(T)
+    for v ∈ M.top K = _project_on_border(K, v) end
+    for v ∈ reverse(M.bot)
+        B = contract_up(B, v)   # TODO: do we ever enter here?
+        println("do we ever enter here?")
     end
-    update_reduced_env_right(K, RE, M[0], B)
+    update_reduced_env_right(K, RE, M.ctr, B)
 end
 
 function update_reduced_env_right(K::Array{T, 1}, RE::Array{T, 2}, M::Array{T, 4}, B::Array{T, 3}) where T <: Real

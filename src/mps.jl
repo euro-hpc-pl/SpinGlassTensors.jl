@@ -58,7 +58,6 @@ end
 Base.ndims(ten::MpoTensor{T, N}) where {T, N} = N
 Base.size(ten::MpoTensor, n::Int) = ten.dims[n]
 Base.size(ten::MpoTensor) = ten.dims
-Base.length(ten::MpoTensor) = length(ten.top) # TODO verify this!
 
 const MpoTensorMap{T} = Dict{Site, MpoTensor{T}}
 

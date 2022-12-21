@@ -128,7 +128,7 @@ function update_env_left(
         Lslc = L[lb_from:lb_to, :, :]
         Lslc = permutedims(Lslc, (2, 1, 3))  # [lcp, lb, lt]
         @cast Lslc[lcp, (lb, lt)] := Lslc[lcp, lb, lt]
-        Lslc = ps * Lslc #[(lcb, lc, lct), (lb, lt)]
+        Lslc = ps * Lslc  # [(lcb, lc, lct), (lb, lt)]
 
         @cast Lslc[lcb, lc, lct, lb, lt] := Lslc[(lcb, lc, lct), (lb, lt)] (lcb ∈ 1:slcb, lc ∈ 1:slc, lt ∈ 1:slt)
         Lslc = permutedims(Lslc, (4, 1, 2, 5, 3)) #[lb, lcb, lc, lt, lct]

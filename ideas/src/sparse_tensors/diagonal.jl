@@ -17,11 +17,3 @@ function attach_central_right(B::Array{T, 3}, C::SparseDiagonalTensor{T}) where 
     BB = permutedims(BB, (1, 3, 2, 4))
     @cast BB[l, (q1, q2), r] := BB[l, q1, q2, r]
 end
-
-function _project_on_border(K::Array{T, 1}, M::SparseDiagonalTensor{T}) where T <: Real
-    sa, sb = size(M.e1, 1), size(M.e2, 1)
-    qa, qb = size(M.e1, 2), size(M.e2, 2)
-    K = attach_central_left(reshape(K, 1, sa, sb), M.e1)
-    K = attach_central_left(reshape(K, qa, sb, 1), M.e2)
-    reshape(permutedims(reshape(K, qa, qb), (2, 1)), qa * qb)
-end

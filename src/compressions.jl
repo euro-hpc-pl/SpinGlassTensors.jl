@@ -35,7 +35,7 @@ function variational_compress!(
         _right_sweep_var!(env, args...)
 
         overlap = measure_env(env, last(env.bra.sites))
-        Δ = abs(overlap_before - abs(overlap))
+        Δ = abs((overlap_before - overlap) / overlap)
         @info "Convergence" Δ
 
         if Δ < tol
@@ -98,7 +98,7 @@ function update_env_left!(env::Environment, site::Site)
 
     rs = right_nbrs_site(ls, env.mpo.sites)
     while rs < site
-        LL = update_env_left(LL, env.mpo[rs])
+        LL = update_env_left(LL, env.mpo[rs])  # update_env_left -> attach_central_left
         rs = right_nbrs_site(rs, env.mpo.sites)
     end
     push!(env.env, (site, :left) => LL)
@@ -112,7 +112,7 @@ function update_env_right!(env::Environment, site::Site)
 
     ls = left_nbrs_site(rs, env.mpo.sites)
     while ls > site
-        RR = update_env_right(RR, env.mpo[ls])
+        RR = update_env_right(RR, env.mpo[ls])  # update_env_left -> attach_central_right
         ls = left_nbrs_site(ls, env.mpo.sites)
     end
     push!(env.env, (site, :right) => RR)
@@ -123,13 +123,7 @@ function clear_env_containing_site!(env::Environment, site::Site)
     delete!(env.env, (right_nbrs_site(site, env.ket.sites), :left))
 end
 
-"""
-        -- A --
-      |    |
- L = LE -- M --
-      |    |
-        -- B --
-"""
+
 function update_env_left(
     LE::S, A::S, M::T, B::S
 ) where {S <: CuArrayOrArray{R, 3}, T <: MpoTensor{R, 4}} where R <: Real
@@ -138,13 +132,12 @@ function update_env_left(
     update_env_left(LE, A, M.ctr, B)
 end
 
-function update_env_left(
+function update_env_left(   # TODO may be not needed
     LE::S, M::T
 ) where {S <: CuArrayOrArray{R, 3}, T <: MpoTensor{R, 2}} where R <: Real
     attach_central_left(LE, M.ctr)
 end
 
-projector_to_dense(::Type{T}, pr::Array{Int, 1}) where T = diagm(ones(T, maximum(pr)))[:, pr]  # TODO usunac
 
 
 function update_env_right(
@@ -155,14 +148,8 @@ function update_env_right(
     update_env_right(RE, A, M.ctr, B)
 end
 
-"""
-           --
-              |
- R =  -- M -- RE
-              |
-           --
-"""
-function update_env_right(
+
+function update_env_right(  # TODO may be not needed
     RE::S, M::T
 ) where {S <: CuArrayOrArray{R, 3}, T <: MpoTensor{R, 2}} where R <: Real
     attach_central_right(RE, M.ctr)
@@ -177,6 +164,7 @@ function project_ket_on_bra(env::Environment, site::Site)
     )
 end
 
+
 function project_ket_on_bra(
     LE::S, B::S, M::T, RE::S
 ) where {S <: CuArrayOrArray{R, 3}, T <: MpoTensor{R, 4}} where R <: Real
@@ -189,17 +177,17 @@ end
 function measure_env(env::Environment, site::Site)
     L = update_env_left(env.env[(site, :left)], env.bra[site], env.mpo[site], env.ket[site])
     R = env.env[(site, :right)]
-    @tensor L[t, c, b] * R[b, c, t]
+    @tensor L[b, c, t] * R[t, c, b]
 end
 
-function variational_sweep!(
+function variational_sweep!(   # we may be able to remove it
     bra::QMps{T}, mpo::QMpo{T}, ket::QMps{T}, ::Val{:left}, args...
 ) where T <: Real
     env = Environment(bra, mpo, ket)
     _right_sweep_var!(env, args...)
 end
 
-function variational_sweep!(
+function variational_sweep!(   # we may be able to remove it
     bra::QMps{T}, mpo::QMpo{T}, ket::QMps{T}, ::Val{:right}, args...
 ) where T <: Real
     env = Environment(bra, mpo, ket)

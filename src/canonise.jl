@@ -31,7 +31,7 @@ function _right_sweep!(ψ::QMps{T}, Dcut::Int=typemax(Int), tolS::T=eps(), args.
         Q, R = qr_fact(M, Dcut, tolS, args...)
         R ./= maximum(abs.(R))
         @cast A[x, σ, y] := Q[(x, σ), y] (σ ∈ 1:size(A, 2))
-        ψ[i] = Array(A)
+        ψ[i] = Array(A)  # ArrayOrCuArray ?
     end
 end
 
@@ -43,6 +43,6 @@ function _left_sweep!(ψ::QMps{T}, Dcut::Int=typemax(Int), tolS::T=eps(), args..
         R, Q = rq_fact(M, Dcut, tolS, args...)
         R ./= maximum(abs.(R))
         @cast B[x, σ, y] := Q[x, (σ, y)] (σ ∈ 1:size(B, 2))
-        ψ[i] = Array(B)
+        ψ[i] = Array(B)  # ArrayOrCuArray ?
     end
 end

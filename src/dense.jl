@@ -8,6 +8,14 @@ function attach_central_right(LE::CuArrayOrArray{T, 3}, M::CuArrayOrArray{T, 2})
     @tensor L[nt, nc, nb] :=  LE[nt, oc, nb] * M[nc, oc]
 end
 
+"""
+        -- A --
+      |    |
+ L = LE -- M --
+      |    |
+        -- B --
+"""
+
 function update_env_left(
     LE::S, A::S, M::T, B::S
 ) where {S <: CuArrayOrArray{R, 3}, T <: CuArrayOrArray{R, 4}} where R <: Real
@@ -62,9 +70,14 @@ end
 function update_reduced_env_right(RE::Array{T, 2}, m::Int, M::MpoTensor{T, 4}, B::Array{T, 3}) where T <: Real
     K = zeros(T, size(M, 2))
     K[m] = one(T)
-    for v ∈ M.top K = _project_on_border(K, v) end
+    K = reshape(K, 1, size(K, 1), 1)
+    for v ∈ M.top 
+        K = attach_central_left(K, v)
+    end
+    K = dropdims(K, dims=(1, 3))
+
     for v ∈ reverse(M.bot)
-        B = contract_up(B, v)   # TODO: do we ever enter here?
+        B = contract_up(B, v)   # TODO: do we ever enter here? attach_from_...
         println("do we ever enter here?")
     end
     update_reduced_env_right(K, RE, M.ctr, B)
@@ -78,6 +91,3 @@ function update_reduced_env_right(RR::S, M0::S) where S <: Array{<:Real, 2}
     @tensor RR[x, y] := M0[y, z] * RR[x, z]
 end
 
-function _project_on_border(K::Array{T, 1}, M::Array{T, 2}) where T <: Real
-    @tensor K[a] := K[b] * M[b, a]
-end

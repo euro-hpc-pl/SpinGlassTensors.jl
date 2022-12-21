@@ -1,8 +1,7 @@
 export
     attach_central_left,
     attach_central_right,
-    update_reduced_env_right,
-    _project_on_border
+    update_reduced_env_right
 
 function attach_central_left(L::CuArrayOrArray{T, 3}, M::CentralTensor{T, 2}) where T <: Real
     e11, e12, e21, e22 = ArrayOrCuArray(L).((M.e11, M.e12, M.e21, M.e22))
@@ -72,10 +71,4 @@ function update_reduced_env_right(RR::Array{T, 2}, M::CentralTensor{T, 2}) where
     RR = reshape(RR, size(RR, 1), size(RR, 2), 1)
     RR = attach_central_right(RR, M)
     dropdims(RR, dims=3)
-end
-
-function _project_on_border(K::Array{T, 1}, M::CentralTensor{T, 2}) where T <: Real
-    K = reshape(K, 1, size(K, 1), 1)
-    K = attach_central_left(K, M)
-    dropdims(K, dims=(1, 3))
 end

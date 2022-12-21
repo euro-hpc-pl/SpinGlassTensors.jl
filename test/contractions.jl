@@ -45,11 +45,6 @@
             @test size(contract_up(B, C)) == (8, 2, 6)
         end
 
-        @testset "contract_down gives correct sizes" begin 
-            @test size(contract_down(A, B)) == (4, 2, 3)
-            @test size(contract_down(C, B)) == (8 ,2, 6)
-        end
-
         # @testset "dot product of QMpo and QMps" begin
         #     D = dot(O2, ψ)
         #     E = dot(O1, ψ)

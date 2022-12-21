@@ -12,6 +12,8 @@ abstract type AbstractSparseTensor{T, N} end
 const Proj{N} = NTuple{N, Array{Int, 1}}
 const CuArrayOrArray{T, N} = Union{Array{T, N}, CuArray{T, N}}
 
+# Allow data to reside on CUDA ???
+
 ArrayOrCuArray(L) = typeof(L) <: CuArray ? CuArray : Array # TODO do we need this?
 
 struct SiteTensor{T <: Real, N} <: AbstractSparseTensor{T, N}
@@ -91,14 +93,14 @@ struct VirtualTensor{T <: Real, N} <: AbstractSparseTensor{T, N}
     end
 end
 
-mpo_transpose(ten::VirtualTensor) = VirtualTensor(ten.con, ten.projs[[3, 2, 1, 6, 5, 4]])
-mpo_transpose(ten::Array{<:Real, 4}) = Array(permutedims(ten, (1, 4, 3, 2)))
-mpo_transpose(ten::Array{<:Real, 2}) = Array(transpose(ten))
+mpo_transpose(ten::VirtualTensor) = VirtualTensor(ten.con, ten.projs[[3, 2, 1, 6, 5, 4]]) 
+mpo_transpose(ten::Array{<:Real, 4}) = Array(permutedims(ten, (1, 4, 3, 2)))  # CuArrayOrArray ???
+mpo_transpose(ten::Array{<:Real, 2}) = Array(transpose(ten))  # CuArrayOrArray ???
 
 const SparseTensor{T, N} = Union{
     SiteTensor{T, N}, VirtualTensor{T, N}, CentralTensor{T, N}, DiagonalTensor{T, N}
 }
-const Tensor{T, N} = Union{Array{T, N}, SparseTensor{T, N}}
+const Tensor{T, N} = Union{CuArrayOrArray{T, N}, SparseTensor{T, N}}
 const CentralOrDiagonal{T, N} = Union{CentralTensor{T, N}, DiagonalTensor{T, N}}
 
 Base.eltype(ten::Tensor{T, N}) where {T <: Real, N} = T

@@ -1,5 +1,6 @@
 export
-    optimize_gauges_for_overlaps!!
+    optimize_gauges_for_overlaps!!,
+    overlap_density_matrix
 
 function update_rq!(ψ::QMps{T}, AT::Array{T, 3}, i::Int) where T <: Real
     @cast ATR[x, (σ, y)] := AT[x, σ, y]
@@ -90,4 +91,35 @@ function optimize_gauges_for_overlaps!!(
         if abs(Δ - one(T)) < tol break end
     end
     gauges
+end
+
+
+function overlap_density_matrix(ϕ::QMps{T}, ψ::QMps{T}, k::Site) where T <: Real
+    @assert ψ.sites == ϕ.sites
+    C = _overlap_forward(ϕ, ψ, k)
+    D = _overlap_backwards(ϕ, ψ, k)
+    A, B = ψ[k], ϕ[k]
+    @tensor E[x, y] := C[b, a] * conj(B)[b, x, β] * A[a, y, α] * D[β, α]
+end
+
+function _overlap_forward(ϕ::QMps{T}, ψ::QMps{T}, k::Site) where T <: Real
+    C = ones(T, 1, 1)
+    i = ψ.sites[1]
+    while i < k
+        A, B = ψ[i], ϕ[i]
+        @tensor C[x, y] := conj(B)[β, σ, x] * C[β, α] * A[α, σ, y] order = (α, β, σ)
+        i += 1
+    end
+    C
+end
+
+function _overlap_backwards(ϕ::QMps{T}, ψ::QMps{T}, k::Site) where T <: Real
+    D = ones(T, 1, 1)
+    i = ψ.sites[end]
+    while i > k
+        A, B = ψ[i], ϕ[i]
+        @tensor D[x, y] := conj(B)[x, σ, β] * D[β, α] * A[y, σ, α] order = (α, β, σ)
+        i -= 1
+    end
+    D
 end

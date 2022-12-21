@@ -12,6 +12,10 @@ const Site = Union{Int, Rational{Int}}
 const Sites = NTuple{N, Site} where N
 const TensorMap{T} = Dict{Site, Union{Tensor{T, 2}, Tensor{T, 3}, Tensor{T, 4}}}  # 2 and 4 - mpo;  3 - mps
 
+## MpsMap{T} = Dict{Site, Union{Tensor{T, 2}, Tensor{T, 4}}}
+## MpoTensorMap{T} = Dict{Site, CuArrayOrArray{T, 3}}
+
+
 struct QMps{T <: Real} <: AbstractTensorNetwork
     tensors::TensorMap{T}
     sites::Vector{Site}
@@ -63,7 +67,7 @@ Base.ndims(ten::MpoTensor{T, N}) where {T, N} = N
 Base.size(ten::MpoTensor, n::Int) = ten.dims[n]
 Base.size(ten::MpoTensor) = ten.dims
 
-const MpoTensorMap{T} = Dict{Site, MpoTensor{T}}
+const MpoTensorMap{T} = Dict{Site, MpoTensor{T}}  # MpoMap
 
 struct QMpo{T <: Real} <: AbstractTensorNetwork
     tensors::MpoTensorMap{T}
@@ -108,36 +112,6 @@ function IdentityQMps(::Type{T}, loc_dims::Dict, Dmax::Int=1) where T <: Real
         id[site][1, :, 1] .= one(T) / sqrt(ld)
     end
     QMps(id)
-end
-
-function Base.rand(::Type{QMps{T}}, sites::Vector, D::Int, d::Int) where T <: Real
-    QMps(
-        TensorMap{T}(
-            1 => rand(T, 1, d, D),
-            (i => rand(T, D, d, D) for i ∈ 2:sites-1)...,
-            sites[end] => rand(T, D, d, 1)
-        )
-    )
-end
-
-function Base.rand(
-    ::Type{QMpo{T}}, sites::Vector, D::Int, d::Int, sites_aux::Vector=[], d_aux::Int=0
-) where T <:Real
-    QMpo(
-        MpoTensorMap{T}(
-            1 => MpoTensor{T}(
-                    1 => rand(T, 1, d, d, D),
-                    (j => rand(T, d_aux, d_aux) for j ∈ sites_aux)...
-            ),
-            sites[end] => MpoTensor{T}(
-                    sites[end] => rand(T, D, d, d, 1),
-                    (j => rand(T, d_aux, d_aux) for j ∈ sites_aux)...,
-            ),
-            (i => MpoTensor{T}(
-                    i => rand(T, D, d, d, D),
-                    (j => rand(T, d_aux, d_aux) for j ∈ sites_aux)...) for i ∈ 2:sites-1)...
-        )
-    )
 end
 
 function local_dims(mpo::QMpo, dir::Symbol)

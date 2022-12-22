@@ -5,7 +5,8 @@ export
     bond_dimensions,
     verify_bonds,
     is_left_normalized,
-    is_right_normalized
+    is_right_normalized,
+    measure_memory
 
 LinearAlgebra.norm(ψ::QMps) = sqrt(abs(dot(ψ, ψ)))
 
@@ -109,3 +110,7 @@ end
 @inline Base.size(a::AbstractTensorNetwork) = (length(a.tensors), )
 @inline Base.length(a::AbstractTensorNetwork) = length(a.tensors)
 @inline LinearAlgebra.rank(ψ::QMps) = Tuple(size(A, 2) for A ∈ values(ψ.tensors))
+
+measure_memory(M::AbstractArray) = prod(size(M)) * 8
+measure_memory(M::Tuple) = prod(M) * 8
+measure_memory(ten::SparseTensor) = measure_memory(ten.dims)

@@ -1,9 +1,7 @@
 export
     Environment,
-    clear_env_containing_site!,
     left_nbrs_site,
-    right_nbrs_site,
-    measure_env
+    right_nbrs_site
 
 abstract type AbstractEnvironment end
 
@@ -18,7 +16,7 @@ mutable struct Environment{T <: Real} <: AbstractEnvironment
         id = ones(T, 1, 1, 1)
         env0 = Dict((bra.sites[1], :left) => id, (bra.sites[end], :right) => id)
         env = new{T}(bra, mpo, ket, env0)
-        for site ∈ env.bra.sites update_env_left!(env, site) end
+        update_env_left!.(Ref(env), env.bra.sites)
         env
     end
 end
@@ -56,17 +54,15 @@ end
 function update_env_left(
     LE::S, A::S, M::T, B::S
 ) where {S <: CuArrayOrArray{R, 3}, T <: MpoTensor{R, 4}} where R <: Real
-    for v ∈ M.top  A = contract_tensor3_matrix(A, v) end
+    for v ∈ M.top A = contract_tensor3_matrix(A, v) end
     for v ∈ reverse(M.bot) B = contract_matrix_tensor3(v, B) end
     update_env_left(LE, A, M.ctr, B)
 end
 
 function update_env_left!(env::Environment, site::Site)
     site <= first(env.bra.sites) && return
-
     ls = left_nbrs_site(site, env.bra.sites)
     LL = update_env_left(env.env[(ls, :left)], env.bra[ls], env.mpo[ls], env.ket[ls])
-
     rs = right_nbrs_site(ls, env.mpo.sites)
     while rs < site
         LL = contract_tensor3_matrix(LL, env.mpo[rs])
@@ -92,10 +88,8 @@ end
 
 function update_env_right!(env::Environment, site::Site)
     site >= last(env.bra.sites) && return
-
     rs = right_nbrs_site(site, env.bra.sites)
     RR = update_env_right(env.env[(rs, :right)], env.bra[rs], env.mpo[rs], env.ket[rs])
-
     ls = left_nbrs_site(rs, env.mpo.sites)
     while ls > site
         RR = contract_matrix_tensor3(env.mpo[ls], RR)
@@ -121,10 +115,7 @@ end
 
 function project_ket_on_bra(env::Environment, site::Site)
     project_ket_on_bra(
-        env.env[(site, :left)],
-        env.ket[site],
-        env.mpo[site],
-        env.env[(site, :right)]
+        env.env[(site, :left)], env.ket[site], env.mpo[site], env.env[(site, :right)]
     )
 end
 

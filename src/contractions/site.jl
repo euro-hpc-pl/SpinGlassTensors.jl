@@ -2,7 +2,7 @@ function contract_sparse_with_three(X1, X2, X3, loc_exp, p1, p2, p3, pout)
     s1, s2, _ = size(X1)
     s3, s4, _ = size(X3)
     total_memory = 2^33
-    batch_size = max(Int(floor(total_memory / (8 * (s1 * s2 + s2 * s3 + s3 * s4 + s4 * s1)))), 1)
+    batch_size = max(Int(floor(total_memory / (8 * (s1 * s2 + s2 * s3 + s3 * s4 + s4 * s1)))), 1) #TODO add better handling
 
     X1, X2, X3, loc_exp = CuArray.((X1, X2, X3, loc_exp))
     F = eltype(X1)
@@ -35,8 +35,7 @@ function update_env_left(
     B = permutedims(B, (3, 1, 2))
     LE = permutedims(LE, (1, 3, 2))
     A = permutedims(A, (1, 3, 2))
-    order = [4, 1, 2, 3]
-    contract_sparse_with_three(B, LE, A, M.loc_exp, M.projs[order]...)
+    contract_sparse_with_three(B, LE, A, M.loc_exp, M.projs[[4, 1, 2, 3]]...)
 end
 
 function update_env_right(
@@ -45,8 +44,7 @@ function update_env_right(
     A = permutedims(A, (1, 3, 2))
     RE = permutedims(RE, (1, 3, 2))
     B = permutedims(B, (3, 1, 2))
-    order = [2, 3, 4, 1]
-    contract_sparse_with_three(A, RE, B, M.loc_exp, M.projs[order]...)
+    contract_sparse_with_three(A, RE, B, M.loc_exp, M.projs[[2, 3, 4, 1]]...)
 end
 
 function project_ket_on_bra(
@@ -55,8 +53,7 @@ function project_ket_on_bra(
     LE = permutedims(LE, (3, 1, 2))
     B = permutedims(B, (1, 3, 2))
     RE = permutedims(RE, (3, 1, 2))
-    order = [1, 4, 3, 2]
-    contract_sparse_with_three(LE, B, RE, M.loc_exp, M.projs[order]...)
+    contract_sparse_with_three(LE, B, RE, M.loc_exp, M.projs[[1, 4, 3, 2]]...)
 end
 
 function update_reduced_env_right(
@@ -80,9 +77,7 @@ function update_reduced_env_right(
     Array(RRR')
 end
 
-
-
-function contract_tensors43(B::SiteTensor{T, 4}, A::Array{T, 3}) where T <: Real   # move to site tensor  {T, 3} * {T, 4} -> {T, 3}
+function contract_tensors43(B::SiteTensor{T, 4}, A::Array{T, 3}) where T <: Real   # TODO move to site tensor  {T, 3} * {T, 4} -> {T, 3}
     sal, _, sar = size(A)
     sbl, sbt, sbr = maximum.(B.projs[1:3])
     C = zeros(T, sal, sbl, sbt, sar, sbr)

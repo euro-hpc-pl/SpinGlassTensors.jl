@@ -1,10 +1,10 @@
 function contract_tensor3_matrix(LE::CuArrayOrArray{T, 3}, M::CuArrayOrArray{T, 2}) where T <: Real
-    if typeof(LE) <: CuArray && !(typeof(M) <: CuArray) M = CuArray(M) end
+    if typeof(LE) <: CuArray && !(typeof(M) <: CuArray) M = CuArray(M) end # TODO add better handling
     @tensor L[nt, nc, nb] := LE[nt, oc, nb] * M[oc, nc]
 end
 
 function contract_matrix_tensor3(M::CuArrayOrArray{T, 2}, LE::CuArrayOrArray{T, 3}) where T <: Real
-    if typeof(LE) <: CuArray && !(typeof(M) <: CuArray) M = CuArray(M) end
+    if typeof(LE) <: CuArray && !(typeof(M) <: CuArray) M = CuArray(M) end # TODO add better handling
     @tensor L[nt, nc, nb] :=  LE[nt, oc, nb] * M[nc, oc]
 end
 
@@ -22,7 +22,6 @@ function update_env_left(
                              M[oc, α, nc, β] * B[ob, β, nb] order = (ot, α, oc, β, ob)
 end
 
-
 """
       -- A --
          |    |
@@ -37,7 +36,6 @@ function update_env_right(
                              M[nc, α, oc, β] * B[nb, β, ob] order = (ot, α, oc, β, ob)
 end
 
-
 """
    |    |    |
   LE -- M -- RE
@@ -50,14 +48,6 @@ function project_ket_on_bra(
     @tensor A[x, y, z] := LE[k, l, x] * B[k, m, o] *
                           M[l, y, n, m] * RE[z, n, o] order = (k, l, m, n, o)
 end
-
-# function project_ket_on_bra(
-#     LE::S, B::S, C::S, M::T, N::T, RE::S
-# ) where {T <: CuArrayOrArray{R, 4}, S <: CuArrayOrArray{R, 3}} where R <: Real
-#     @tensor A[x, y, z, r] := LE[k, l, x] * B[k, m, o] *
-#                              M[l, y, n, m] * C[o, s, q] *
-#                              N[n, z, p, s] * RE[r, p, q] order = (k, l, m, n, o, s, p, q)
-# end
 
 """
       K
@@ -76,7 +66,7 @@ function update_reduced_env_right(RE::Array{T, 2}, m::Int, M::MpoTensor{T, 4}, B
     K = dropdims(K, dims=(1, 3))
 
     for v ∈ reverse(M.bot)
-        B = contract_matrix_tensor3(v, B)   # do we ever enter here? in layers that we have now, likely not.
+        B = contract_matrix_tensor3(v, B)   # TODO do we ever enter here? in layers that we have now, likely not.
         println("do we ever enter here?")
     end
     update_reduced_env_right(K, RE, M.ctr, B)

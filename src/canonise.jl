@@ -1,7 +1,7 @@
 export
     canonise!,
-    canonise_truncate!,
-    truncate!
+    truncate!,
+    canonise_truncate!
 
 function truncate!(ψ::QMps{T}, s::Symbol, Dcut::Int=typemax(Int), tolS::T=eps(), args...) where T <: Real
     @assert s ∈ (:left, :right)
@@ -31,7 +31,7 @@ function _right_sweep!(ψ::QMps{T}, Dcut::Int=typemax(Int), tolS::T=eps(), args.
         Q, R = qr_fact(M, Dcut, tolS, args...)
         R ./= maximum(abs.(R))
         @cast A[x, σ, y] := Q[(x, σ), y] (σ ∈ 1:size(A, 2))
-        ψ[i] = Array(A)  # ArrayOrCuArray ?
+        ψ[i] = Array(A)  # TODO ArrayOrCuArray ?
     end
 end
 
@@ -43,6 +43,6 @@ function _left_sweep!(ψ::QMps{T}, Dcut::Int=typemax(Int), tolS::T=eps(), args..
         R, Q = rq_fact(M, Dcut, tolS, args...)
         R ./= maximum(abs.(R))
         @cast B[x, σ, y] := Q[x, (σ, y)] (σ ∈ 1:size(B, 2))
-        ψ[i] = Array(B)  # ArrayOrCuArray ?
+        ψ[i] = Array(B)  # TODO ArrayOrCuArray ?
     end
 end

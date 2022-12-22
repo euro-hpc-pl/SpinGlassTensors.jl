@@ -53,12 +53,14 @@ mpo_transpose(ten::CentralTensor) = CentralTensor(transpose.((ten.e11, ten.e21, 
 
 const MatOrCentral{T, N} = Union{Matrix{T}, CentralTensor{T, N}}
 
+# TODO should this be removed?
 function Base.Array(ten::CentralTensor)
     @cast V[(u1, u2), (d1, d2)] := ten.e11[u1, d1] * ten.e21[u2, d1] *
                                    ten.e12[u1, d2] * ten.e22[u2, d2]
     V ./ maximum(V)
 end
 
+# TODO should this be removed?
 function CUDA.CuArray(ten::CentralTensor)
     e11, e12 ,e21, e22 = CuArray.((ten.e11, ten.e12, ten.e21, ten.e22))
     @cast V[(u1, u2), (d1, d2)] := e11[u1, d1] * e21[u2, d1] *
@@ -94,8 +96,8 @@ struct VirtualTensor{T <: Real, N} <: AbstractSparseTensor{T, N}
 end
 
 mpo_transpose(ten::VirtualTensor) = VirtualTensor(ten.con, ten.projs[[3, 2, 1, 6, 5, 4]])
-mpo_transpose(ten::Array{<:Real, 4}) = Array(permutedims(ten, (1, 4, 3, 2)))  # CuArrayOrArray ???
-mpo_transpose(ten::Array{<:Real, 2}) = Array(transpose(ten))  # CuArrayOrArray ???
+mpo_transpose(ten::Array{<:Real, 4}) = Array(permutedims(ten, (1, 4, 3, 2)))  # TODO CuArrayOrArray ???
+mpo_transpose(ten::Array{<:Real, 2}) = Array(transpose(ten))  # TODO CuArrayOrArray ???
 
 const SparseTensor{T, N} = Union{
     SiteTensor{T, N}, VirtualTensor{T, N}, CentralTensor{T, N}, DiagonalTensor{T, N}

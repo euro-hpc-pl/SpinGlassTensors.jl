@@ -4,7 +4,7 @@
 """
 Select optimal order of attaching matrices to L
 """
-function attach_3_matrices_left(L, B2, h, A2)
+function attach_3_matrices_left(L, B2, h, A2) #TODO add types
     if r2_over_r1(h) <= r2_over_r1(B2) <= r2_over_r1(A2)
         L = contract_tensor3_matrix(L, h)  # [..., rc, ...] = [..., lc, ...] * [lc, rc]
         @tensor L[rfb, x, y] := L[lfb, x, y] * B2[lfb, rfb]
@@ -36,7 +36,7 @@ end
 """
 Select optimal order of attaching matrices to R
 """
-function attach_3_matrices_right(R, B2, h, A2)
+function attach_3_matrices_right(R, B2, h, A2) #TODO add types
     if r1_over_r2(h) <= r1_over_r2(B2) <= r1_over_r2(A2)
         R = contract_matrix_tensor3(h, R)  # [..., lc, ...] = [..., rc, ...] * [lc, rc]
         @tensor R[lfb, x, y] := R[rfb, x, y] * B2[lfb, rfb]
@@ -65,7 +65,7 @@ function attach_3_matrices_right(R, B2, h, A2)
     R
 end
 
-function attach_2_matrices(L, B2, h, R)
+function attach_2_matrices(L, B2, h, R) #TODO add types, (re)think this function
     h1, h2 = size(h, 1), size(h, 2)
     b1, b2 = size(B2, 1), size(B2, 2)
     leg_list = [h1, h2, b1, b2]
@@ -302,7 +302,7 @@ function update_reduced_env_right(
     Rtemp = attach_3_matrices_right(Rtemp, K2, h, B2)  # [lt, lc, (lb, l)]
 
     @cast Rtemp[(lt, lc, lb), l] := Rtemp[lt, lc, (lb, l)] (lb ∈ 1:maximum(p_lb))
-    ips = CuSparseMatrixCSR(eltype(RE), p_lt, p_l, p_lb)
+    ips = CuSparseMatrixCSR(T, p_lt, p_l, p_lb)
     Rnew = permutedims(ips * Rtemp, (2, 1))
 
     Array(Rnew)
@@ -310,7 +310,7 @@ end
 
 function contract_tensors43(B::VirtualTensor{T, 4}, A::Array{T, 3}) where T <: Real
     h = B.con
-    if typeof(h) <: CentralTensor h = Array(h) end
+    if typeof(h) <: CentralTensor h = Array(h) end #TODO add better handling
 
     sal, _, sar = size(A)
     p_lb, p_l, p_lt, p_rb, p_r, p_rt = B.projs

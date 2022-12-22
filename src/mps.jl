@@ -15,16 +15,6 @@ const TensorMap{T} = Dict{Site, Union{Tensor{T, 2}, Tensor{T, 3}, Tensor{T, 4}}}
 ## MpsMap{T} = Dict{Site, Union{Tensor{T, 2}, Tensor{T, 4}}}
 ## MpoTensorMap{T} = Dict{Site, CuArrayOrArray{T, 3}}
 
-
-struct QMps{T <: Real} <: AbstractTensorNetwork
-    tensors::TensorMap{T}
-    sites::Vector{Site}
-
-    function QMps(ten::TensorMap{T}) where T
-        new{T}(ten, sort(collect(keys(ten))))
-    end
-end
-
 struct MpoTensor{T <: Real, N}
     top::Vector{Tensor{T, 2}}  # N == 2 top = []
     ctr:: Union{Tensor{T, N}, Nothing}
@@ -59,6 +49,7 @@ function MpoTensor(ten::TensorMap{T}) where T
     MpoTensor{T, nn}(top, ctr, bot, dims)
 end
 
+#TODO should we mv this some place else?
 contract_tensor3_matrix(B::Array{T, 3}, M::MpoTensor{T, 2}) where T <: Real = contract_tensor3_matrix(B, M.ctr)
 contract_matrix_tensor3(M::MpoTensor{T, 2}, B::Array{T, 3}) where T <: Real = contract_matrix_tensor3(M.ctr, B)
 contract_tensors43(B::Nothing, A::Array{T, 3}) where T <: Real = A
@@ -69,11 +60,21 @@ Base.size(ten::MpoTensor) = ten.dims
 
 const MpoTensorMap{T} = Dict{Site, MpoTensor{T}}  # MpoMap
 
+#TODO: meta to capture both QMpo and QMps?
 struct QMpo{T <: Real} <: AbstractTensorNetwork
     tensors::MpoTensorMap{T}
     sites::Vector{Site}
 
     function QMpo(ten::MpoTensorMap{T}) where T
+        new{T}(ten, sort(collect(keys(ten))))
+    end
+end
+
+struct QMps{T <: Real} <: AbstractTensorNetwork
+    tensors::TensorMap{T}
+    sites::Vector{Site}
+
+    function QMps(ten::TensorMap{T}) where T
         new{T}(ten, sort(collect(keys(ten))))
     end
 end

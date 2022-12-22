@@ -52,14 +52,14 @@ function _right_sweep_var!(env::Environment, args...)
     end
 end
 
-function variational_sweep!(   # we may be able to remove it
+function variational_sweep!(   # TODO we may be able to remove it
     bra::QMps{T}, mpo::QMpo{T}, ket::QMps{T}, ::Val{:left}, args...
 ) where T <: Real
     env = Environment(bra, mpo, ket)
     _right_sweep_var!(env, args...)
 end
 
-function variational_sweep!(   # we may be able to remove it
+function variational_sweep!(   # TODO we may be able to remove it
     bra::QMps{T}, mpo::QMpo{T}, ket::QMps{T}, ::Val{:right}, args...
 ) where T <: Real
     env = Environment(bra, mpo, ket)
@@ -91,7 +91,7 @@ function zipper(ψ::QMpo{R}, ϕ::QMps{R}, Dcut::Int=typemax(Int), tol::Real=eps(
         @cast TT[t12, (t3, t4)] := TT[t12, t3, t4]
 
         U, Σ, V = svd(TT, Dcut, tol, args...)
-        V = Array(V') # ?
+        V = Array(V') # TODO ?
         T = U * diagm(Σ)
         if i == ϕ.sites[1] V = T * V end
         @cast V[x, y, z] := V[x, (y, z)] (y ∈ 1:s3)

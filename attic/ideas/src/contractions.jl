@@ -126,8 +126,6 @@ function contract_up(A::Array{T, 3}, B::SparseVirtualTensor{T}) where T <: Real
     @cast CC[(x, y), (t1, t2), (b, a)] := C[x, y, t1, t2, b, a]
 end
 
-contract_up(A::Array{T, 3}, M::SparseCentralTensor{T}) where T = attach_central_right(A, M)
-contract_up(A::Array{T, 3}, M::SparseDiagonalTensor{T}) where T = attach_central_right(A, M)
 
 function overlap_density_matrix(ϕ::QMps{T}, ψ::QMps{T}, k::Site) where T <: Real
     @assert ψ.sites == ϕ.sites

@@ -79,3 +79,16 @@ function update_reduced_env_right(
     RRR = ipl * outp'  # TODO: is ' correct on CUDA ?
     Array(RRR')
 end
+
+
+
+function contract_tensors43(B::SiteTensor{T, 4}, A::Array{T, 3}) where T <: Real   # move to site tensor  {T, 3} * {T, 4} -> {T, 3}
+    sal, _, sar = size(A)
+    sbl, sbt, sbr = maximum.(B.projs[1:3])
+    C = zeros(T, sal, sbl, sbt, sar, sbr)
+    for (σ, lexp) ∈ enumerate(B.loc_exp)
+        AA = @inbounds @view A[:, B.projs[4][σ], :]
+        @inbounds C[:, B.projs[1][σ], B.projs[2][σ], :, B.projs[3][σ]] += lexp .* AA
+    end
+    @cast CC[(x, y), z, (b, a)] := C[x, y, z, b, a]
+end

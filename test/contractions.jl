@@ -40,9 +40,8 @@
             @test size(contract_left(B, A)) == (4,2,3)
         end
 
-        @testset "contract_up gives correct sizes" begin 
-            @test size(contract_up(B, A)) == (4, 2, 3)
-            @test size(contract_up(B, C)) == (8, 2, 6)
+        @testset "contract_tensors43 gives correct sizes" begin 
+            @test size(contract_tensors43(C, B)) == (8, 2, 6)
         end
 
         # @testset "dot product of QMpo and QMps" begin

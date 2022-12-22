@@ -6,17 +6,18 @@ module SpinGlassTensors
     using Memoize
 
     include("base.jl")
-    include("mps.jl")
     include("linear_algebra_ext.jl")
+    include("mps.jl")
+    include("environment.jl")
+    include("utils.jl")
     include("canonise.jl")
-    include("compressions.jl")
-    include("contractions.jl")
-    include("dense.jl")
+    include("variational.jl")
     include("gauges.jl")
-    include("sparse_tensors/cuda_sparse.jl")
-    include("sparse_tensors/central.jl")
-    include("sparse_tensors/diagonal.jl")
-    include("sparse_tensors/site.jl")
-    include("sparse_tensors/virtual.jl")
+    include("contractions/dense.jl")
+    include("contractions/cuda_sparse.jl")
+    include("contractions/central.jl")
+    include("contractions/diagonal.jl")
+    include("contractions/site.jl")
+    include("contractions/virtual.jl")
 
 end # module

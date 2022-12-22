@@ -59,6 +59,9 @@ function MpoTensor(ten::TensorMap{T}) where T
     MpoTensor{T, nn}(top, ctr, bot, dims)
 end
 
+contract_tensor3_matrix(B::Array{T, 3}, M::MpoTensor{T, 2}) where T <: Real = contract_tensor3_matrix(B, M.ctr)
+contract_matrix_tensor3(M::MpoTensor{T, 2}, B::Array{T, 3}) where T <: Real = contract_matrix_tensor3(M.ctr, B)
+contract_tensors43(B::Nothing, A::Array{T, 3}) where T <: Real = A
 
 Base.ndims(ten::MpoTensor{T, N}) where {T, N} = N
 Base.size(ten::MpoTensor, n::Int) = ten.dims[n]

@@ -1,9 +1,9 @@
 export
-    attach_central_left,
-    attach_central_right,
+    contract_tensor3_matrix,
+    contract_matrix_tensor3,
     update_reduced_env_right
 
-function attach_central_left(L::CuArrayOrArray{T, 3}, M::CentralTensor{T, 2}) where T <: Real
+function contract_tensor3_matrix(L::CuArrayOrArray{T, 3}, M::CentralTensor{T, 2}) where T <: Real
     e11, e12, e21, e22 = ArrayOrCuArray(L).((M.e11, M.e12, M.e21, M.e22))
 
     sb, _, st = size(L)
@@ -35,7 +35,7 @@ function attach_central_left(L::CuArrayOrArray{T, 3}, M::CentralTensor{T, 2}) wh
     permutedims(reshape(sum(L, dims=2), (sb, st, sr1 * sr2)), (1, 3, 2))
 end
 
-function attach_central_right(R::CuArrayOrArray{T, 3}, M::CentralTensor{T, 2}) where T <: Real
+function contract_matrix_tensor3( M::CentralTensor{T, 2}, R::CuArrayOrArray{T, 3}) where T <: Real
     e11, e12, e21, e22 = ArrayOrCuArray(R).((M.e11, M.e12, M.e21, M.e22))
 
     st, _, sb = size(R)
@@ -69,6 +69,6 @@ end
 
 function update_reduced_env_right(RR::Array{T, 2}, M::CentralTensor{T, 2}) where T <: Real
     RR = reshape(RR, size(RR, 1), size(RR, 2), 1)
-    RR = attach_central_right(RR, M)
+    RR = contract_matrix_tensor3(M, RR)
     dropdims(RR, dims=3)
 end

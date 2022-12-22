@@ -6,29 +6,29 @@ Select optimal order of attaching matrices to L
 """
 function attach_3_matrices_left(L, B2, h, A2)
     if r2_over_r1(h) <= r2_over_r1(B2) <= r2_over_r1(A2)
-        L = attach_central_left(L, h)  # [..., rc, ...] = [..., lc, ...] * [lc, rc]
+        L = contract_tensor3_matrix(L, h)  # [..., rc, ...] = [..., lc, ...] * [lc, rc]
         @tensor L[rfb, x, y] := L[lfb, x, y] * B2[lfb, rfb]
         @tensor L[x, y, rft] := L[x, y, lft] * A2[lft, rft]
     elseif r2_over_r1(h) <= r2_over_r1(A2) <= r2_over_r1(B2)
-        L = attach_central_left(L, h)  # [..., rc, ...] = [..., lc, ...] * [lc, rc]
+        L = contract_tensor3_matrix(L, h)  # [..., rc, ...] = [..., lc, ...] * [lc, rc]
         @tensor L[x, y, rft] := L[x, y, lft] * A2[lft, rft]
         @tensor L[rfb, x, y] := L[lfb, x, y] * B2[lfb, rfb]
     elseif r2_over_r1(A2) <= r2_over_r1(h) <= r2_over_r1(B2)
         @tensor L[x, y, rft] := L[x, y, lft] * A2[lft, rft]
-        L = attach_central_left(L, h)  # [..., rc, ...] = [..., lc, ...] * [lc, rc]
+        L = contract_tensor3_matrix(L, h)  # [..., rc, ...] = [..., lc, ...] * [lc, rc]
         @tensor L[rfb, x, y] := L[lfb, x, y] * B2[lfb, rfb]
     elseif r2_over_r1(A2) <= r2_over_r1(B2) <= r2_over_r1(h)
         @tensor L[x, y, rft] := L[x, y, lft] * A2[lft, rft]
         @tensor L[rfb, x, y] := L[lfb, x, y] * B2[lfb, rfb]
-        L = attach_central_left(L, h)  # [..., rc, ...] = [..., lc, ...] * [lc, rc]
+        L = contract_tensor3_matrix(L, h)  # [..., rc, ...] = [..., lc, ...] * [lc, rc]
     elseif r2_over_r1(B2) <= r2_over_r1(h) <= r2_over_r1(A2)
         @tensor L[rfb, x, y] := L[lfb, x, y] * B2[lfb, rfb]
-        L = attach_central_left(L, h)  # [..., rc, ...] = [..., lc, ...] * [lc, rc]
+        L = contract_tensor3_matrix(L, h)  # [..., rc, ...] = [..., lc, ...] * [lc, rc]
         @tensor L[x, y, rft] := L[x, y, lft] * A2[lft, rft]
     else # r2_over_r1(B2) <= r2_over_r1(A2) <= r2_over_r1(h)
         @tensor L[rfb, x, y] := L[lfb, x, y] * B2[lfb, rfb]
         @tensor L[x, y, rft] := L[x, y, lft] * A2[lft, rft]
-        L = attach_central_left(L, h)  # [..., rc, ...] = [..., lc, ...] * [lc, rc]
+        L = contract_tensor3_matrix(L, h)  # [..., rc, ...] = [..., lc, ...] * [lc, rc]
     end
     L
 end
@@ -38,29 +38,29 @@ Select optimal order of attaching matrices to R
 """
 function attach_3_matrices_right(R, B2, h, A2)
     if r1_over_r2(h) <= r1_over_r2(B2) <= r1_over_r2(A2)
-        R = attach_central_right(R, h)  # [..., lc, ...] = [..., rc, ...] * [lc, rc]
+        R = contract_matrix_tensor3(h, R)  # [..., lc, ...] = [..., rc, ...] * [lc, rc]
         @tensor R[lfb, x, y] := R[rfb, x, y] * B2[lfb, rfb]
         @tensor R[x, y, lft] := R[x, y, rft] * A2[lft, rft]
     elseif r1_over_r2(h) <= r1_over_r2(A2) <= r1_over_r2(B2)
-        R = attach_central_right(R, h)  # [..., lc, ...] = [..., rc, ...] * [lc, rc]
+        R = contract_matrix_tensor3(h, R)  # [..., lc, ...] = [..., rc, ...] * [lc, rc]
         @tensor R[x, y, lft] := R[x, y, rft] * A2[lft, rft]
         @tensor R[lfb, x, y] := R[rfb, x, y] * B2[lfb, rfb]
     elseif r1_over_r2(A2) <= r1_over_r2(h) <= r1_over_r2(B2)
         @tensor R[x, y, lft] := R[x, y, rft] * A2[lft, rft]
-        R = attach_central_right(R, h)  # [..., lc, ...] = [..., rc, ...] * [lc, rc]
+        R = contract_matrix_tensor3(h, R)  # [..., lc, ...] = [..., rc, ...] * [lc, rc]
         @tensor R[lfb, x, y] := R[rfb, x, y] * B2[lfb, rfb]
     elseif r1_over_r2(A2) <= r1_over_r2(B2) <= r1_over_r2(h)
         @tensor R[x, y, lft] := R[x, y, rft] * A2[lft, rft]
         @tensor R[lfb, x, y] := R[rfb, x, y] * B2[lfb, rfb]
-        R = attach_central_right(R, h)  # [..., lc, ...] = [..., rc, ...] * [lc, rc]
+        R = contract_matrix_tensor3(h, R)  # [..., lc, ...] = [..., rc, ...] * [lc, rc]
     elseif r1_over_r2(B2) <= r1_over_r2(h) <= r1_over_r2(A2)
         @tensor R[lfb, x, y] := R[rfb, x, y] * B2[lfb, rfb]
-        R = attach_central_right(R, h)  # [..., lc, ...] = [..., rc, ...] * [lc, rc]
+        R = contract_matrix_tensor3(h, R)  # [..., lc, ...] = [..., rc, ...] * [lc, rc]
         @tensor R[x, y, lft] := R[x, y, rft] * A2[lft, rft]
     else # r1_over_r2(B2) <= r1_over_r2(A2) <= r1_over_r2(h)
         @tensor R[lfb, x, y] := R[rfb, x, y] * B2[lfb, rfb]
         @tensor R[x, y, lft] := R[x, y, rft] * A2[lft, rft]
-        R = attach_central_right(R, h)  # [..., lc, ...] = [..., rc, ...] * [lc, rc]
+        R = contract_matrix_tensor3(h, R)  # [..., lc, ...] = [..., rc, ...] * [lc, rc]
     end
     R
 end
@@ -74,9 +74,9 @@ function attach_2_matrices(L, B2, h, R)
 
     if biggest_leg ∈ [h1, h2]
         if h1 >= h2
-            L = attach_central_left(L, h)
+            L = contract_tensor3_matrix(L, h)
         else
-            R = attach_central_right(R, h)
+            R = contract_matrix_tensor3(h, R)
         end
         if b1 >= b2
             @tensor L[rfb, x, y] := L[lfb, x, y] * B2[lfb, rfb]
@@ -90,9 +90,9 @@ function attach_2_matrices(L, B2, h, R)
             @tensor R[x, y, lfb] := R[x, y, rfb] * B2[lfb, rfb]
         end
         if h1 >= h2
-            L = attach_central_left(L, h)
+            L = contract_tensor3_matrix(L, h)
         else
-            R = attach_central_right(R, h)
+            R = contract_matrix_tensor3(h, R)
         end
     end
     @tensor LR[lft, rft] := L[lfb, lfh, lft] * R[rft, lfh, lfb]
@@ -306,4 +306,21 @@ function update_reduced_env_right(
     Rnew = permutedims(ips * Rtemp, (2, 1))
 
     Array(Rnew)
+end
+
+function contract_tensors43(B::VirtualTensor{T, 4}, A::Array{T, 3}) where T <: Real
+    h = B.con
+    if typeof(h) <: CentralTensor h = Array(h) end
+
+    sal, _, sar = size(A)
+    p_lb, p_l, p_lt, p_rb, p_r, p_rt = B.projs
+    C = zeros(T, sal, length(p_l), maximum(p_lt), maximum(p_rt), sar, length(p_r))
+
+    @cast A4[x, k, l, y] := A[x, (k, l), y] (k ∈ 1:maximum(p_lb))
+
+    for l ∈ 1:length(p_l), r ∈ 1:length(p_r)
+        AA = @inbounds @view A4[:, p_lb[l], p_rb[r], :]
+        @inbounds C[:, l, p_lt[l], p_rt[r], :, r] += h[p_l[l], p_r[r]] .* AA
+    end
+    @cast CC[(x, y), (t1, t2), (b, a)] := C[x, y, t1, t2, b, a]
 end

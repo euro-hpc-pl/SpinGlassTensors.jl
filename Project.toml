@@ -12,6 +12,7 @@ TensorOperations = "6aa20fa7-93e2-5fca-9bc0-fbd0db3c71a2"
 NNlib = "872c559c-99b0-510c-b3b7-b6c96a88d5cd"
 NNlibCUDA = "a00861dc-f156-4864-bf3c-e6376f28a68d"
 CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
+LowRankApprox = "898213cb-b102-5a47-900c-97e73b919f73"
 
 [compat]
 Memoize = "0.4"

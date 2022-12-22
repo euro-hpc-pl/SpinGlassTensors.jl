@@ -76,6 +76,7 @@ function Base.rand(
     )
 end
 
+# TODO rethink all the above functions!
 @inline bond_dimension(ψ::QMps) = maximum(size.(values(ψ.tensors), 3))
 @inline bond_dimensions(ψ::QMps) = [size(ψ.tensors[n]) for n in ψ.sites]
 

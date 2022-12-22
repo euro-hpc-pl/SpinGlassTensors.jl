@@ -4,6 +4,8 @@ using TensorCast
 using TSVD
 using LowRankApprox
 using RandomizedLinAlg
+using FameSVD
+
 
 # C = A * B
 struct MyTensor{T <: Number}
@@ -60,6 +62,12 @@ println("rsvd:")
 @time begin
     C = Array(ten)
     U, Σ, V = rsvd(C, cut, 0)
+end
+
+println("fsvd:")
+@time begin
+    C = Array(ten)
+    U, Σ, V = fsvd(C)
 end
 
 nothing

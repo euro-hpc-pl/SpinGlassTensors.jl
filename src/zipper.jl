@@ -27,7 +27,7 @@ function zipper(ψ::QMpo{R}, ϕ::QMps{R}, method::Symbol=:svd; Dcut::Int=typemax
         @assert mpo_li == i "Mismatch between QMpo and QMps sites."
         mpo_li = left_nbrs_site(mpo_li, ψ.sites)
 
-        U, Σ, V = svd_corner_matrix(Val(method), C, ψ[i], ϕ[i], Dcut, tol, args...)
+        U, Σ, V = svd_corner_matrix(Val(method), C, ψ[i].ctr, ϕ[i], Dcut, tol, args...) # TODO ctr here?
 
         C = U * diagm(Σ)
         s1 = size(ψ[i], 1)

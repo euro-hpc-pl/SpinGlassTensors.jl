@@ -58,6 +58,15 @@ function Base.rand(::Type{QMps{T}}, sites::Vector, D::Int, d::Int) where T <: Re
     )
 end
 
+function Base.rand(::Type{QMps{T}}, loc_dims::Dict, Dmax::Int=1) where T <: Real
+    id = TensorMap{T}(keys(loc_dims) .=> rand.(T, Dmax, values(loc_dims), Dmax))
+    site_min, ld_min = minimum(loc_dims)
+    site_max, ld_max = maximum(loc_dims)
+    id[site_min] = rand.(T, 1, ld_min, Dmax)
+    id[site_max] = rand.(T, Dmax, ld_max, 1)
+    QMps(id)
+end
+
 function Base.rand(
     ::Type{QMpo{T}}, sites::Vector, D::Int, d::Int, sites_aux::Vector=[], d_aux::Int=0
 ) where T <:Real
@@ -120,6 +129,7 @@ measure_memory(ten::VirtualTensor) = sum(measure_memory.([ten.con, ten.projs...]
 measure_memory(ten::MpoTensor) = sum(measure_memory.([ten.top..., ten.ctr, ten.bot...]))
 measure_memory(ten::QMps) = sum(measure_memory.(values(ten.tensors)))
 measure_memory(ten::QMpo) = sum(measure_memory.(values(ten.tensors)))
+measure_memory(env::Environment) = sum(measure_memory.(values(env.env)))
 
 function format_bytes(bytes, decimals = 2)
     bytes == 0 && return "0 Bytes"

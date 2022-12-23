@@ -15,14 +15,14 @@ function LinearAlgebra.svd(A::AbstractMatrix{T}, Dcut::Int=typemax(Int), tol::T=
     U .* ϕ, Σ, V .* ϕ
 end
 
-#=
-function LinearAlgebra.svd(A::AbstractMatrix{T}, Dcut::Int=typemax(Int), tol::T=eps(), args...) where T <: Real
+
+function LowRankApprox.psvd(A::AbstractMatrix{T}, Dcut::Int=typemax(Int), tol::T=eps(), args...) where T <: Real
     U, Σ, V = psvd(A, rank=Dcut, args...)
     Σ ./= sum(Σ .^ 2)
     ϕ = reshape((phase.(diag(U); atol=tol)), 1, :)
     U .* ϕ, Σ, V .* ϕ
 end
-=#
+
 
 function qr_fact(M::AbstractMatrix{T}, Dcut::Int=typemax(Int), tol::T=eps(), args...) where T <: Real
     q, r = qr_fix(qr(M, args...))

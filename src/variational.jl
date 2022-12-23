@@ -12,7 +12,6 @@ function variational_compress!(
     for sweep ∈ 1:max_sweeps
         _left_sweep_var!(env, args...)
         _right_sweep_var!(env, args...)
-
         overlap = measure_env(env, last(env.bra.sites))
         Δ = abs((overlap_0 - overlap) / overlap)
         @info "Convergence" Δ

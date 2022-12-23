@@ -54,28 +54,20 @@ function corner_matrix(
 end
 
 function svd_corner_matrix(::Val{:svd}, C, M, B, Dcut, tol, args...)
-    Cnew = corner_matrix(C, M, B)
-    U, Σ, V = svd(Cnew, Dcut, tol, args...)
-    U, Σ, V
+    svd(corner_matrix(C, M, B), Dcut, tol, args...)
 end
 
 function svd_corner_matrix(::Val{:psvd}, C, M, B, Dcut, tol, args...)
-    Cnew = corner_matrix(C, M, B)
-    U, Σ, V = psvd(Cnew, Dcut)
-    U, Σ, V
+    psvd(corner_matrix(C, M, B), rank=Dcut)
 end
 
 function svd_corner_matrix(::Val{:psvd_sparse}, C, M, B, Dcut, tol, args...)
-    Cnew = CornerTensor(C, M, B)
-    U, Σ, V = psvd(Cnew, Dcut)
-    U, Σ, V
+    psvd(CornerTensor(C, M, B), rank=Dcut)
 end
-
-
 
 # this is for psvd to work
 LinearAlgebra.ishermitian(ten::CornerTensor) = false
-function LinearAlgebra.mul!(y, ten::CornerTensor, x) 
+function LinearAlgebra.mul!(y, ten::CornerTensor, x)
     x = reshape(x, 1, size(ten.M, 2), size(ten.C, 1))
     y[:] = reshape(update_env_right(ten.C, x, ten.M, ten.B), :)
 end

@@ -81,6 +81,7 @@ end
 
 @inline Base.getindex(a::AbstractTensorNetwork, i) = getindex(a.tensors, i)
 @inline Base.setindex!(ket::AbstractTensorNetwork, A::AbstractArray, i::Site) = ket.tensors[i] = A
+@inline Base.eltype(ψ::Union{QMpo{T}, QMps{T}}) where T = T
 
 Base.transpose(mpo::QMpo{T}) where T <: Real = QMpo(
     MpoTensorMap{T}(keys(mpo.tensors) .=> mpo_transpose.(values(mpo.tensors)))

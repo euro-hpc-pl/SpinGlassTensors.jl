@@ -87,3 +87,27 @@ function contract_tensors43(B::SiteTensor{T, 4}, A::Array{T, 3}) where T <: Real
     end
     @cast CC[(x, y), z, (b, a)] := C[x, y, z, b, a]
 end
+
+function corner_matrix(
+    C::S, M::T, B::S
+) where {S <: CuArrayOrArray{R, 3}, T <: SiteTensor{R, 4}} where R <: Real
+    C, B, loc_exp = CuArray.((C, B, M.loc_exp))
+    sb1 = size(B, 1)
+    sc1 = size(C, 1)
+    B = permutedims(B, (1, 3, 2))
+    C = permutedims(C, (3, 1, 2))
+    Bp = B[:, :, M.projs[4]]
+    Cp = C[:, :, M.projs[3]]
+
+    outp = Bp ⊠ Cp
+    outp .*= reshape(loc_exp, 1, 1, :)
+    @cast outp[(x, y), z] := outp[x, y, z]
+
+    sm1 = maximum(M.projs[1])
+    sm2 = maximum(M.projs[2])
+    p12 = M.projs[1] .+ (M.projs[2] .- 1) .* sm1
+
+    ip12 = CuSparseMatrixCSC(eltype(B), p12)
+    out = reshape(ip12 * outp', (sm1, sm2, sb1, sc1))
+    Array(permutedims(out, (3, 1, 2, 4)))
+end

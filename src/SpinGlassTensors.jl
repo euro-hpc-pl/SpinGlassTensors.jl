@@ -13,6 +13,7 @@ module SpinGlassTensors
     include("utils.jl")
     include("canonise.jl")
     include("variational.jl")
+    include("zipper.jl")
     include("gauges.jl")
     include("contractions/dense.jl")
     include("contractions/cuda_sparse.jl")

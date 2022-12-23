@@ -22,6 +22,8 @@ struct MpoTensor{T <: Real, N}
     dims::Dims{N}
 end
 
+Base.eltype(ten::MpoTensor{T, N}) where {T <: Real, N} = T
+
 function MpoTensor(ten::TensorMap{T}) where T
     sk = sort(collect(keys(ten)))
     top = [ten[k] for k ∈ sk if k < 0]

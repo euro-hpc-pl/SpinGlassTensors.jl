@@ -4,7 +4,7 @@ export
 
 struct CornerTensor{T <: Real}
     C::Tensor{T, 3}
-    M::Tensor{T, 4}
+    M::MpoTensor{T, 4}
     B::Tensor{T, 3}
 
     function CornerTensor(C, M, B)
@@ -27,7 +27,7 @@ function zipper(ψ::QMpo{R}, ϕ::QMps{R}, method::Symbol=:svd; Dcut::Int=typemax
         @assert mpo_li == i "Mismatch between QMpo and QMps sites."
         mpo_li = left_nbrs_site(mpo_li, ψ.sites)
 
-        U, Σ, V = svd_corner_matrix(Val(method), C, ψ[i].ctr, ϕ[i], Dcut, tol, args...) # TODO ctr here?
+        U, Σ, V = svd_corner_matrix(Val(method), C, ψ[i], ϕ[i], Dcut, tol, args...) # TODO ctr here?
 
         C = U * diagm(Σ)
         s1 = size(ψ[i], 1)
@@ -62,11 +62,17 @@ function svd_corner_matrix(::Val{:psvd}, C, M, B, Dcut, tol, args...)
 end
 
 function svd_corner_matrix(::Val{:psvd_sparse}, C, M, B, Dcut, tol, args...)
+    ct = CornerTensor(C, M, B)
+    println(size(ct))
+    println(eltype(ct))
     psvd(CornerTensor(C, M, B), rank=Dcut)
 end
 
 # this is for psvd to work
 LinearAlgebra.ishermitian(ten::CornerTensor) = false
+Base.size(ten::CornerTensor) = (size(ten.B, 1) * size(ten.M, 1), size(ten.C, 1) * size(ten.M, 2))
+Base.size(ten::CornerTensor, n::Int) = size(ten)[n]
+Base.eltype(ten::CornerTensor{T}) where T = T
 function LinearAlgebra.mul!(y, ten::CornerTensor, x)
     x = reshape(x, 1, size(ten.M, 2), size(ten.C, 1))
     y[:] = reshape(update_env_right(ten.C, x, ten.M, ten.B), :)

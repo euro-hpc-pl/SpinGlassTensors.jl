@@ -6,7 +6,8 @@ export
     verify_bonds,
     is_left_normalized,
     is_right_normalized,
-    measure_memory
+    measure_memory,
+    format_bytes
 
 LinearAlgebra.norm(ψ::QMps) = sqrt(abs(dot(ψ, ψ)))
 
@@ -119,3 +120,12 @@ measure_memory(ten::VirtualTensor) = sum(measure_memory.([ten.con, ten.projs...]
 measure_memory(ten::MpoTensor) = sum(measure_memory.([ten.top..., ten.ctr, ten.bot...]))
 measure_memory(ten::QMps) = sum(measure_memory.(values(ten.tensors)))
 measure_memory(ten::QMpo) = sum(measure_memory.(values(ten.tensors)))
+
+function format_bytes(bytes, decimals = 2)
+    bytes == 0 && return "0 Bytes"
+    k = 1024
+    dm = decimals < 0 ? 0 : decimals
+    sizes = ["Bytes", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"]
+    i = convert(Int, floor(log(bytes) / log(k)))
+    return string(round((bytes / ^(k, i)), digits=dm)) * " " * sizes[i+1];
+end

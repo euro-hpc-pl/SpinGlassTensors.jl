@@ -111,6 +111,11 @@ end
 @inline Base.length(a::AbstractTensorNetwork) = length(a.tensors)
 @inline LinearAlgebra.rank(ψ::QMps) = Tuple(size(A, 2) for A ∈ values(ψ.tensors))
 
-measure_memory(M::AbstractArray) = prod(size(M)) * 8
-measure_memory(M::Tuple) = prod(M) * 8
-measure_memory(ten::SparseTensor) = measure_memory(ten.dims)
+measure_memory(M::AbstractArray{T}) where T = prod(size(M)) * sizeof(T)
+measure_memory(ten::SiteTensor) = sum(measure_memory.([ten.loc_exp, ten.projs...]))
+measure_memory(ten::CentralTensor) = sum(measure_memory.([ten.e11, ten.e12, ten.e21, ten.e22]))
+measure_memory(ten::DiagonalTensor) = sum(measure_memory.([ten.e1, ten.e2]))
+measure_memory(ten::VirtualTensor) = sum(measure_memory.([ten.con, ten.projs...]))
+measure_memory(ten::MpoTensor) = sum(measure_memory.([ten.top..., ten.ctr, ten.bot...]))
+measure_memory(ten::QMps) = sum(measure_memory.(values(ten.tensors)))
+measure_memory(ten::QMpo) = sum(measure_memory.(values(ten.tensors)))

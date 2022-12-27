@@ -1,7 +1,7 @@
 module SpinGlassTensors
     using LinearAlgebra, MKL
     using TensorOperations, TensorCast
-    using LowRankApprox
+    using LowRankApprox, TSVD
     using CUDA, CUDA.CUSPARSE
     using NNlib, NNlibCUDA
     using Memoize

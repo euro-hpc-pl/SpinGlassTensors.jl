@@ -10,7 +10,7 @@ export
 abstract type AbstractSparseTensor{T, N} end
 
 const Proj{N} = NTuple{N, Array{Int, 1}}
-const CuArrayOrArray{T, N} = Union{Array{T, N}, CuArray{T, N}}
+const CuArrayOrArray{T, N} = Union{AbstractArray{T, N}, CuArray{T, N}}
 
 # Allow data to reside on CUDA ???
 

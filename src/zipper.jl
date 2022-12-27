@@ -62,30 +62,13 @@ function Base.Array(CM::CornerTensor)
     Cnew
 end
 
-function Base.Array(CM::AdjointCornerTensor)
-    adjoint(Array(CM.ten))
-end
+Base.Array(CM::AdjointCornerTensor) = adjoint(Array(CM.ten))
 
-function svd_corner_matrix(::Val{:svd}, CM, Dcut, tol, args...)
-    svd(Array(CM), Dcut, tol, args...)
-end
-
-function svd_corner_matrix(::Val{:psvd}, CM, Dcut, tol, args...)
-    psvd(Array(CM), rank=Dcut)
-end
-
-function svd_corner_matrix(::Val{:psvd_sparse}, CM, Dcut, tol, args...)
-    psvd(CM, rank=Dcut)
-end
-
-# function svd_corner_matrix(::Val{:tsvd}, CM, Dcut, tol, args...)
-#     tsvd(Array(CM), Dcut)
-# end
-
-# function svd_corner_matrix(::Val{:tsvd_sparse}, CM, Dcut, tol, args...)
-#     tsvd(CM, Dcut)
-# end
-
+svd_corner_matrix(::Val{:svd}, CM, Dcut, tol, args...) = svd(Array(CM), Dcut, tol, args...)
+svd_corner_matrix(::Val{:psvd}, CM, Dcut, tol, args...) = psvd(Array(CM), rank=Dcut)
+svd_corner_matrix(::Val{:psvd_sparse}, CM, Dcut, tol, args...) = psvd(CM, rank=Dcut)
+svd_corner_matrix(::Val{:tsvd}, CM, Dcut, tol, args...) = tsvd(Array(CM), Dcut, args...)
+svd_corner_matrix(::Val{:tsvd_sparse}, CM, Dcut, tol, args...) = tsvd(CM, Dcut, args...)
 
 # this is for psvd to work
 LinearAlgebra.ishermitian(ten::CornerTensor) = false
@@ -109,11 +92,16 @@ function LinearAlgebra.mul!(y, ten::AdjointCornerTensor, x)
     y[:, :] = reshape(permutedims(yp, (2, 3, 1)), size(ten.ten.M, 2) * size(ten.ten.C, 1), :)
 end
 
-function Base.:(*)(ten::CornerTensor{T}, v::Vector{T}) where T 
-    Array(ten) * x
+function Base.:(*)(ten::CornerTensor{T}, x::Vector{T}) where T
+    x = reshape(x, size(ten.M, 2), size(ten.C, 1), 1)
+    x = permutedims(x, (3, 1, 2))
+    yp = update_env_right(ten.C, x, ten.M, ten.B)
+    reshape(permutedims(yp, (3, 2, 1)), size(ten.B, 1) * size(ten.M, 1))
 end
 
-function Base.:(*)(ten::AdjointCornerTensor{T}, v::Vector{T}) where T
-    Array(ten) * x
+function Base.:(*)(ten::AdjointCornerTensor{T}, x::Vector{T}) where T
+    x = reshape(x, size(ten.ten.B, 1), size(ten.ten.M, 1), 1)
+    yp = project_ket_on_bra(x, ten.ten.B, ten.ten.M, ten.ten.C)
+    reshape(permutedims(yp, (2, 3, 1)), size(ten.ten.M, 2) * size(ten.ten.C, 1))
 end
 

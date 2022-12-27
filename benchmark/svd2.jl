@@ -35,6 +35,7 @@ Base.adjoint(ten::MyTensor{T}) where T = AMyTensor{T}(ten.A, ten.B)
 function Base.:(*)(ten::MyTensor{T}, v::Vector{T}) where T 
     println("M")
     vv = reshape(v, size(ten.A, 2), size(ten.B, 2))
+    println(size(vv))
     @tensor x[x1, y1] := ten.A[x1, x2] * ten.B[y1, y2] * vv[x2, y2]
     reshape(x, size(ten.A, 1) * size(ten.B, 1))
 end
@@ -42,6 +43,8 @@ end
 function Base.:(*)(ten::AMyTensor{T}, v::Vector{T}) where T 
     println("A")
     vv = reshape(v, size(ten.A, 1), size(ten.B, 1))
+    println(size(vv))
+
     @tensor x[x1, y1] := ten.A[x2, x1] * ten.B[y2, y1] * vv[x2, y2]
     reshape(x, size(ten.A, 2) * size(ten.B, 2))
 end
@@ -54,6 +57,7 @@ LinearAlgebra.ishermitian(ten::MyTensor) = false
 function LinearAlgebra.mul!(y, ten::MyTensor, v) 
     println("K")
     vv = reshape(v, size(ten.A, 2), size(ten.B, 2), :)
+    println(size(vv))
     @tensor x[x1, y1, z1] := ten.A[x1, x2] * ten.B[y1, y2] * vv[x2, y2, z1]
     y[:, :] = reshape(x, size(ten.A, 1) * size(ten.B, 1), :)
 end
@@ -61,6 +65,7 @@ end
 function LinearAlgebra.mul!(y, ten::AMyTensor, v) 
     println("L")
     vv = reshape(v, size(ten.A, 1), size(ten.B, 1), :)
+    println(size(vv))
     @tensor x[x1, y1, z1] := ten.A[x2, x1] * ten.B[y2, y1] * vv[x2, y2, z1]
     y[:, :] = reshape(x, size(ten.A, 2) * size(ten.B, 2), :)
 end

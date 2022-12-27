@@ -13,14 +13,12 @@ struct CornerTensor{T <: Real}
     end
 end
 
-struct ACornerTensor{T <: Real}
-    C::Tensor{T, 3}
-    M::MpoTensor{T, 4}
-    B::Tensor{T, 3}
+struct AdjointCornerTensor{T <: Real}
+    ten::CornerTensor{T}
 
-    function ACornerTensor(ten)
+    function AdjointCornerTensor(ten)
         T = eltype(ten)
-        new{T}(ten.C, ten.M, ten.B)
+        new{T}(ten)
     end
 end
 
@@ -64,6 +62,10 @@ function Base.Array(CM::CornerTensor)
     Cnew
 end
 
+function Base.Array(CM::AdjointCornerTensor)
+    adjoint(Array(CM.ten))
+end
+
 function svd_corner_matrix(::Val{:svd}, CM, Dcut, tol, args...)
     svd(Array(CM), Dcut, tol, args...)
 end
@@ -76,24 +78,42 @@ function svd_corner_matrix(::Val{:psvd_sparse}, CM, Dcut, tol, args...)
     psvd(CM, rank=Dcut)
 end
 
+# function svd_corner_matrix(::Val{:tsvd}, CM, Dcut, tol, args...)
+#     tsvd(Array(CM), Dcut)
+# end
+
+# function svd_corner_matrix(::Val{:tsvd_sparse}, CM, Dcut, tol, args...)
+#     tsvd(CM, Dcut)
+# end
+
+
 # this is for psvd to work
 LinearAlgebra.ishermitian(ten::CornerTensor) = false
 Base.size(ten::CornerTensor) = (size(ten.B, 1) * size(ten.M, 1), size(ten.C, 1) * size(ten.M, 2))
 Base.size(ten::CornerTensor, n::Int) = size(ten)[n]
 Base.eltype(ten::CornerTensor{T}) where T = T
 
-Base.adjoint(ten::CornerTensor{T}) where T = ACornerTensor(ten)
+Base.adjoint(ten::CornerTensor{T}) where T = AdjointCornerTensor(ten)
 
 function LinearAlgebra.mul!(y, ten::CornerTensor, x)
     x = reshape(x, size(ten.M, 2), size(ten.C, 1), :)
     x = permutedims(x, (3, 1, 2))
     yp = update_env_right(ten.C, x, ten.M, ten.B)
-    y[:] = reshape(permutedims(yp, (3, 2, 1)), :)
+    y[:, :] = reshape(permutedims(yp, (3, 2, 1)), size(ten.B, 1) * size(ten.M, 1), :)
 end
 
-function LinearAlgebra.mul!(y, ten::ACornerTensor, x)
-    x = reshape(x, size(ten.B, 1), size(ten.M, 1), :)
+function LinearAlgebra.mul!(y, ten::AdjointCornerTensor, x)
+    x = reshape(x, size(ten.ten.B, 1), size(ten.ten.M, 1), :)
     x = Array(x)
-    yp = project_ket_on_bra(x, ten.B, ten.M, ten.C)
-    y[:] = reshape(yp, :)
+    yp = project_ket_on_bra(x, ten.ten.B, ten.ten.M, ten.ten.C)
+    y[:, :] = reshape(permutedims(yp, (2, 3, 1)), size(ten.ten.M, 2) * size(ten.ten.C, 1), :)
 end
+
+function Base.:(*)(ten::CornerTensor{T}, v::Vector{T}) where T 
+    Array(ten) * x
+end
+
+function Base.:(*)(ten::AdjointCornerTensor{T}, v::Vector{T}) where T
+    Array(ten) * x
+end
+

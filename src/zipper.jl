@@ -13,20 +13,21 @@ struct CornerTensor{T <: Real}
     end
 end
 
-struct AdjointCornerTensor{T <: Real} # TODO rethink this
-    ten::CornerTensor{T}
+struct Adjoint{T, S <: CornerTensor}
+    parent::S
 
-    function AdjointCornerTensor(ten)
-        T = eltype(ten)
-        new{T}(ten)
+    function Adjoint{T}(ten::CornerTensor{S}) where {T, S}
+        F = promote_type(T, S)
+        new{F, CornerTensor{F}}(ten)
     end
 end
 
+"""
+input ϕ (results) should be canonized :left (:right)
+"""
 function zipper(
     ψ::QMpo{R}, ϕ::QMps{R}; method::Symbol=:svd, Dcut::Int=typemax(Int), tol::Real=eps(), kwargs...
 ) where R <: Real
-    # input ϕ (results) should be canonized :left (:right)
-
     D = TensorMap{R}()
     C = ones(R, 1, 1, 1)
     mpo_li = last(ψ.sites)
@@ -62,7 +63,7 @@ function Base.Array(CM::CornerTensor)
     @cast Cnew[t12, (t3, t4)] := Cnew[t12, t3, t4]
 end
 
-Base.Array(CM::AdjointCornerTensor) = adjoint(Array(CM.ten))
+Base.Array(CM::Adjoint{T, CornerTensor{T}}) where T = adjoint(Array(CM.ten))
 
 function svd_corner_matrix(CM, method::Symbol, Dcut::Int, tol::Real; kwargs...)
     if method == :svd
@@ -85,8 +86,7 @@ LinearAlgebra.ishermitian(ten::CornerTensor) = false
 Base.size(ten::CornerTensor) = (size(ten.B, 1) * size(ten.M, 1), size(ten.C, 1) * size(ten.M, 2))
 Base.size(ten::CornerTensor, n::Int) = size(ten)[n]
 Base.eltype(ten::CornerTensor{T}) where T = T
-
-Base.adjoint(ten::CornerTensor{T}) where T = AdjointCornerTensor(ten)
+Base.adjoint(ten::CornerTensor{T}) where T = Adjoint{T}(ten)
 
 function LinearAlgebra.mul!(y, ten::CornerTensor, x)
     x = reshape(x, size(ten.M, 2), size(ten.C, 1), :)
@@ -95,11 +95,11 @@ function LinearAlgebra.mul!(y, ten::CornerTensor, x)
     y[:, :] .= reshape(permutedims(yp, (3, 2, 1)), size(ten.B, 1) * size(ten.M, 1), :)
 end
 
-function LinearAlgebra.mul!(y, ten::AdjointCornerTensor, x)
-    x = reshape(x, size(ten.ten.B, 1), size(ten.ten.M, 1), :)
+function LinearAlgebra.mul!(y, ten::Adjoint{T, CornerTensor{T}}, x) where T
+    x = reshape(x, size(ten.parent.B, 1), size(ten.parent.M, 1), :)
     x = Array(x) # TODO This could be avoided
-    yp = project_ket_on_bra(x, ten.ten.B, ten.ten.M, ten.ten.C)
-    y[:, :] .= reshape(permutedims(yp, (2, 3, 1)), size(ten.ten.M, 2) * size(ten.ten.C, 1), :)
+    yp = project_ket_on_bra(x, ten.parent.B, ten.parent.M, ten.parent.C)
+    y[:, :] .= reshape(permutedims(yp, (2, 3, 1)), size(ten.parent.M, 2) * size(ten.parent.C, 1), :)
 end
 
 function Base.:(*)(ten::CornerTensor{T}, x::Vector{T}) where T
@@ -109,7 +109,7 @@ function Base.:(*)(ten::CornerTensor{T}, x::Vector{T}) where T
     reshape(permutedims(yp, (3, 2, 1)), size(ten.B, 1) * size(ten.M, 1))
 end
 
-function Base.:(*)(ten::AdjointCornerTensor{T}, x::Vector{T}) where T
+function Base.:(*)(ten::Adjoint{T, CornerTensor{T}}, x::Vector{T}) where T
     x = reshape(x, size(ten.ten.B, 1), size(ten.ten.M, 1), 1)
     yp = project_ket_on_bra(x, ten.ten.B, ten.ten.M, ten.ten.C)
     reshape(permutedims(yp, (2, 3, 1)), size(ten.ten.M, 2) * size(ten.ten.C, 1))

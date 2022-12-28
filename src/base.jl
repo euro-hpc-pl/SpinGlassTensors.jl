@@ -10,15 +10,18 @@ export
 abstract type AbstractSparseTensor{T, N} end
 
 const Proj{N} = NTuple{N, Array{Int, 1}}
-const CuArrayOrArray{T, N} = Union{AbstractArray{T, N}, CuArray{T, N}}
+const CuArrayOrArray{T, N} = Union{AbstractArray{T, N}, CuArray{T, N}} #TODO clean this !!!
 
 # Allow data to reside on CUDA ???
 
 move_to_CUDA!(ten::Array{T, N}) where {T, N} = CuArray(ten)
 move_to_CUDA!(ten::Diagonal) = Diagonal(CuArray(diag(ten)))
 
-device(ten::Array) = Set((:CPU,))
-device(ten::CuArray) = Set((:GPU,))
+device(ten::Array{T, N}) where {T, N} = Set((:CPU,))
+device(
+    ten::Union{CuArray, Diagonal{T, CuArray{T, 1, CUDA.Mem.DeviceBuffer}}}
+) where T = Set((:GPU,)) # this is ugly but works for now
+
 device(ten::Diagonal) = device(diag(ten))
 
 # move_to_CUDA!(ten :: DiagonalArray{T, N}) = CuArray(ten)  # Diagonal Array

@@ -24,25 +24,25 @@ function canonise_truncate!(ψ::QMps{T}, dir::Symbol, Dcut::Int=typemax(Int), to
 end
 
 function _right_sweep!(ψ::QMps{T}, Dcut::Int=typemax(Int), tolS::T=eps(), args...) where T <: Real
-    R = ones(T, 1, 1)
+    R = CUDA.ones(T, 1, 1)
     for i ∈ ψ.sites
         A = ψ[i]
         @matmul M[(x, σ), y] := sum(α) R[x, α] * A[α, σ, y]
         Q, R = qr_fact(M, Dcut, tolS, args...)
         R ./= maximum(abs.(R))
         @cast A[x, σ, y] := Q[(x, σ), y] (σ ∈ 1:size(A, 2))
-        ψ[i] = Array(A)  # TODO ArrayOrCuArray ?
+        ψ[i] = A  # TODO ArrayOrCuArray ?
     end
 end
 
 function _left_sweep!(ψ::QMps{T}, Dcut::Int=typemax(Int), tolS::T=eps(), args...) where T <: Real
-    R = ones(T, 1, 1)
+    R = CUDA.ones(T, 1, 1)
     for i ∈ reverse(ψ.sites)
         B = ψ[i]
         @matmul M[x, (σ, y)] := sum(α) B[x, σ, α] * R[α, y]
         R, Q = rq_fact(M, Dcut, tolS, args...)
         R ./= maximum(abs.(R))
         @cast B[x, σ, y] := Q[x, (σ, y)] (σ ∈ 1:size(B, 2))
-        ψ[i] = Array(B)  # TODO ArrayOrCuArray ?
+        ψ[i] = B  # TODO ArrayOrCuArray ?
     end
 end

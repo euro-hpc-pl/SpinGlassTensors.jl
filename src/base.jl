@@ -14,10 +14,15 @@ const CuArrayOrArray{T, N} = Union{AbstractArray{T, N}, CuArray{T, N}}
 
 # Allow data to reside on CUDA ???
 
+move_to_CUDA!(ten :: AbstractArray) = CuArray(ten)
+device(ten::AbstractArray) = Set(typeof(ten))
+
+# move_to_CUDA!(ten :: DiagonalArray{T, N}) = CuArray(ten)  # Diagonal Array
+
 ArrayOrCuArray(L) = typeof(L) <: CuArray ? CuArray : Array # TODO do we need this?
 
-struct SiteTensor{T <: Real, N} <: AbstractSparseTensor{T, N}
-    loc_exp::Vector{T}
+mutable struct SiteTensor{T <: Real, N} <: AbstractSparseTensor{T, N}
+    loc_exp # ::Vector{T}
     projs::Proj{4}  # == pl, pt, pr, pb
     dims::Dims{N}
 
@@ -27,16 +32,24 @@ struct SiteTensor{T <: Real, N} <: AbstractSparseTensor{T, N}
     end
 end
 
+device(ten::SiteTensor) = device(ten.loc_exp)
+
+
+function move_to_CUDA!(ten::SiteTensor)
+    ten.loc_exp = move_to_CUDA!(ten.loc_exp)
+    ten
+end
+
 function mpo_transpose(ten::SiteTensor)
     perm = [1, 4, 3, 2]
     SiteTensor(ten.loc_exp, ten.projs[perm], dims=ten.dims[perm])
 end
 
-struct CentralTensor{T <: Real, N} <: AbstractSparseTensor{T, N}
-    e11::Matrix{T}
-    e12::Matrix{T}
-    e21::Matrix{T}
-    e22::Matrix{T}
+mutable struct CentralTensor{T <: Real, N} <: AbstractSparseTensor{T, N}
+    e11 #::Matrix{T}
+    e12 #::Matrix{T}
+    e21 #::Matrix{T}
+    e22 #::Matrix{T}
     dims::Dims{N}
 
     function CentralTensor(e11, e12, e21, e22)
@@ -48,6 +61,17 @@ struct CentralTensor{T <: Real, N} <: AbstractSparseTensor{T, N}
         new{T, 2}(e11, e12, e21, e22, dims)
     end
 end
+
+device(ten::CentralTensor) = Set(vcat(device(ten.e11)..., device(ten.e12)..., device(ten.e21)..., device(ten.e22)...))
+
+function move_to_CUDA!(ten::CentralTensor)
+    ten.e11 = move_to_CUDA!(ten.e11)
+    ten.e12 = move_to_CUDA!(ten.e12)
+    ten.e21 = move_to_CUDA!(ten.e21)
+    ten.e22 = move_to_CUDA!(ten.e22)
+    ten
+end
+
 
 mpo_transpose(ten::CentralTensor) = CentralTensor(transpose.((ten.e11, ten.e21, ten.e12, ten.e22))...)
 
@@ -68,9 +92,9 @@ function CUDA.CuArray(ten::CentralTensor)
     V ./ maximum(V)
 end
 
-struct DiagonalTensor{T <: Real, N} <: AbstractSparseTensor{T, N}
-    e1::MatOrCentral{T, N}
-    e2::MatOrCentral{T, N}
+mutable struct DiagonalTensor{T <: Real, N} <: AbstractSparseTensor{T, N}
+    e1 # ::MatOrCentral{T, N}
+    e2 # ::MatOrCentral{T, N}
     dims::Dims{N}
 
     function DiagonalTensor(e1, e2)
@@ -80,10 +104,19 @@ struct DiagonalTensor{T <: Real, N} <: AbstractSparseTensor{T, N}
     end
 end
 
+function move_to_CUDA!(ten::DiagonalTensor)
+    ten.e1 = move_to_CUDA!(ten.e1)
+    ten.e2 = move_to_CUDA!(ten.e2)
+    ten
+end
+
+device(ten::DiagonalTensor) = Set(vcat(device(ten.e1)..., device(ten.e2)...))
+
+
 mpo_transpose(ten::DiagonalTensor) = DiagonalTensor(mpo_transpose.((ten.e2, ten.e1))...)
 
-struct VirtualTensor{T <: Real, N} <: AbstractSparseTensor{T, N}
-    con::MatOrCentral{T, 2}
+mutable struct VirtualTensor{T <: Real, N} <: AbstractSparseTensor{T, N}
+    con # ::MatOrCentral{T, 2}
     projs::Proj{6}  # == (p_lb, p_l, p_lt, p_rb, p_r, p_rt)
     dims::Dims{N}
 
@@ -93,6 +126,13 @@ struct VirtualTensor{T <: Real, N} <: AbstractSparseTensor{T, N}
                 length(projs[5]), maximum(projs[1]) * maximum(projs[4]))
         new{T, 4}(con, projs, dims)
     end
+end
+
+device(ten::VirtualTensor) = device(ten.con)
+
+function move_to_CUDA!(ten::VirtualTensor)
+    ten.con = move_to_CUDA!(ten.con)
+    ten
 end
 
 mpo_transpose(ten::VirtualTensor) = VirtualTensor(ten.con, ten.projs[[3, 2, 1, 6, 5, 4]])

@@ -4,6 +4,8 @@ export
     AbstractTensorNetwork,
     local_dims,
     IdentityQMps,
+    move_to_CUDA!,
+    device,
     MpoTensor, QMpo, QMps, TensorMap
 
 abstract type AbstractTensorNetwork end
@@ -15,11 +17,33 @@ const TensorMap{T} = Dict{Site, Union{Tensor{T, 2}, Tensor{T, 3}, Tensor{T, 4}}}
 ## MpsMap{T} = Dict{Site, Union{Tensor{T, 2}, Tensor{T, 4}}}
 ## MpoTensorMap{T} = Dict{Site, CuArrayOrArray{T, 3}}
 
-struct MpoTensor{T <: Real, N}
+mutable struct MpoTensor{T <: Real, N}
     top::Vector{Tensor{T, 2}}  # N == 2 top = []
     ctr:: Union{Tensor{T, N}, Nothing}
     bot::Vector{Tensor{T, 2}}  # N == 2 bot = []
     dims::Dims{N}
+end
+
+move_to_CUDA!(ten::Nothing) = ten
+device(ten::Nothing) = Set()
+
+function move_to_CUDA!(ten::MpoTensor)
+    for i in 1:length(ten.top)
+        ten.top[i] = move_to_CUDA!(ten.top[i])
+    end
+    for i in 1:length(ten.bot)
+        ten.bot[i] = move_to_CUDA!(ten.bot[i])
+    end
+    ten.ctr = move_to_CUDA!(ten.ctr)
+end
+
+function device(ten::MpoTensor) 
+
+   dt = Set(vcat(device(x) for x in ten.top))
+   db = Set(vcat(device(x) for x in ten.bot))
+   println(dt)
+   println(db)
+   Set(vcat(dt..., device(ten.ctr)..., db...))
 end
 
 Base.eltype(ten::MpoTensor{T, N}) where {T <: Real, N} = T
@@ -72,6 +96,13 @@ struct QMpo{T <: Real} <: AbstractTensorNetwork
     end
 end
 
+function move_to_CUDA!(ψ::QMpo)
+    for k ∈ keys(ψ.tensors)
+        move_to_CUDA!(ψ.tensors[k])
+    end
+end
+
+
 struct QMps{T <: Real} <: AbstractTensorNetwork
     tensors::TensorMap{T}
     sites::Vector{Site}
@@ -80,6 +111,20 @@ struct QMps{T <: Real} <: AbstractTensorNetwork
         new{T}(ten, sort(collect(keys(ten))))
     end
 end
+
+function move_to_CUDA!(ψ::QMps)
+    for k ∈ keys(ψ.tensors)
+        ψ.tensors[k] = CuArray(ψ.tensors[k])
+    end
+end
+
+device(ψ::QMps) = Set(typeof(v) for v ∈ values(ψ.tensors))
+
+function device(ψ::QMpo) 
+    println([device(v) for v ∈ values(ψ.tensors)])
+end
+# device(ψ::QMpo) = Set(vcat(device(v)... for v ∈ values(ψ.tensors)))
+
 
 @inline Base.getindex(a::AbstractTensorNetwork, i) = getindex(a.tensors, i)
 @inline Base.setindex!(ket::AbstractTensorNetwork, A::AbstractArray, i::Site) = ket.tensors[i] = A
@@ -99,6 +144,8 @@ function mpo_transpose(M::MpoTensor{T, 4}) where T <: Real
         M.dims[[1, 4, 3, 2]]
     )
 end
+
+
 
 function IdentityQMps(::Type{T}, loc_dims::Dict, Dmax::Int=1) where T <: Real
     id = TensorMap{T}(keys(loc_dims) .=> zeros.(T, Dmax, values(loc_dims), Dmax))

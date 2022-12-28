@@ -62,7 +62,7 @@ mutable struct CentralTensor{T <: Real, N} <: AbstractSparseTensor{T, N}
     end
 end
 
-device(ten::CentralTensor) = Set(vcat(device(ten.e11)..., device(ten.e12)..., device(ten.e21)..., device(ten.e22)...))
+device(ten::CentralTensor) = union(device(ten.e11), device(ten.e12), device(ten.e21), device(ten.e22))
 
 function move_to_CUDA!(ten::CentralTensor)
     ten.e11 = move_to_CUDA!(ten.e11)
@@ -110,7 +110,7 @@ function move_to_CUDA!(ten::DiagonalTensor)
     ten
 end
 
-device(ten::DiagonalTensor) = Set(vcat(device(ten.e1)..., device(ten.e2)...))
+device(ten::DiagonalTensor) = union(device(ten.e1), device(ten.e2))
 
 
 mpo_transpose(ten::DiagonalTensor) = DiagonalTensor(mpo_transpose.((ten.e2, ten.e1))...)

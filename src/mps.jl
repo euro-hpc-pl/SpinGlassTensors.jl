@@ -38,9 +38,9 @@ function move_to_CUDA!(ten::MpoTensor)
 end
 
 function device(ten::MpoTensor) 
-   dt = Set(vcat(device(x)... for x in ten.top))
-   db = Set(vcat(device(x)... for x in ten.bot))
-   Set(vcat(dt..., device(ten.ctr)..., db...))
+#    dt = Set(vcat(device(x)... for x in ten.top))
+#    db = Set(vcat(device(x)... for x in ten.bot))
+#    Set(vcat(dt..., device(ten.ctr)..., db...))
 end
 
 Base.eltype(ten::MpoTensor{T, N}) where {T <: Real, N} = T
@@ -115,7 +115,7 @@ function move_to_CUDA!(ψ::QMps)
     end
 end
 
-device(ψ::QMps) = Set(device(v) for v ∈ values(ψ.tensors))
+device(ψ::QMps) = Set(vcat(device(v)... for v ∈ values(ψ.tensors)))
 device(ψ::QMpo) = Set(vcat(device(v)... for v ∈ values(ψ.tensors)))
 
 

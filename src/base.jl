@@ -14,8 +14,8 @@ const CuArrayOrArray{T, N} = Union{AbstractArray{T, N}, CuArray{T, N}}
 
 # Allow data to reside on CUDA ???
 
-move_to_CUDA!(ten::Array) = CuArray(ten)
-move_to_CUDA!(ten::Diagonal) = Diagonal(CuArray(diag(ten)))
+move_to_CUDA!(ten::Array{T, N}) where {T, N} = CuArray(ten)
+move_to_CUDA!(ten::Diagonal) = CuArry(Diagonal(CuArray(diag(ten))))
 
 
 device(ten::AbstractArray) = Set(typeof(ten) <: CuArray)

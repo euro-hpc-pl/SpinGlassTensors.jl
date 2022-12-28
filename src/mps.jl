@@ -37,7 +37,7 @@ function move_to_CUDA!(ten::MpoTensor)
     ten.ctr = move_to_CUDA!(ten.ctr)
 end
 
-function device(ten::MpoTensor) 
+function device(ten::MpoTensor)
     union(device(ten.ctr), device.(ten.top)..., device.(ten.bot)...)
 end
 
@@ -115,6 +115,9 @@ end
 
 device(ψ::QMps) = union(device(v) for v ∈ values(ψ.tensors))
 device(ψ::QMpo) = union(device(v) for v ∈ values(ψ.tensors))
+
+#TODO this is ugly
+#onGPU(ψ::QMps) = [s for s ∈ device(ψ)][] == :GPU
 
 @inline Base.getindex(a::AbstractTensorNetwork, i) = getindex(a.tensors, i)
 @inline Base.setindex!(ket::AbstractTensorNetwork, A::AbstractArray, i::Site) = ket.tensors[i] = A

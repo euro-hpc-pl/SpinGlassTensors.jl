@@ -24,7 +24,7 @@ function canonise_truncate!(ψ::QMps{T}, dir::Symbol, Dcut::Int=typemax(Int), to
 end
 
 function _right_sweep!(ψ::QMps{T}, Dcut::Int=typemax(Int), tolS::T=eps(), args...) where T <: Real
-    R = CUDA.ones(T, 1, 1)
+    R = CUDA.ones(T, 1, 1) #TODO this should be automatic
     for i ∈ ψ.sites
         A = ψ[i]
         @matmul M[(x, σ), y] := sum(α) R[x, α] * A[α, σ, y]
@@ -36,7 +36,7 @@ function _right_sweep!(ψ::QMps{T}, Dcut::Int=typemax(Int), tolS::T=eps(), args.
 end
 
 function _left_sweep!(ψ::QMps{T}, Dcut::Int=typemax(Int), tolS::T=eps(), args...) where T <: Real
-    R = CUDA.ones(T, 1, 1)
+    R = CUDA.ones(T, 1, 1) #TODO as above
     for i ∈ reverse(ψ.sites)
         B = ψ[i]
         @matmul M[x, (σ, y)] := sum(α) B[x, σ, α] * R[α, y]

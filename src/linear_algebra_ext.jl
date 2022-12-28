@@ -25,7 +25,7 @@ end
 
 
 function qr_fact(M, Dcut::Int=typemax(Int), tol::T=eps(), args...) where T <: Real  # ::AbstractMatrix{T}
-    M = Array(M)
+    M = Array(M) # TODO to be fixed
     q, r = qr_fix(qr(M, args...))
     Dcut >= size(q, 2) && return CuArray(q), CuArray(r)
     U, Σ, V = svd(r, Dcut, tol)

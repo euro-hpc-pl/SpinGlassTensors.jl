@@ -24,8 +24,6 @@ device(
 
 device(ten::Diagonal) = device(diag(ten))
 
-# move_to_CUDA!(ten :: DiagonalArray{T, N}) = CuArray(ten)  # Diagonal Array
-
 ArrayOrCuArray(L) = typeof(L) <: CuArray ? CuArray : Array # TODO do we need this?
 
 mutable struct SiteTensor{T <: Real, N} <: AbstractSparseTensor{T, N}

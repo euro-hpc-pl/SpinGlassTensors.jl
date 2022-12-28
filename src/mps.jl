@@ -38,11 +38,8 @@ function move_to_CUDA!(ten::MpoTensor)
 end
 
 function device(ten::MpoTensor) 
-
-   dt = Set(vcat(device(x) for x in ten.top))
-   db = Set(vcat(device(x) for x in ten.bot))
-   println(dt)
-   println(db)
+   dt = Set(vcat(device(x)... for x in ten.top))
+   db = Set(vcat(device(x)... for x in ten.bot))
    Set(vcat(dt..., device(ten.ctr)..., db...))
 end
 
@@ -118,12 +115,8 @@ function move_to_CUDA!(ψ::QMps)
     end
 end
 
-device(ψ::QMps) = Set(typeof(v) for v ∈ values(ψ.tensors))
-
-function device(ψ::QMpo) 
-    println([device(v) for v ∈ values(ψ.tensors)])
-end
-# device(ψ::QMpo) = Set(vcat(device(v)... for v ∈ values(ψ.tensors)))
+device(ψ::QMps) = Set(device(v) for v ∈ values(ψ.tensors))
+device(ψ::QMpo) = Set(vcat(device(v)... for v ∈ values(ψ.tensors)))
 
 
 @inline Base.getindex(a::AbstractTensorNetwork, i) = getindex(a.tensors, i)

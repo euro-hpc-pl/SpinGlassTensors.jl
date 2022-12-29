@@ -40,7 +40,7 @@ function zipper(
         mpo_li = left_nbrs_site(mpo_li, ψ.sites)
 
         CM = CornerTensor(C, ψ[i], ϕ[i])
-        U, Σ, V = svd_corner_matrix(CM, method, Dcut, tol, kwargs...)
+        U, Σ, V = svd_corner_matrix(CM, method, Dcut, tol; kwargs...)
         C = U * Diagonal(Σ)
 
         V = permutedims(V, (2, 1))
@@ -67,18 +67,17 @@ Base.Array(CM::Adjoint{T, CornerTensor{T}}) where T = adjoint(Array(CM.ten))
 
 function svd_corner_matrix(CM, method::Symbol, Dcut::Int, tol::Real; kwargs...)
     if method == :svd
-        return svd(Array(CM), Dcut, tol, kwargs...)
+        return svd(Array(CM), Dcut, tol; kwargs...)
     elseif method == :psvd
-        return psvd(Array(CM), rank=Dcut, kwargs...)
+        return psvd(Array(CM), rank=Dcut; kwargs...)
     elseif method == :psvd_sparse
-        U, S, V = psvd(CM, rank=Dcut, kwargs...)
+        U, S, V = psvd(CM, rank=Dcut; kwargs...)
         return CuArray(U), CuArray(S), CuArray(V)
     elseif method == :tsvd
-        return tsvd(Array(CM), Dcut, kwargs...)
+        return tsvd(Array(CM), Dcut; kwargs...)
     elseif method == :tsvd_sparse
-        # U, S, V = tsvd(CM, Dcut, kwargs...) #  maxiter=Dcut+1, tolconv=100, tolreorth=100)
         v0 = 2 .* rand(eltype(CM), size(CM, 1)) .- 1  # CUDA.rand
-        U, S, V = tsvd(CM, Dcut, maxiter=Dcut+1, tolconv=100, tolreorth=100, initvec=v0)
+        U, S, V = tsvd(CM, Dcut, initvec=v0; kwargs...)
         return CuArray(U), CuArray(S), CuArray(V)
     else
         throw(ArgumentError("Wrong method $method"))

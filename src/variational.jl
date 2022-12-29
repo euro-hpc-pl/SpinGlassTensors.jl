@@ -18,7 +18,7 @@ function variational_compress!(
 
         if Δ < tol
             @info "Finished in $sweep sweeps of $(max_sweeps)."
-            return overlap
+            return overlap, env
         else
             overlap_0 = overlap
         end

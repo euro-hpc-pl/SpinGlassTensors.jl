@@ -1,10 +1,9 @@
-@inline r2_over_r1(A) = size(A, 2) / size(A, 1)
-@inline r1_over_r2(A) = 1 / r2_over_r1(A)
-
 """
 Select optimal order of attaching matrices to L
 """
-function attach_3_matrices_left(L, B2, h, A2) #TODO add types
+function attach_3_matrices_left(
+    L::S, B2::Q, h::C, A2::Q
+) where {S <: CuArray{T, 3}, Q <: CuArray{T, 2}, C <: Tensor{T, 2}} where T <: Real
     if r2_over_r1(h) <= r2_over_r1(B2) <= r2_over_r1(A2)
         L = contract_tensor3_matrix(L, h)  # [..., rc, ...] = [..., lc, ...] * [lc, rc]
         @tensor L[rfb, x, y] := L[lfb, x, y] * B2[lfb, rfb]
@@ -36,7 +35,9 @@ end
 """
 Select optimal order of attaching matrices to R
 """
-function attach_3_matrices_right(R, B2, h, A2) #TODO add types
+function attach_3_matrices_right(
+    R::S, B2::Q, h::C, A2::Q
+) where {S <: CuArray{T, 3}, Q <: CuArray{T, 2}, C <: Tensor{T, 2}} where T <: Real
     if r1_over_r2(h) <= r1_over_r2(B2) <= r1_over_r2(A2)
         R = contract_matrix_tensor3(h, R)  # [..., lc, ...] = [..., rc, ...] * [lc, rc]
         @tensor R[lfb, x, y] := R[rfb, x, y] * B2[lfb, rfb]
@@ -65,7 +66,9 @@ function attach_3_matrices_right(R, B2, h, A2) #TODO add types
     R
 end
 
-function attach_2_matrices(L, B2, h, R) #TODO add types, (re)think this function
+function attach_2_matrices(
+    L::S, B2::Q, h::C, R::S
+) where {S <: CuArray{T, 3}, Q <: CuArray{T, 2}, C <: Tensor{T, 2}} where T <: Real
     h1, h2 = size(h, 1), size(h, 2)
     b1, b2 = size(B2, 1), size(B2, 2)
     leg_list = [h1, h2, b1, b2]
@@ -99,9 +102,8 @@ function attach_2_matrices(L, B2, h, R) #TODO add types, (re)think this function
 end
 
 function update_env_left(
-    LE::S, A::S, M::VirtualTensor{T}, B::S
-) where {S <: Array{T, 3}} where T <: Real
-    A, B, L = CuArray.((A, B, LE))
+    L::S, A::S, M::VirtualTensor{T}, B::S
+) where {S <: CuArray{T, 3}} where T <: Real
 
     h = M.con
     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
@@ -157,14 +159,12 @@ function update_env_left(
         lb_from = lb_to + 1
     end
 
-    Array(permutedims(Lout, (2, 1, 3)) ./ maximum(abs.(Lout))) #[rb, rcp, rt]
+    permutedims(Lout, (2, 1, 3)) ./ maximum(abs.(Lout))  # [rb, rcp, rt]
 end
 
 function update_env_right(
-    RE::S, A::S, M::VirtualTensor{T}, B::S
-) where {S <: Array{T, 3}} where T <: Real
-    A, B, R = CuArray.((A, B, RE))
-
+    R::S, A::S, M::VirtualTensor{T}, B::S
+) where {S <: CuArray{T, 3}} where T <: Real
     h = M.con
     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
 
@@ -174,13 +174,12 @@ function update_env_right(
 
     slcb, slc, slct = maximum(p_lb), maximum(p_l), maximum(p_lt)
     srcb, src, srct = maximum(p_rb), maximum(p_r), maximum(p_rt)
-    prs = CuSparseMatrixCSR(eltype(RE), p_lb, p_l, p_lt)
-    ps = CuSparseMatrixCSC(eltype(RE), p_rb, p_r, p_rt)
+    prs = CuSparseMatrixCSR(T, p_lb, p_l, p_lt)
+    ps = CuSparseMatrixCSC(T, p_rb, p_r, p_rt)
 
     batch_size = 2
 
-    F = eltype(RE)
-    Rout = CUDA.zeros(F, slcp, slt, slb)
+    Rout = CUDA.zeros(T, slcp, slt, slb)
 
     @cast A2[(lt, lct), (rct, rt)] := A[lt, (lct, rct), rt] (rct ∈ 1:srct)
 
@@ -217,31 +216,28 @@ function update_env_right(
         end
         rb_from = rb_to + 1
     end
-    Array(permutedims(Rout, (2, 1, 3)) ./ maximum(abs.(Rout))) #[lb, lcp, lt]
+    permutedims(Rout, (2, 1, 3)) ./ maximum(abs.(Rout)) #[lb, lcp, lt]
 end
 
 function project_ket_on_bra(
-    LE::S, B::S, M::VirtualTensor{T}, RE::S
-) where {S <: Array{T, 3}} where T <: Real
+    L::S, B::S, M::VirtualTensor{T}, R::S
+) where {S <: CuArray{T, 3}} where T <: Real
     h = M.con
     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
-
-    B, L, R = CuArray.((B, LE, RE))
-    F = eltype(LE)
 
     sl1, sl3 = size(L, 1), size(L, 3)
     sr1, sr3 = size(R, 1), size(R, 3)
 
     slcb, slc, slct = maximum(p_lb), maximum(p_l), maximum(p_lt)
     srcb, src, srct = maximum(p_rb), maximum(p_r), maximum(p_rt)
-    ps = CuSparseMatrixCSC(eltype(LE), p_lb, p_l, p_lt)
-    prs = CuSparseMatrixCSC(eltype(RE), p_rb, p_r, p_rt)
+    ps = CuSparseMatrixCSC(T, p_lb, p_l, p_lt)
+    prs = CuSparseMatrixCSC(T, p_rb, p_r, p_rt)
 
     batch_size = 2
 
     @cast B2[(lb, lcb), (rcb, rb)] := B[lb, (lcb, rcb), rb] (rcb ∈ 1:srcb)
 
-    LRout = CUDA.zeros(F, sl3, slct * srct, sr1)
+    LRout = CUDA.zeros(T, sl3, slct * srct, sr1)
     l_from = 1
     while l_from <= sl3
         l_to = min(l_from + batch_size - 1, sl3)
@@ -276,15 +272,13 @@ function project_ket_on_bra(
         l_from = l_to + 1
     end
 
-    Array(LRout ./ maximum(abs.(LRout)))
+    LRout ./ maximum(abs.(LRout))
 end
 
 
 function update_reduced_env_right(
-    K::Array{T, 1}, RE::Array{T, 2}, M::VirtualTensor{T}, B::Array{T, 3}
+    K::CuArray{T, 1}, RE::CuArray{T, 2}, M::VirtualTensor{T}, B::CuArray{T, 3}
 ) where T <: Real
-
-    K, B, RE = CuArray.((K, B, RE))
     h = M.con
 
     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
@@ -294,7 +288,7 @@ function update_reduced_env_right(
     B2 = permutedims(B2, (2, 1, 3, 4))  # [lb, l, rb, r]
     @cast B2[(lb, l), (rb, r)] := B2[lb, l, rb, r]
 
-    ps = CuSparseMatrixCSC(eltype(RE), p_rt, p_r, p_rb)
+    ps = CuSparseMatrixCSC(T, p_rt, p_r, p_rb)
     RE = permutedims(RE, (2, 1))
     Rtemp = ps * RE
     @cast Rtemp[rt, rc, (rb, b)] := Rtemp[(rt, rc, rb), b] (rb ∈ 1:maximum(p_rb), rc ∈ 1:maximum(p_r))
@@ -303,12 +297,10 @@ function update_reduced_env_right(
 
     @cast Rtemp[(lt, lc, lb), l] := Rtemp[lt, lc, (lb, l)] (lb ∈ 1:maximum(p_lb))
     ips = CuSparseMatrixCSR(T, p_lt, p_l, p_lb)
-    Rnew = permutedims(ips * Rtemp, (2, 1))
-
-    Array(Rnew)
+    permutedims(ips * Rtemp, (2, 1))
 end
 
-function contract_tensors43(B::VirtualTensor{T, 4}, A::Array{T, 3}) where T <: Real
+function contract_tensors43(B::VirtualTensor{T, 4}, A::CuArray{T, 3}) where T <: Real
     h = B.con
     if typeof(h) <: CentralTensor h = Array(h) end #TODO add better handling
 

@@ -25,5 +25,8 @@ module SpinGlassTensors
     include("contractions/virtual.jl")
     include("contractions_cuda/dense.jl")
     include("contractions_cuda/site.jl")
+    include("contractions_cuda/central.jl")
+    include("contractions_cuda/diagonal.jl")
+    include("contractions_cuda/virtual.jl")
 
 end # module

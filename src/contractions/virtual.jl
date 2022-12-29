@@ -4,7 +4,9 @@
 """
 Select optimal order of attaching matrices to L
 """
-function attach_3_matrices_left(L, B2, h, A2) #TODO add types
+function attach_3_matrices_left(
+    L::S, B2::Q, h::C, A2::Q
+) where {S <: Array{T, 3}, Q <: Array{T, 2}, C <: Tensor{T, 2}} where T <: Real
     if r2_over_r1(h) <= r2_over_r1(B2) <= r2_over_r1(A2)
         L = contract_tensor3_matrix(L, h)  # [..., rc, ...] = [..., lc, ...] * [lc, rc]
         @tensor L[rfb, x, y] := L[lfb, x, y] * B2[lfb, rfb]
@@ -36,7 +38,9 @@ end
 """
 Select optimal order of attaching matrices to R
 """
-function attach_3_matrices_right(R, B2, h, A2) #TODO add types
+function attach_3_matrices_right(
+    R::S, B2::Q, h::C, A2::Q
+) where {S <: Array{T, 3}, Q <: Array{T, 2}, C <: Tensor{T, 2}} where T <: Real
     if r1_over_r2(h) <= r1_over_r2(B2) <= r1_over_r2(A2)
         R = contract_matrix_tensor3(h, R)  # [..., lc, ...] = [..., rc, ...] * [lc, rc]
         @tensor R[lfb, x, y] := R[rfb, x, y] * B2[lfb, rfb]
@@ -65,7 +69,9 @@ function attach_3_matrices_right(R, B2, h, A2) #TODO add types
     R
 end
 
-function attach_2_matrices(L, B2, h, R) #TODO add types, (re)think this function
+function attach_2_matrices(
+    L::S, B2::Q, h::C, R::S
+    ) where {S <: Array{T, 3}, Q <: Array{T, 2}, C <: Tensor{T, 2}} where T <: Real
     h1, h2 = size(h, 1), size(h, 2)
     b1, b2 = size(B2, 1), size(B2, 2)
     leg_list = [h1, h2, b1, b2]

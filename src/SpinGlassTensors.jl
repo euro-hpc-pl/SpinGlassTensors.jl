@@ -6,6 +6,8 @@ module SpinGlassTensors
     using NNlib, NNlibCUDA
     using Memoize
 
+    CUDA.allowscalar(false)
+
     include("base.jl")
     include("linear_algebra_ext.jl")
     include("mps.jl")
@@ -21,5 +23,7 @@ module SpinGlassTensors
     include("contractions/diagonal.jl")
     include("contractions/site.jl")
     include("contractions/virtual.jl")
+    include("contractions_cuda/dense.jl")
+    include("contractions_cuda/site.jl")
 
 end # module

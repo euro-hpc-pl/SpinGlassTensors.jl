@@ -16,7 +16,7 @@ Base.:(*)(W::QMpo, ψ::QMps) = dot(W, ψ)
 
 function LinearAlgebra.dot(ψ::QMps{T}, ϕ::QMps{T}) where T <: Real
     @assert ψ.sites == ϕ.sites
-    C = ones(T, 1, 1)
+    C = CUDA.ones(T, 1, 1)
     for i ∈ ϕ.sites
         A, B = ϕ[i], ψ[i]
         @tensor C[x, y] := conj(B)[β, σ, x] * C[β, α] * A[α, σ, y] order = (α, β, σ)

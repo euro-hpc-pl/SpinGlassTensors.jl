@@ -33,7 +33,7 @@ function _left_sweep_var!(env::Environment, args...)
         @cast B[x, (y, z)] := A[x, y, z]
         _, Q = rq_fact(B, args...)
         @cast C[x, σ, y] := Q[x, (σ, y)] (σ ∈ 1:size(A, 2))
-        env.bra[site] = Array(C)
+        env.bra[site] = C
         clear_env_containing_site!(env, site)
     end
 end
@@ -45,7 +45,7 @@ function _right_sweep_var!(env::Environment, args...)
         @cast B[(x, y), z] := A[x, y, z]
         Q, _ = qr_fact(B, args...)
         @cast C[x, σ, y] := Q[(x, σ), y] (σ ∈ 1:size(A, 2))
-        env.bra[site] = Array(C)
+        env.bra[site] = C
         clear_env_containing_site!(env, site)
     end
 end

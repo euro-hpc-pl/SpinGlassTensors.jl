@@ -29,7 +29,7 @@ function zipper(
     ψ::QMpo{R}, ϕ::QMps{R}; method::Symbol=:svd, Dcut::Int=typemax(Int), tol::Real=eps(), kwargs...
 ) where R <: Real
     D = TensorMap{R}()
-    C = ones(R, 1, 1, 1)
+    C = CUDA.ones(R, 1, 1, 1)
     mpo_li = last(ψ.sites)
     for i ∈ reverse(ϕ.sites)
         while mpo_li > i
@@ -41,7 +41,7 @@ function zipper(
 
         CM = CornerTensor(C, ψ[i], ϕ[i])
         U, Σ, V = svd_corner_matrix(CM, method, Dcut, tol, kwargs...)
-        C = U * diagm(Σ)
+        C = U * Diagonal(Σ)
 
         V = permutedims(V, (2, 1))
         if i == ϕ.sites[1] V = C * V end
@@ -71,11 +71,15 @@ function svd_corner_matrix(CM, method::Symbol, Dcut::Int, tol::Real; kwargs...)
     elseif method == :psvd
         return psvd(Array(CM), rank=Dcut, kwargs...)
     elseif method == :psvd_sparse
-        return psvd(CM, rank=Dcut, kwargs...)
+        U, S, V = psvd(CM, rank=Dcut, kwargs...)
+        return CuArray(U), CuArray(S), CuArray(V)
     elseif method == :tsvd
         return tsvd(Array(CM), Dcut, kwargs...)
     elseif method == :tsvd_sparse
-        return tsvd(CM, Dcut, kwargs...)
+        # U, S, V = tsvd(CM, Dcut, kwargs...) #  maxiter=Dcut+1, tolconv=100, tolreorth=100)
+        v0 = 2 .* rand(eltype(CM), size(CM, 1)) .- 1  # CUDA.rand
+        U, S, V = tsvd(CM, Dcut, maxiter=Dcut+1, tolconv=100, tolreorth=100, initvec=v0)
+        return CuArray(U), CuArray(S), CuArray(V)
     else
         throw(ArgumentError("Wrong method $method"))
     end
@@ -89,28 +93,33 @@ Base.eltype(ten::CornerTensor{T}) where T = T
 Base.adjoint(ten::CornerTensor{T}) where T = Adjoint{T}(ten)
 
 function LinearAlgebra.mul!(y, ten::CornerTensor, x)
+    x = CuArray(x)
     x = reshape(x, size(ten.M, 2), size(ten.C, 1), :)
     x = permutedims(x, (3, 1, 2))
     yp = update_env_right(ten.C, x, ten.M, ten.B)
-    y[:, :] .= reshape(permutedims(yp, (3, 2, 1)), size(ten.B, 1) * size(ten.M, 1), :)
+    y[:, :] .= Array(reshape(permutedims(yp, (3, 2, 1)), size(ten.B, 1) * size(ten.M, 1), :))
 end
 
 function LinearAlgebra.mul!(y, ten::Adjoint{T, CornerTensor{T}}, x) where T
+    x = CuArray(x)
     x = reshape(x, size(ten.parent.B, 1), size(ten.parent.M, 1), :)
-    x = Array(x) # TODO This could be avoided
     yp = project_ket_on_bra(x, ten.parent.B, ten.parent.M, ten.parent.C)
-    y[:, :] .= reshape(permutedims(yp, (2, 3, 1)), size(ten.parent.M, 2) * size(ten.parent.C, 1), :)
+    y[:, :] .= Array(reshape(permutedims(yp, (2, 3, 1)), size(ten.parent.M, 2) * size(ten.parent.C, 1), :))
 end
 
-function Base.:(*)(ten::CornerTensor{T}, x::Vector{T}) where T
+function Base.:(*)(ten::CornerTensor{T}, x) where T
+    x = CuArray(x)
     x = reshape(x, size(ten.M, 2), size(ten.C, 1), 1)
     x = permutedims(x, (3, 1, 2))
     yp = update_env_right(ten.C, x, ten.M, ten.B)
-    reshape(permutedims(yp, (3, 2, 1)), size(ten.B, 1) * size(ten.M, 1))
+    # reshape(permutedims(yp, (3, 2, 1)), size(ten.B, 1) * size(ten.M, 1))
+    Array(reshape(permutedims(yp, (3, 2, 1)), size(ten.B, 1) * size(ten.M, 1)))
 end
 
-function Base.:(*)(ten::Adjoint{T, CornerTensor{T}}, x::Vector{T}) where T
-    x = reshape(x, size(ten.ten.B, 1), size(ten.ten.M, 1), 1)
-    yp = project_ket_on_bra(x, ten.ten.B, ten.ten.M, ten.ten.C)
-    reshape(permutedims(yp, (2, 3, 1)), size(ten.ten.M, 2) * size(ten.ten.C, 1))
+function Base.:(*)(ten::Adjoint{T, CornerTensor{T}}, x) where T
+    x = CuArray(x)
+    x = reshape(x, size(ten.parent.B, 1), size(ten.parent.M, 1), 1)
+    yp = project_ket_on_bra(x, ten.parent.B, ten.parent.M, ten.parent.C)
+    # reshape(permutedims(yp, (2, 3, 1)), size(ten.parent.M, 2) * size(ten.parent.C, 1))
+    Array(reshape(permutedims(yp, (2, 3, 1)), size(ten.parent.M, 2) * size(ten.parent.C, 1)))
 end

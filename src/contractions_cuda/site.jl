@@ -1,12 +1,11 @@
 function contract_sparse_with_three(
-    X1::S, X2::S, X3::S, loc_exp::T, p1::Q, p2::Q, p3::Q, pout::Q
-) where {S <: Array{R, 3}, T <: CuArray{R, 1}, Q <: Array{Int, 1}} where R <: Real
+        X1::S, X2::S, X3::S, loc_exp::T, p1::Q, p2::Q, p3::Q, pout::Q
+) where {S <: CuArray{R, 3}, T <: CuArray{R, 1}, Q <: Array{Int, 1}} where R <: Real
     s1, s2, _ = size(X1)
     s3, s4, _ = size(X3)
     total_memory = 2^33
     batch_size = max(Int(floor(total_memory / (8 * (s1 * s2 + s2 * s3 + s3 * s4 + s4 * s1)))), 1) #TODO add better handling
 
-    X1, X2, X3, loc_exp = CuArray.((X1, X2, X3, loc_exp))
     F = eltype(X1)
     out = CUDA.zeros(F, maximum(pout), s1, s4)
 
@@ -28,12 +27,12 @@ function contract_sparse_with_three(
 
         from = to + 1
     end
-    Array(permutedims(out, (2, 1, 3)))
+    permutedims(out, (2, 1, 3))
 end
 
 function update_env_left(
     LE::S, A::S, M::T, B::S
-) where {S <: Array{R, 3}, T <: SiteTensor{R}} where R <: Real
+) where {S <: CuArray{R, 3}, T <: SiteTensor{R}} where R <: Real
     B = permutedims(B, (3, 1, 2))
     LE = permutedims(LE, (1, 3, 2))
     A = permutedims(A, (1, 3, 2))
@@ -42,7 +41,7 @@ end
 
 function update_env_right(
     RE::S, A::S, M::SiteTensor{R}, B::S
-) where {S <: Array{R, 3}} where R <: Real
+) where {S <: CuArray{R, 3}} where R <: Real
     A = permutedims(A, (1, 3, 2))
     RE = permutedims(RE, (1, 3, 2))
     B = permutedims(B, (3, 1, 2))
@@ -51,7 +50,7 @@ end
 
 function project_ket_on_bra(
     LE::S, B::S, M::SiteTensor{R}, RE::S
-) where {S <: Array{R, 3}} where R <: Real
+) where {S <: CuArray{R, 3}} where R <: Real
     LE = permutedims(LE, (3, 1, 2))
     B = permutedims(B, (1, 3, 2))
     RE = permutedims(RE, (3, 1, 2))
@@ -59,10 +58,8 @@ function project_ket_on_bra(
 end
 
 function update_reduced_env_right(
-    K::Array{T, 1}, RE::Array{T, 2}, M::SiteTensor{T}, B::Array{T, 3}
+    K::CuArray{T, 1}, RE::CuArray{T, 2}, M::SiteTensor{T}, B::CuArray{T, 3}
 ) where T <: Real
-    B, RE, loc_exp, K = CuArray.((B, RE, M.loc_exp, K))
-
     Kloc_exp = loc_exp .* K[M.projs[2]]
 
     B = permutedims(B, (1, 3, 2))
@@ -76,24 +73,28 @@ function update_reduced_env_right(
 
     ipl = CuSparseMatrixCSC(eltype(B), M.projs[1])
     RRR = ipl * outp'  # TODO: is ' correct on CUDA ?
-    Array(RRR')
+    RRR'
 end
 
-function contract_tensors43(B::SiteTensor{T, 4}, A::Array{T, 3}) where T <: Real   # TODO move to site tensor  {T, 3} * {T, 4} -> {T, 3}
-    sal, _, sar = size(A)
-    sbl, sbt, sbr = maximum.(B.projs[1:3])
-    C = zeros(T, sal, sbl, sbt, sar, sbr)
-    for (σ, lexp) ∈ enumerate(B.loc_exp)
-        AA = @inbounds @view A[:, B.projs[4][σ], :]
-        @inbounds C[:, B.projs[1][σ], B.projs[2][σ], :, B.projs[3][σ]] += lexp .* AA
-    end
-    @cast CC[(x, y), z, (b, a)] := C[x, y, z, b, a]
+function contract_tensors43(M::SiteTensor{T, 4}, B::CuArray{T, 3}) where T <: Real
+    sb1, _, sb3 = size(B)
+    sm1, sm2, sm3 = maximum.(M.projs[1:3])
+
+    B = permutedims(B, (1, 3, 2))
+    Bp = B[:, :, M.projs[4]]
+    Bp .*= reshape(M.loc_exp, 1, 1, :)
+
+    @cast Bp[(x, y), z] := Bp[x, y, z]
+    p123 = M.projs[1] .+ (M.projs[2] .- 1) .* sm1 .+ (M.projs[3] .- 1) .* (sm1 * sm2)
+    ip123 = CuSparseMatrixCSC(eltype(B), p123)
+    out = reshape(ip123 * Bp', (sm1, sm2, sm3, sb1, sb3))
+
+    reshape(permutedims(out, (4, 1, 2, 5, 3)), sb1 * sm1, sm2, sb3 * sm3)
 end
 
 function corner_matrix(
     C::S, M::T, B::S
-) where {S <: Array{R, 3}, T <: SiteTensor{R, 4}} where R <: Real
-    C, B, loc_exp = CuArray.((C, B, M.loc_exp))
+) where {S <: CuArray{R, 3}, T <: SiteTensor{R, 4}} where R <: Real
     sb1 = size(B, 1)
     sc1 = size(C, 1)
     B = permutedims(B, (1, 3, 2))
@@ -102,7 +103,7 @@ function corner_matrix(
     Cp = C[:, :, M.projs[3]]
 
     outp = Bp ⊠ Cp
-    outp .*= reshape(loc_exp, 1, 1, :)
+    outp .*= reshape(M.loc_exp, 1, 1, :)
     @cast outp[(x, y), z] := outp[x, y, z]
 
     sm1 = maximum(M.projs[1])
@@ -111,5 +112,5 @@ function corner_matrix(
 
     ip12 = CuSparseMatrixCSC(eltype(B), p12)
     out = reshape(ip12 * outp', (sm1, sm2, sb1, sc1))
-    Array(permutedims(out, (3, 1, 2, 4)))
+    permutedims(out, (3, 1, 2, 4))
 end

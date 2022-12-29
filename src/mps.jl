@@ -14,8 +14,6 @@ const Site = Union{Int, Rational{Int}}
 const Sites = NTuple{N, Site} where N
 const TensorMap{T} = Dict{Site, Union{Tensor{T, 2}, Tensor{T, 3}, Tensor{T, 4}}}  # 2 and 4 - mpo;  3 - mps
 
-## MpsMap{T} = Dict{Site, Union{Tensor{T, 2}, Tensor{T, 4}}}
-## MpoTensorMap{T} = Dict{Site, CuArrayOrArray{T, 3}}
 
 mutable struct MpoTensor{T <: Real, N}
     top::Vector{Tensor{T, 2}}  # N == 2 top = []
@@ -71,8 +69,8 @@ function MpoTensor(ten::TensorMap{T}) where T
 end
 
 #TODO should we mv this some place else?
-contract_tensor3_matrix(B::Array{T, 3}, M::MpoTensor{T, 2}) where T <: Real = contract_tensor3_matrix(B, M.ctr)
-contract_matrix_tensor3(M::MpoTensor{T, 2}, B::Array{T, 3}) where T <: Real = contract_matrix_tensor3(M.ctr, B)
+contract_tensor3_matrix(B::AbstractArray{T, 3}, M::MpoTensor{T, 2}) where T <: Real = contract_tensor3_matrix(B, M.ctr)
+contract_matrix_tensor3(M::MpoTensor{T, 2}, B::AbstractArray{T, 3}) where T <: Real = contract_matrix_tensor3(M.ctr, B)
 contract_tensors43(B::Nothing, A::Array{T, 3}) where T <: Real = A
 
 Base.ndims(ten::MpoTensor{T, N}) where {T, N} = N

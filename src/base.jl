@@ -10,7 +10,7 @@ export
 abstract type AbstractSparseTensor{T, N} end
 
 const Proj{N} = NTuple{N, Array{Int, 1}}
-const CuArrayOrArray{T, N} = Union{AbstractArray{T, N}, CuArray{T, N}} #TODO clean this !!!
+# const CuArrayOrArray{T, N} = Union{AbstractArray{T, N}, CuArray{T, N}} #TODO clean this !!!
 
 # Allow data to reside on CUDA ???
 
@@ -18,10 +18,7 @@ move_to_CUDA!(ten::Array{T, N}) where {T, N} = CuArray(ten)
 move_to_CUDA!(ten::Diagonal) = Diagonal(CuArray(diag(ten)))
 
 device(ten::Array{T, N}) where {T, N} = Set((:CPU,))
-device(
-    ten::Union{CuArray, Diagonal{T, CuArray{T, 1, CUDA.Mem.DeviceBuffer}}}
-) where T = Set((:GPU,)) # this is ugly but works for now
-
+device(ten::CuArray{T, N}) where {T, N} = Set((:GPU,))
 device(ten::Diagonal) = device(diag(ten))
 
 ArrayOrCuArray(L) = typeof(L) <: CuArray ? CuArray : Array # TODO do we need this?
@@ -147,7 +144,7 @@ mpo_transpose(ten::Array{<:Real, 2}) = Array(transpose(ten))  # TODO CuArrayOrAr
 const SparseTensor{T, N} = Union{
     SiteTensor{T, N}, VirtualTensor{T, N}, CentralTensor{T, N}, DiagonalTensor{T, N}
 }
-const Tensor{T, N} = Union{CuArrayOrArray{T, N}, SparseTensor{T, N}}
+const Tensor{T, N} = Union{AbstractArray{T, N}, SparseTensor{T, N}}
 const CentralOrDiagonal{T, N} = Union{CentralTensor{T, N}, DiagonalTensor{T, N}}
 
 Base.eltype(ten::Tensor{T, N}) where {T <: Real, N} = T

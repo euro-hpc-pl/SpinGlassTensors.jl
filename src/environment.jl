@@ -13,7 +13,7 @@ mutable struct Environment{T <: Real} <: AbstractEnvironment
 
     function Environment(bra::QMps{T}, mpo::QMpo{T}, ket::QMps{T}) where T <: Real
         @assert bra.sites == ket.sites && issubset(bra.sites, mpo.sites)
-        id = ones(T, 1, 1, 1)
+        id = CUDA.ones(T, 1, 1, 1)
         env0 = Dict((bra.sites[1], :left) => id, (bra.sites[end], :right) => id)
         env = new{T}(bra, mpo, ket, env0)
         update_env_left!.(Ref(env), env.bra.sites)
@@ -53,7 +53,7 @@ end
 """
 function update_env_left(
     LE::S, A::S, M::T, B::S
-) where {S <: CuArrayOrArray{R, 3}, T <: MpoTensor{R, 4}} where R <: Real
+) where {S <: AbstractArray{R, 3}, T <: MpoTensor{R, 4}} where R <: Real
     for v ∈ M.top A = contract_tensor3_matrix(A, v) end
     for v ∈ reverse(M.bot) B = contract_matrix_tensor3(v, B) end
     update_env_left(LE, A, M.ctr, B)
@@ -80,7 +80,7 @@ end
 """
 function update_env_right(
     RE::S, A::S1, M::T, B::S
-) where {T <: MpoTensor{R, 4}, S <: CuArrayOrArray{R, 3}, S1 <: CuArrayOrArray{R, 3}} where R <: Real
+) where {T <: MpoTensor{R, 4}, S <: AbstractArray{R, 3}, S1 <: AbstractArray{R, 3}} where R <: Real
     for v ∈ M.top  A = contract_tensor3_matrix(A, v) end
     for v ∈ reverse(M.bot) B = contract_matrix_tensor3(v, B) end
     update_env_right(RE, A, M.ctr, B)
@@ -106,7 +106,7 @@ end
 """
 function project_ket_on_bra(
     LE::S, B::S, M::T, RE::S
-) where {S <: CuArrayOrArray{R, 3}, T <: MpoTensor{R, 4}} where R <: Real
+) where {S <: AbstractArray{R, 3}, T <: MpoTensor{R, 4}} where R <: Real
     for v ∈ reverse(M.bot) B = contract_matrix_tensor3(v, B) end
     B = project_ket_on_bra(LE, B, M.ctr, RE)
     for v ∈ reverse(M.top) B = contract_matrix_tensor3(v, B) end

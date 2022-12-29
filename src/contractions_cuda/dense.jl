@@ -1,12 +1,17 @@
-function contract_tensor3_matrix(LE::Array{T, 3}, M::Array{T, 2}) where T <: Real
-    if typeof(LE) <: CuArray && !(typeof(M) <: CuArray) M = CuArray(M) end # TODO add better handling
-    @tensor L[nt, nc, nb] := LE[nt, oc, nb] * M[oc, nc]
+const CuMatrix{T} = Union{CuArray{T, 2}, Diagonal{T, CuArray{T, 1, Mem.DeviceBuffer}}}
+
+function contract_tensor3_matrix(LE::CuArray{T, 3}, M::CuMatrix{T}) where T <: Real
+    sl1, sl2, sl3 = size(LE)
+    LE = reshape(permutedims(LE, (1, 3, 2)), sl1 * sl3, sl2)
+    permutedims(reshape(LE * M, sl1, sl3, :), (1, 3, 2))
 end
 
-function contract_matrix_tensor3(M::Array{T, 2}, LE::Array{T, 3}) where T <: Real
-    if typeof(LE) <: CuArray && !(typeof(M) <: CuArray) M = CuArray(M) end # TODO add better handling
-    @tensor L[nt, nc, nb] :=  LE[nt, oc, nb] * M[nc, oc]
+function contract_matrix_tensor3(M::CuMatrix{T}, LE::CuArray{T, 3}) where T <: Real
+    sl1, sl2, sl3 = size(LE)
+    LE = reshape(permutedims(LE, (2, 1, 3)), sl2, sl1 * sl3)
+    permutedims(reshape(M * LE, :, sl1, sl3), (2, 1, 3))
 end
+
 
 """
         -- A --
@@ -17,7 +22,7 @@ end
 """
 function update_env_left(
     LE::S, A::S, M::T, B::S
-) where {S <: Array{R, 3}, T <: Array{R, 4}} where R <: Real
+) where {S <: CuArray{R, 3}, T <: CuArray{R, 4}} where R <: Real
     @tensor L[nb, nc, nt] := LE[ob, oc, ot] * A[ot, α, nt] *
                              M[oc, α, nc, β] * B[ob, β, nb] order = (ot, α, oc, β, ob)
 end
@@ -31,7 +36,7 @@ end
 """
 function update_env_right(
     RE::S, A::S, M::T, B::S
-) where {T <: Array{F, 4}, S <: Array{F, 3}} where F <: Real
+) where {T <: CuArray{F, 4}, S <: CuArray{F, 3}} where F <: Real
     @tensor R[nt, nc, nb] := RE[ot, oc, ob] * A[nt, α, ot] *
                              M[nc, α, oc, β] * B[nb, β, ob] order = (ot, α, oc, β, ob)
 end
@@ -44,7 +49,7 @@ end
 """
 function project_ket_on_bra(
     LE::S, B::S, M::T, RE::S
-) where {T <: Array{R, 4}, S <: Array{R, 3}} where R <: Real
+) where {T <: CuArray{R, 4}, S <: CuArray{R, 3}} where R <: Real
     @tensor A[x, y, z] := LE[k, l, x] * B[k, m, o] *
                           M[l, y, n, m] * RE[z, n, o] order = (k, l, m, n, o)
 end
@@ -56,7 +61,7 @@ end
       |    |
    -- B ---
 """
-function update_reduced_env_right(RE::Array{T, 2}, m::Int, M::MpoTensor{T, 4}, B::Array{T, 3}) where T <: Real
+function update_reduced_env_right(RE::CuArray{T, 2}, m::Int, M::MpoTensor{T, 4}, B::CuArray{T, 3}) where T <: Real
     K = zeros(T, size(M, 2))
     K[m] = one(T)
     K = reshape(K, 1, size(K, 1), 1)
@@ -72,23 +77,23 @@ function update_reduced_env_right(RE::Array{T, 2}, m::Int, M::MpoTensor{T, 4}, B
     update_reduced_env_right(K, RE, M.ctr, B)
 end
 
-function update_reduced_env_right(K::Array{T, 1}, RE::Array{T, 2}, M::Array{T, 4}, B::Array{T, 3}) where T <: Real
+function update_reduced_env_right(K::CuArray{T, 1}, RE::CuArray{T, 2}, M::CuArray{T, 4}, B::CuArray{T, 3}) where T <: Real
     @tensor R[x, y] := K[d] * M[y, d, β, γ] * B[x, γ, α] * RE[α, β] order = (d, β, γ, α)
 end
 
-function update_reduced_env_right(RR::S, M0::S) where S <: Array{<:Real, 2}
+function update_reduced_env_right(RR::S, M0::S) where S <: CuArray{<:Real, 2}
     @tensor RR[x, y] := M0[y, z] * RR[x, z]
 end
 
 
-function contract_tensors43(B::Array{T, 4}, A::Array{T, 3}) where T <: Real
+function contract_tensors43(B::CuArray{T, 4}, A::CuArray{T, 3}) where T <: Real
     @matmul C[(x, y), z, (b, a)] := sum(σ) B[y, z, a, σ] * A[x, σ, b]
 end
 
 
 function corner_matrix(
     C::S, M::T, B::S
-) where {S <: Array{R, 3}, T <: Array{R, 4}} where R <: Real
+) where {S <: CuArray{R, 3}, T <: CuArray{R, 4}} where R <: Real
     @tensor Cnew[l, ml, mt, tt] := M[ml, mt, mr, mb] * B[l, mb, r] * C[tt, mr, r] order = (r, mb, mr)
     Cnew
 end

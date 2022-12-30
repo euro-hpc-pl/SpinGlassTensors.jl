@@ -333,7 +333,7 @@ end
 function contract_tensors43(B::VirtualTensor{T, 4}, A::CuArray{T, 3}) where T <: Real  # REWRITE THIS
     h = B.con
 
-    h = Array(h)
+    h = Array(CuArray(h))
     A = Array(A)
 
     sal, _, sar = size(A)

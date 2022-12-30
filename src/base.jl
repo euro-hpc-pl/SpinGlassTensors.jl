@@ -80,20 +80,12 @@ mpo_transpose(ten::CentralTensor) = CentralTensor(permutedims.((ten.e11, ten.e21
 
 const MatOrCentral{T, N} = Union{Matrix{T}, CentralTensor{T, N}}
 
-# TODO should this be removed?
-function Base.Array(ten::CentralTensor)
+function Base.CuArray(ten::CentralTensor)  # TODO: DO we need it; maybe for testing
     @cast V[(u1, u2), (d1, d2)] := ten.e11[u1, d1] * ten.e21[u2, d1] *
                                    ten.e12[u1, d2] * ten.e22[u2, d2]
     V ./ maximum(V)
 end
 
-# TODO should this be removed?
-function CUDA.CuArray(ten::CentralTensor)
-    e11, e12 ,e21, e22 = CuArray.((ten.e11, ten.e12, ten.e21, ten.e22))
-    @cast V[(u1, u2), (d1, d2)] := e11[u1, d1] * e21[u2, d1] *
-                                   e12[u1, d2] * e22[u2, d2]
-    V ./ maximum(V)
-end
 
 mutable struct DiagonalTensor{T <: Real, N} <: AbstractSparseTensor{T, N}
     e1 # ::MatOrCentral{T, N}

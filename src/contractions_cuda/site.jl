@@ -60,7 +60,7 @@ end
 function update_reduced_env_right(
     K::CuArray{T, 1}, RE::CuArray{T, 2}, M::SiteTensor{T}, B::CuArray{T, 3}
 ) where T <: Real
-    Kloc_exp = loc_exp .* K[M.projs[2]]
+    Kloc_exp = M.loc_exp .* K[M.projs[2]]
 
     B = permutedims(B, (1, 3, 2))
     RE = reshape(RE, (size(RE, 1), 1, size(RE, 2)))
@@ -72,8 +72,8 @@ function update_reduced_env_right(
     outp .*= reshape(Kloc_exp, 1, :)
 
     ipl = CuSparseMatrixCSC(eltype(B), M.projs[1])
-    RRR = ipl * outp'  # TODO: is ' correct on CUDA ?
-    RRR'
+    RRR = ipl * outp'
+    permutedims(RRR, (2, 1))
 end
 
 function contract_tensors43(M::SiteTensor{T, 4}, B::CuArray{T, 3}) where T <: Real

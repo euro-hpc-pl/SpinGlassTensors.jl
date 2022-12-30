@@ -15,7 +15,8 @@ const Proj{N} = NTuple{N, Array{Int, 1}}
 # Allow data to reside on CUDA ???
 
 move_to_CUDA!(ten::Array{T, N}) where {T, N} = CuArray(ten)
-move_to_CUDA!(ten::Diagonal) = Diagonal(CuArray(diag(ten)))
+move_to_CUDA!(ten::CuArray{T, N}) where {T, N} = ten
+move_to_CUDA!(ten::Diagonal) = Diagonal(move_to_CUDA!(diag(ten)))
 
 device(ten::Array{T, N}) where {T, N} = Set((:CPU,))
 device(ten::CuArray{T, N}) where {T, N} = Set((:GPU,))
@@ -75,7 +76,7 @@ function move_to_CUDA!(ten::CentralTensor)
 end
 
 
-mpo_transpose(ten::CentralTensor) = CentralTensor(transpose.((ten.e11, ten.e21, ten.e12, ten.e22))...)
+mpo_transpose(ten::CentralTensor) = CentralTensor(permutedims.((ten.e11, ten.e21, ten.e12, ten.e22), Ref((2, 1)))...)
 
 const MatOrCentral{T, N} = Union{Matrix{T}, CentralTensor{T, N}}
 
@@ -138,8 +139,8 @@ function move_to_CUDA!(ten::VirtualTensor)
 end
 
 mpo_transpose(ten::VirtualTensor) = VirtualTensor(ten.con, ten.projs[[3, 2, 1, 6, 5, 4]])
-mpo_transpose(ten::Array{<:Real, 4}) = Array(permutedims(ten, (1, 4, 3, 2)))  # TODO CuArrayOrArray ???
-mpo_transpose(ten::Array{<:Real, 2}) = Array(transpose(ten))  # TODO CuArrayOrArray ???
+mpo_transpose(ten::AbstractArray{<:Real, 4}) = permutedims(ten, (1, 4, 3, 2))
+mpo_transpose(ten::AbstractArray{<:Real, 2}) = permutedims(ten, (2, 1))
 
 const SparseTensor{T, N} = Union{
     SiteTensor{T, N}, VirtualTensor{T, N}, CentralTensor{T, N}, DiagonalTensor{T, N}

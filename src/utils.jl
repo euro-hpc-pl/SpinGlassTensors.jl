@@ -48,22 +48,12 @@ function LinearAlgebra.dot(ψ::QMpo{R}, ϕ::QMps{R}) where R <: Real
     QMps(D)
 end
 
-function Base.rand(::Type{QMps{T}}, sites::Vector, D::Int, d::Int) where T <: Real
-    QMps(
-        TensorMap{T}(
-            1 => rand(T, 1, d, D),
-            (i => rand(T, D, d, D) for i ∈ 2:length(sites)-1)...,
-            sites[end] => rand(T, D, d, 1)
-        )
-    )
-end
-
 function Base.rand(::Type{QMps{T}}, loc_dims::Dict, Dmax::Int=1) where T <: Real
-    id = TensorMap{T}(keys(loc_dims) .=> rand.(T, Dmax, values(loc_dims), Dmax))
+    id = TensorMap{T}(keys(loc_dims) .=> CUDA.rand.(T, Dmax, values(loc_dims), Dmax))
     site_min, ld_min = minimum(loc_dims)
     site_max, ld_max = maximum(loc_dims)
-    id[site_min] = rand.(T, 1, ld_min, Dmax)
-    id[site_max] = rand.(T, Dmax, ld_max, 1)
+    id[site_min] = CUDA.rand.(T, 1, ld_min, Dmax)
+    id[site_max] = CUDA.rand.(T, Dmax, ld_max, 1)
     QMps(id)
 end
 
@@ -121,7 +111,9 @@ end
 @inline Base.length(a::AbstractTensorNetwork) = length(a.tensors)
 @inline LinearAlgebra.rank(ψ::QMps) = Tuple(size(A, 2) for A ∈ values(ψ.tensors))
 
-measure_memory(M::AbstractArray) = Base.summarysize(M)
+measure_memory(ten::Array) = Base.summarysize(ten)
+measure_memory(ten::CuArray) = prod(size(ten)) * sizeof(eltype(ten))
+measure_memory(ten::Diagonal) = measure_memory(diag(ten))
 measure_memory(ten::SiteTensor) = sum(measure_memory.([ten.loc_exp, ten.projs...]))
 measure_memory(ten::CentralTensor) = sum(measure_memory.([ten.e11, ten.e12, ten.e21, ten.e22]))
 measure_memory(ten::DiagonalTensor) = sum(measure_memory.([ten.e1, ten.e2]))

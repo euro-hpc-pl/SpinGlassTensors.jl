@@ -1,9 +1,11 @@
-function contract_tensor3_matrix(LE::Array{T, 3}, M::Array{T, 2}) where T <: Real
+const CpuMatrix{T} = Union{Array{T, 2}, Diagonal{T, Vector{T}}}
+
+function contract_tensor3_matrix(LE::Array{T, 3}, M::CpuMatrix{T}) where T <: Real
     if typeof(LE) <: CuArray && !(typeof(M) <: CuArray) M = CuArray(M) end # TODO add better handling
     @tensor L[nt, nc, nb] := LE[nt, oc, nb] * M[oc, nc]
 end
 
-function contract_matrix_tensor3(M::Array{T, 2}, LE::Array{T, 3}) where T <: Real
+function contract_matrix_tensor3(M::CpuMatrix{T}, LE::Array{T, 3}) where T <: Real
     if typeof(LE) <: CuArray && !(typeof(M) <: CuArray) M = CuArray(M) end # TODO add better handling
     @tensor L[nt, nc, nb] :=  LE[nt, oc, nb] * M[nc, oc]
 end

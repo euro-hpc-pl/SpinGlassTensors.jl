@@ -64,6 +64,7 @@ end
 function update_reduced_env_right(RE::CuArray{T, 2}, m::Int, M::MpoTensor{T, 4}, B::CuArray{T, 3}) where T <: Real
     K = zeros(T, size(M, 2))
     K[m] = one(T)
+    K = CuArray(K)
     K = reshape(K, 1, size(K, 1), 1)
     for v ∈ M.top
         K = contract_tensor3_matrix(K, v)

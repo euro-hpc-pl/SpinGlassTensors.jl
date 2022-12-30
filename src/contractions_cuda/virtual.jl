@@ -1,3 +1,6 @@
+# @inline r2_over_r1(A) = size(A, 2) / size(A, 1)
+# @inline r1_over_r2(A) = 1 / r2_over_r1(A)
+
 """
 Select optimal order of attaching matrices to L
 """
@@ -327,9 +330,11 @@ function update_reduced_env_right(
     permutedims(ips * Rtemp, (2, 1))
 end
 
-function contract_tensors43(B::VirtualTensor{T, 4}, A::CuArray{T, 3}) where T <: Real
+function contract_tensors43(B::VirtualTensor{T, 4}, A::CuArray{T, 3}) where T <: Real  # REWRITE THIS
     h = B.con
-    if typeof(h) <: CentralTensor h = Array(h) end #TODO add better handling
+
+    h = Array(h)
+    A = Array(A)
 
     sal, _, sar = size(A)
     p_lb, p_l, p_lt, p_rb, p_r, p_rt = B.projs
@@ -342,4 +347,5 @@ function contract_tensors43(B::VirtualTensor{T, 4}, A::CuArray{T, 3}) where T <:
         @inbounds C[:, l, p_lt[l], p_rt[r], :, r] += h[p_l[l], p_r[r]] .* AA
     end
     @cast CC[(x, y), (t1, t2), (b, a)] := C[x, y, t1, t2, b, a]
+    CuArray(CC)
 end

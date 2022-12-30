@@ -33,6 +33,7 @@ function move_to_CUDA!(ten::MpoTensor)
         ten.bot[i] = move_to_CUDA!(ten.bot[i])
     end
     ten.ctr = move_to_CUDA!(ten.ctr)
+    ten
 end
 
 function device(ten::MpoTensor)
@@ -71,7 +72,7 @@ end
 #TODO should we mv this some place else?
 contract_tensor3_matrix(B::AbstractArray{T, 3}, M::MpoTensor{T, 2}) where T <: Real = contract_tensor3_matrix(B, M.ctr)
 contract_matrix_tensor3(M::MpoTensor{T, 2}, B::AbstractArray{T, 3}) where T <: Real = contract_matrix_tensor3(M.ctr, B)
-contract_tensors43(B::Nothing, A::Array{T, 3}) where T <: Real = A
+contract_tensors43(B::Nothing, A::AbstractArray{T, 3}) where T <: Real = A
 
 Base.ndims(ten::MpoTensor{T, N}) where {T, N} = N
 Base.size(ten::MpoTensor, n::Int) = ten.dims[n]
@@ -89,13 +90,6 @@ struct QMpo{T <: Real} <: AbstractTensorNetwork
     end
 end
 
-function move_to_CUDA!(ψ::QMpo)
-    for k ∈ keys(ψ.tensors)
-        move_to_CUDA!(ψ.tensors[k])
-    end
-end
-
-
 struct QMps{T <: Real} <: AbstractTensorNetwork
     tensors::TensorMap{T}
     sites::Vector{Site}
@@ -105,17 +99,14 @@ struct QMps{T <: Real} <: AbstractTensorNetwork
     end
 end
 
-function move_to_CUDA!(ψ::QMps)
+function move_to_CUDA!(ψ::Union{QMpo{T}, QMps{T}}) where T
     for k ∈ keys(ψ.tensors)
-        ψ.tensors[k] = CuArray(ψ.tensors[k])
+        move_to_CUDA!(ψ.tensors[k])
     end
+    ψ
 end
 
-device(ψ::QMps) = union(device(v) for v ∈ values(ψ.tensors))
-device(ψ::QMpo) = union(device(v) for v ∈ values(ψ.tensors))
-
-#TODO this is ugly
-#onGPU(ψ::QMps) = [s for s ∈ device(ψ)][] == :GPU
+device(ψ::Union{QMpo{T}, QMps{T}}) where T = union(device(v) for v ∈ values(ψ.tensors))
 
 @inline Base.getindex(a::AbstractTensorNetwork, i) = getindex(a.tensors, i)
 @inline Base.setindex!(ket::AbstractTensorNetwork, A::AbstractArray, i::Site) = ket.tensors[i] = A
@@ -136,22 +127,20 @@ function mpo_transpose(M::MpoTensor{T, 4}) where T <: Real
     )
 end
 
-
-
 function IdentityQMps(::Type{T}, loc_dims::Dict, Dmax::Int=1) where T <: Real
-    id = TensorMap{T}(keys(loc_dims) .=> zeros.(T, Dmax, values(loc_dims), Dmax))
+    id = TensorMap{T}(keys(loc_dims) .=> CUDA.zeros.(T, Dmax, values(loc_dims), Dmax))
 
     site_min, ld_min = minimum(loc_dims)
     site_max, ld_max = maximum(loc_dims)
     if site_min == site_max
-        id[site_min] = zeros(T, 1, ld_min, 1)
+        id[site_min] = CUDA.zeros(T, 1, ld_min, 1)
     else
-        id[site_min] = zeros(T, 1, ld_min, Dmax)
-        id[site_max] = zeros(T, Dmax, ld_max, 1)
+        id[site_min] = CUDA.zeros(T, 1, ld_min, Dmax)
+        id[site_max] = CUDA.zeros(T, Dmax, ld_max, 1)
     end
 
     for (site, ld) ∈ loc_dims
-        id[site][1, :, 1] .= one(T) / sqrt(ld)
+        id[site][1, :, 1] .= CUDA.one(T) / sqrt(ld)
     end
     QMps(id)
 end

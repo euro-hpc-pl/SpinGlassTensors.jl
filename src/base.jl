@@ -5,7 +5,8 @@ export
     DiagonalTensor,
     CentralTensor,
     CentralOrDiagonal,
-    mpo_transpose
+    mpo_transpose,
+    dense_central
 
 abstract type AbstractSparseTensor{T, N} end
 
@@ -80,11 +81,13 @@ mpo_transpose(ten::CentralTensor) = CentralTensor(permutedims.((ten.e11, ten.e21
 
 const MatOrCentral{T, N} = Union{Matrix{T}, CentralTensor{T, N}}
 
-function Base.CuArray(ten::CentralTensor)  # TODO: DO we need it; maybe for testing
+function dense_central(ten::CentralTensor)  # TODO: DO we need it; maybe for testing and to change sparse to dense in generation of tensors
     @cast V[(u1, u2), (d1, d2)] := ten.e11[u1, d1] * ten.e21[u2, d1] *
                                    ten.e12[u1, d2] * ten.e22[u2, d2]
     V ./ maximum(V)
 end
+
+dense_central(ten::AbstractArray) = ten
 
 
 mutable struct DiagonalTensor{T <: Real, N} <: AbstractSparseTensor{T, N}

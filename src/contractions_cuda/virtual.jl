@@ -66,37 +66,64 @@ function attach_3_matrices_right(
     R
 end
 
+# function attach_2_matrices(
+#     L::S, B2::Q, h::C, R::S
+# ) where {S <: CuArray{T, 3}, Q <: CuArray{T, 2}, C <: Tensor{T, 2}} where T <: Real
+#     h1, h2 = size(h, 1), size(h, 2)
+#     b1, b2 = size(B2, 1), size(B2, 2)
+#     leg_list = [h1, h2, b1, b2]
+#     _, max_index = findmax(leg_list)
+#     biggest_leg = leg_list[max_index]
+
+#     println(size(L), " ", size(B2), " ", size(h), " ", typeof(h), " ", size(R))
+ 
+# @time begin
+#     if biggest_leg ∈ [h1, h2]
+#         println("PATH 1a")
+#         if h1 >= h2
+#             L = contract_tensor3_matrix(L, h)
+#         else
+#             R = contract_matrix_tensor3(h, R)
+#         end
+#         println("PATH 1b")
+#         if b1 >= b2
+#             @tensor L[rfb, x, y] := L[lfb, x, y] * B2[lfb, rfb]
+#         else
+#             @tensor R[x, y, lfb] := R[x, y, rfb] * B2[lfb, rfb]
+#         end
+#         println("PATH 1c")
+#     else
+#         println("PATH 2")
+#         if b1 >= b2
+#             @tensor L[rfb, x, y] := L[lfb, x, y] * B2[lfb, rfb]
+#         else
+#             @tensor R[x, y, lfb] := R[x, y, rfb] * B2[lfb, rfb]
+#         end
+#         if h1 >= h2
+#             L = contract_tensor3_matrix(L, h)
+#         else
+#             R = contract_matrix_tensor3(h, R)
+#         end
+#     end
+# end
+#     @tensor LR[lft, rft] := L[lfb, lfh, lft] * R[rft, lfh, lfb]
+# end
+
+
 function attach_2_matrices(
     L::S, B2::Q, h::C, R::S
 ) where {S <: CuArray{T, 3}, Q <: CuArray{T, 2}, C <: Tensor{T, 2}} where T <: Real
-    h1, h2 = size(h, 1), size(h, 2)
-    b1, b2 = size(B2, 1), size(B2, 2)
-    leg_list = [h1, h2, b1, b2]
-    _, max_index = findmax(leg_list)
-    biggest_leg = leg_list[max_index]
-
-    if biggest_leg ∈ [h1, h2]
-        if h1 >= h2
-            L = contract_tensor3_matrix(L, h)
-        else
-            R = contract_matrix_tensor3(h, R)
-        end
-        if b1 >= b2
-            @tensor L[rfb, x, y] := L[lfb, x, y] * B2[lfb, rfb]
-        else
-            @tensor R[x, y, lfb] := R[x, y, rfb] * B2[lfb, rfb]
-        end
+    (sh1, sh2) = size(h)
+    (sb1, sb2) = size(B2)
+    if sb1 >= sb2
+        @tensor L[rfb, x, y] := L[lfb, x, y] * B2[lfb, rfb]
     else
-        if b1 >= b2
-            @tensor L[rfb, x, y] := L[lfb, x, y] * B2[lfb, rfb]
-        else
-            @tensor R[x, y, lfb] := R[x, y, rfb] * B2[lfb, rfb]
-        end
-        if h1 >= h2
-            L = contract_tensor3_matrix(L, h)
-        else
-            R = contract_matrix_tensor3(h, R)
-        end
+        @tensor R[x, y, lfb] := R[x, y, rfb] * B2[lfb, rfb]
+    end
+    if sh1 >= sh2
+        L = contract_tensor3_matrix(L, h)
+    else
+        R = contract_matrix_tensor3(h, R)
     end
     @tensor LR[lft, rft] := L[lfb, lfh, lft] * R[rft, lfh, lfb]
 end

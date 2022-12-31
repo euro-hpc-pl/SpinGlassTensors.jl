@@ -16,15 +16,6 @@ function LinearAlgebra.svd(A, Dcut::Int=typemax(Int), tol::T=eps(); kwargs...) w
     CuArray(U .* ϕ), CuArray(Σ), CuArray(V .* ϕ)
 end
 
-
-# function LowRankApprox.psvd(A, Dcut::Int=typemax(Int), tol::T=eps(); kwargs...) where T <: Real  # ::AbstractMatrix{T}
-#     U, Σ, V = psvd(A, rank=Dcut; kwargs...)
-#     Σ ./= sum(Σ .^ 2)
-#     ϕ = reshape((phase.(diag(U); atol=tol)), 1, :)
-#     U .* ϕ, Σ, V .* ϕ
-# end
-
-
 function qr_fact(M, Dcut::Int=typemax(Int), tol::T=eps(); kwargs...) where T <: Real  # ::AbstractMatrix{T}
     M = Array(M) # TODO to be fixed
     q, r = qr_fix(qr(M; kwargs...))

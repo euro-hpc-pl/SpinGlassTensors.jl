@@ -5,28 +5,16 @@ export
     DiagonalTensor,
     CentralTensor,
     CentralOrDiagonal,
-    mpo_transpose,
     dense_central
 
 abstract type AbstractSparseTensor{T, N} end
 
 const Proj{N} = NTuple{N, Array{Int, 1}}
-# const CuArrayOrArray{T, N} = Union{AbstractArray{T, N}, CuArray{T, N}} #TODO clean this !!!
-
-# Allow data to reside on CUDA ???
-
-move_to_CUDA!(ten::Array{T, N}) where {T, N} = CuArray(ten)
-move_to_CUDA!(ten::CuArray{T, N}) where {T, N} = ten
-move_to_CUDA!(ten::Diagonal) = Diagonal(move_to_CUDA!(diag(ten)))
-
-device(ten::Array{T, N}) where {T, N} = Set((:CPU,))
-device(ten::CuArray{T, N}) where {T, N} = Set((:GPU,))
-device(ten::Diagonal) = device(diag(ten))
 
 ArrayOrCuArray(L) = typeof(L) <: CuArray ? CuArray : Array # TODO do we need this?
 
 mutable struct SiteTensor{T <: Real, N} <: AbstractSparseTensor{T, N}
-    loc_exp # ::Vector{T}
+    loc_exp # ::AbstractVector{T}
     projs::Proj{4}  # == pl, pt, pr, pb
     dims::Dims{N}
 
@@ -36,21 +24,13 @@ mutable struct SiteTensor{T <: Real, N} <: AbstractSparseTensor{T, N}
     end
 end
 
-device(ten::SiteTensor) = device(ten.loc_exp)
-
-
-function move_to_CUDA!(ten::SiteTensor)
-    ten.loc_exp = move_to_CUDA!(ten.loc_exp)
-    ten
-end
-
 function mpo_transpose(ten::SiteTensor)
     perm = [1, 4, 3, 2]
     SiteTensor(ten.loc_exp, ten.projs[perm], dims=ten.dims[perm])
 end
 
 mutable struct CentralTensor{T <: Real, N} <: AbstractSparseTensor{T, N}
-    e11 #::Matrix{T}
+    e11 #::AbstractMatrix{T}
     e12 #::Matrix{T}
     e21 #::Matrix{T}
     e22 #::Matrix{T}
@@ -58,37 +38,23 @@ mutable struct CentralTensor{T <: Real, N} <: AbstractSparseTensor{T, N}
 
     function CentralTensor(e11, e12, e21, e22)
         s11, s12, s21, s22 = size.((e11, e12, e21, e22))
-        @assert s11[1] == s12[1] && s21[1] == s22[1] &&
-                s11[2] == s21[2] && s12[2] == s22[2]
+        @assert s11[1] == s12[1] && s21[1] == s22[1] && s11[2] == s21[2] && s12[2] == s22[2]
         dims = (s11[1] * s21[1], s11[2] * s12[2])
         T = promote_type(eltype.((e11, e12, e21, e22))...)
         new{T, 2}(e11, e12, e21, e22, dims)
     end
 end
 
-device(ten::CentralTensor) = union(device(ten.e11), device(ten.e12), device(ten.e21), device(ten.e22))
-
-function move_to_CUDA!(ten::CentralTensor)
-    ten.e11 = move_to_CUDA!(ten.e11)
-    ten.e12 = move_to_CUDA!(ten.e12)
-    ten.e21 = move_to_CUDA!(ten.e21)
-    ten.e22 = move_to_CUDA!(ten.e22)
-    ten
-end
-
-
 mpo_transpose(ten::CentralTensor) = CentralTensor(permutedims.((ten.e11, ten.e21, ten.e12, ten.e22), Ref((2, 1)))...)
 
-const MatOrCentral{T, N} = Union{Matrix{T}, CentralTensor{T, N}}
+const MatOrCentral{T, N} = Union{AbstractMatrix{T}, CentralTensor{T, N}}
 
-function dense_central(ten::CentralTensor)  # TODO: DO we need it; maybe for testing and to change sparse to dense in generation of tensors
-    @cast V[(u1, u2), (d1, d2)] := ten.e11[u1, d1] * ten.e21[u2, d1] *
-                                   ten.e12[u1, d2] * ten.e22[u2, d2]
+# TODO: to be removed eventually
+function dense_central(ten::CentralTensor)
+    @cast V[(u1, u2), (d1, d2)] := ten.e11[u1, d1] * ten.e21[u2, d1] * ten.e12[u1, d2] * ten.e22[u2, d2]
     V ./ maximum(V)
 end
-
 dense_central(ten::AbstractArray) = ten
-
 
 mutable struct DiagonalTensor{T <: Real, N} <: AbstractSparseTensor{T, N}
     e1 # ::MatOrCentral{T, N}
@@ -101,15 +67,6 @@ mutable struct DiagonalTensor{T <: Real, N} <: AbstractSparseTensor{T, N}
         new{T, 2}(e1, e2, dims)
     end
 end
-
-function move_to_CUDA!(ten::DiagonalTensor)
-    ten.e1 = move_to_CUDA!(ten.e1)
-    ten.e2 = move_to_CUDA!(ten.e2)
-    ten
-end
-
-device(ten::DiagonalTensor) = union(device(ten.e1), device(ten.e2))
-
 
 mpo_transpose(ten::DiagonalTensor) = DiagonalTensor(mpo_transpose.((ten.e2, ten.e1))...)
 
@@ -126,24 +83,15 @@ mutable struct VirtualTensor{T <: Real, N} <: AbstractSparseTensor{T, N}
     end
 end
 
-device(ten::VirtualTensor) = device(ten.con)
-
-function move_to_CUDA!(ten::VirtualTensor)
-    ten.con = move_to_CUDA!(ten.con)
-    ten
-end
-
 mpo_transpose(ten::VirtualTensor) = VirtualTensor(ten.con, ten.projs[[3, 2, 1, 6, 5, 4]])
-mpo_transpose(ten::AbstractArray{<:Real, 4}) = permutedims(ten, (1, 4, 3, 2))
-mpo_transpose(ten::AbstractArray{<:Real, 2}) = permutedims(ten, (2, 1))
+mpo_transpose(ten::AbstractArray{T, 4}) where T = permutedims(ten, (1, 4, 3, 2))
+mpo_transpose(ten::AbstractArray{T, 2}) where T = permutedims(ten, (2, 1))
 
-const SparseTensor{T, N} = Union{
-    SiteTensor{T, N}, VirtualTensor{T, N}, CentralTensor{T, N}, DiagonalTensor{T, N}
-}
+const SparseTensor{T, N} = Union{SiteTensor{T, N}, VirtualTensor{T, N}, CentralTensor{T, N}, DiagonalTensor{T, N}}
 const Tensor{T, N} = Union{AbstractArray{T, N}, SparseTensor{T, N}}
 const CentralOrDiagonal{T, N} = Union{CentralTensor{T, N}, DiagonalTensor{T, N}}
 
-Base.eltype(ten::Tensor{T, N}) where {T <: Real, N} = T
+Base.eltype(ten::Tensor{T, N}) where {T, N} = T
 Base.ndims(ten::Tensor{T, N}) where {T, N} = N
 Base.size(ten::SparseTensor, n::Int) = ten.dims[n]
 Base.size(ten::SparseTensor) = ten.dims

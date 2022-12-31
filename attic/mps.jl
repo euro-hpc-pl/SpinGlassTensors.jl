@@ -4,9 +4,10 @@ export
     AbstractTensorNetwork,
     local_dims,
     IdentityQMps,
-    move_to_CUDA!,
-    device,
-    MpoTensor, QMpo, QMps, TensorMap
+    MpoTensor,
+    TensorMap,
+    QMpo,
+    QMps
 
 abstract type AbstractTensorNetwork end
 
@@ -14,30 +15,11 @@ const Site = Union{Int, Rational{Int}}
 const Sites = NTuple{N, Site} where N
 const TensorMap{T} = Dict{Site, Union{Tensor{T, 2}, Tensor{T, 3}, Tensor{T, 4}}}  # 2 and 4 - mpo;  3 - mps
 
-
 mutable struct MpoTensor{T <: Real, N}
     top::Vector{Tensor{T, 2}}  # N == 2 top = []
     ctr:: Union{Tensor{T, N}, Nothing}
     bot::Vector{Tensor{T, 2}}  # N == 2 bot = []
     dims::Dims{N}
-end
-
-move_to_CUDA!(ten::Nothing) = ten
-device(ten::Nothing) = Set()
-
-function move_to_CUDA!(ten::MpoTensor)
-    for i in 1:length(ten.top)
-        ten.top[i] = move_to_CUDA!(ten.top[i])
-    end
-    for i in 1:length(ten.bot)
-        ten.bot[i] = move_to_CUDA!(ten.bot[i])
-    end
-    ten.ctr = move_to_CUDA!(ten.ctr)
-    ten
-end
-
-function device(ten::MpoTensor)
-    union(device(ten.ctr), device.(ten.top)..., device.(ten.bot)...)
 end
 
 Base.eltype(ten::MpoTensor{T, N}) where {T <: Real, N} = T
@@ -98,15 +80,6 @@ struct QMps{T <: Real} <: AbstractTensorNetwork
         new{T}(ten, sort(collect(keys(ten))))
     end
 end
-
-function move_to_CUDA!(ψ::Union{QMpo{T}, QMps{T}}) where T
-    for k ∈ keys(ψ.tensors)
-        move_to_CUDA!(ψ.tensors[k])
-    end
-    ψ
-end
-
-device(ψ::Union{QMpo{T}, QMps{T}}) where T = union(device(v) for v ∈ values(ψ.tensors))
 
 @inline Base.getindex(a::AbstractTensorNetwork, i) = getindex(a.tensors, i)
 @inline Base.setindex!(ket::AbstractTensorNetwork, A::AbstractArray, i::Site) = ket.tensors[i] = A

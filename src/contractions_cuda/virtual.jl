@@ -69,50 +69,6 @@ function attach_3_matrices_right(
     R
 end
 
-# function attach_2_matrices(
-#     L::S, B2::Q, h::C, R::S
-# ) where {S <: CuArray{T, 3}, Q <: CuArray{T, 2}, C <: Tensor{T, 2}} where T <: Real
-#     h1, h2 = size(h, 1), size(h, 2)
-#     b1, b2 = size(B2, 1), size(B2, 2)
-#     leg_list = [h1, h2, b1, b2]
-#     _, max_index = findmax(leg_list)
-#     biggest_leg = leg_list[max_index]
-
-#     println(size(L), " ", size(B2), " ", size(h), " ", typeof(h), " ", size(R))
- 
-# @time begin
-#     if biggest_leg ∈ [h1, h2]
-#         println("PATH 1a")
-#         if h1 >= h2
-#             L = contract_tensor3_matrix(L, h)
-#         else
-#             R = contract_matrix_tensor3(h, R)
-#         end
-#         println("PATH 1b")
-#         if b1 >= b2
-#             @tensor L[rfb, x, y] := L[lfb, x, y] * B2[lfb, rfb]
-#         else
-#             @tensor R[x, y, lfb] := R[x, y, rfb] * B2[lfb, rfb]
-#         end
-#         println("PATH 1c")
-#     else
-#         println("PATH 2")
-#         if b1 >= b2
-#             @tensor L[rfb, x, y] := L[lfb, x, y] * B2[lfb, rfb]
-#         else
-#             @tensor R[x, y, lfb] := R[x, y, rfb] * B2[lfb, rfb]
-#         end
-#         if h1 >= h2
-#             L = contract_tensor3_matrix(L, h)
-#         else
-#             R = contract_matrix_tensor3(h, R)
-#         end
-#     end
-# end
-#     @tensor LR[lft, rft] := L[lfb, lfh, lft] * R[rft, lfh, lfb]
-# end
-
-
 function attach_2_matrices(
     L::S, B2::Q, h::C, R::S
 ) where {S <: CuArray{T, 3}, Q <: CuArray{T, 2}, C <: Tensor{T, 2}} where T <: Real
@@ -131,10 +87,7 @@ function attach_2_matrices(
     @tensor LR[lft, rft] := L[lfb, lfh, lft] * R[rft, lfh, lfb]
 end
 
-function update_env_left(
-    L::S, A::S, M::VirtualTensor{T}, B::S
-) where {S <: CuArray{T, 3}} where T <: Real
-
+function update_env_left(L::S, A::S, M::VirtualTensor{T}, B::S) where {S <: CuArray{T, 3}} where T <: Real
     h = M.con
     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
 
@@ -192,9 +145,7 @@ function update_env_left(
     permutedims(Lout, (2, 1, 3)) ./ maximum(abs.(Lout))  # [rb, rcp, rt]
 end
 
-function update_env_right(
-    R::S, A::S, M::VirtualTensor{T}, B::S
-) where {S <: CuArray{T, 3}} where T <: Real
+function update_env_right(R::S, A::S, M::VirtualTensor{T}, B::S) where {S <: CuArray{T, 3}} where T <: Real
     h = M.con
     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
 
@@ -249,9 +200,7 @@ function update_env_right(
     permutedims(Rout, (2, 1, 3)) ./ maximum(abs.(Rout)) #[lb, lcp, lt]
 end
 
-function project_ket_on_bra(
-    L::S, B::S, M::VirtualTensor{T}, R::S
-) where {S <: CuArray{T, 3}} where T <: Real
+function project_ket_on_bra(L::S, B::S, M::VirtualTensor{T}, R::S) where {S <: CuArray{T, 3}} where T <: Real
     h = M.con
     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
 
@@ -305,10 +254,7 @@ function project_ket_on_bra(
     LRout ./ maximum(abs.(LRout))
 end
 
-
-function update_reduced_env_right(
-    K::CuArray{T, 1}, RE::CuArray{T, 2}, M::VirtualTensor{T}, B::CuArray{T, 3}
-) where T <: Real
+function update_reduced_env_right(K::CuArray{T, 1}, RE::CuArray{T, 2}, M::VirtualTensor{T}, B::CuArray{T, 3}) where T <: Real
     h = M.con
 
     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
@@ -330,7 +276,8 @@ function update_reduced_env_right(
     permutedims(ips * Rtemp, (2, 1))
 end
 
-function contract_tensors43(B::VirtualTensor{T, 4}, A::CuArray{T, 3}) where T <: Real  # REWRITE THIS
+# TODO rewrite this function, too many nasty patches now
+function contract_tensors43(B::VirtualTensor{T, 4}, A::CuArray{T, 3}) where T <: Real
     h = B.con
 
     h = Array(dense_central(h))

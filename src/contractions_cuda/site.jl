@@ -30,36 +30,28 @@ function contract_sparse_with_three(
     permutedims(out, (2, 1, 3))
 end
 
-function update_env_left(
-    LE::S, A::S, M::T, B::S
-) where {S <: CuArray{R, 3}, T <: SiteTensor{R}} where R <: Real
+function update_env_left(LE::S, A::S, M::T, B::S) where {S <: CuArray{R, 3}, T <: SiteTensor{R}} where R <: Real
     B = permutedims(B, (3, 1, 2))
     LE = permutedims(LE, (1, 3, 2))
     A = permutedims(A, (1, 3, 2))
     contract_sparse_with_three(B, LE, A, M.loc_exp, M.projs[[4, 1, 2, 3]]...)
 end
 
-function update_env_right(
-    RE::S, A::S, M::SiteTensor{R}, B::S
-) where {S <: CuArray{R, 3}} where R <: Real
+function update_env_right(RE::S, A::S, M::SiteTensor{R}, B::S) where {S <: CuArray{R, 3}} where R <: Real
     A = permutedims(A, (1, 3, 2))
     RE = permutedims(RE, (1, 3, 2))
     B = permutedims(B, (3, 1, 2))
     contract_sparse_with_three(A, RE, B, M.loc_exp, M.projs[[2, 3, 4, 1]]...)
 end
 
-function project_ket_on_bra(
-    LE::S, B::S, M::SiteTensor{R}, RE::S
-) where {S <: CuArray{R, 3}} where R <: Real
+function project_ket_on_bra(LE::S, B::S, M::SiteTensor{R}, RE::S) where {S <: CuArray{R, 3}} where R <: Real
     LE = permutedims(LE, (3, 1, 2))
     B = permutedims(B, (1, 3, 2))
     RE = permutedims(RE, (3, 1, 2))
     contract_sparse_with_three(LE, B, RE, M.loc_exp, M.projs[[1, 4, 3, 2]]...)
 end
 
-function update_reduced_env_right(
-    K::CuArray{T, 1}, RE::CuArray{T, 2}, M::SiteTensor{T}, B::CuArray{T, 3}
-) where T <: Real
+function update_reduced_env_right(K::CuArray{T, 1}, RE::CuArray{T, 2}, M::SiteTensor{T}, B::CuArray{T, 3}) where T <: Real
     Kloc_exp = M.loc_exp .* K[M.projs[2]]
 
     B = permutedims(B, (1, 3, 2))
@@ -92,9 +84,7 @@ function contract_tensors43(M::SiteTensor{T, 4}, B::CuArray{T, 3}) where T <: Re
     reshape(permutedims(out, (4, 1, 2, 5, 3)), sb1 * sm1, sm2, sb3 * sm3)
 end
 
-function corner_matrix(
-    C::S, M::T, B::S
-) where {S <: CuArray{R, 3}, T <: SiteTensor{R, 4}} where R <: Real
+function corner_matrix(C::S, M::T, B::S) where {S <: CuArray{R, 3}, T <: SiteTensor{R, 4}} where R <: Real
     sb1 = size(B, 1)
     sc1 = size(C, 1)
     B = permutedims(B, (1, 3, 2))

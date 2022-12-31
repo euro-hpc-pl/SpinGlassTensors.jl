@@ -6,7 +6,7 @@ export
 abstract type AbstractEnvironment end
 
 mutable struct Environment{T <: Real} <: AbstractEnvironment
-    bra::QMps{T}  # ψ to be optimized
+    bra::QMps{T}  # mps that is to be optimized
     mpo::QMpo{T}
     ket::QMps{T}
     env::Dict
@@ -51,9 +51,7 @@ end
       |    |
         -- B --
 """
-function update_env_left(
-    LE::S, A::S, M::T, B::S
-) where {S <: AbstractArray{R, 3}, T <: MpoTensor{R, 4}} where R <: Real
+function update_env_left(LE::S, A::S, M::T, B::S) where {S <: AbstractArray{R, 3}, T <: MpoTensor{R, 4}} where R <: Real
     for v ∈ M.top A = contract_tensor3_matrix(A, v) end
     for v ∈ reverse(M.bot) B = contract_matrix_tensor3(v, B) end
     update_env_left(LE, A, M.ctr, B)
@@ -104,9 +102,7 @@ end
    |    |    |
      -- B --
 """
-function project_ket_on_bra(
-    LE::S, B::S, M::T, RE::S
-) where {S <: AbstractArray{R, 3}, T <: MpoTensor{R, 4}} where R <: Real
+function project_ket_on_bra(LE::S, B::S, M::T, RE::S) where {S <: AbstractArray{R, 3}, T <: MpoTensor{R, 4}} where R <: Real
     for v ∈ reverse(M.bot) B = contract_matrix_tensor3(v, B) end
     B = project_ket_on_bra(LE, B, M.ctr, RE)
     for v ∈ reverse(M.top) B = contract_matrix_tensor3(v, B) end
@@ -114,9 +110,7 @@ function project_ket_on_bra(
 end
 
 function project_ket_on_bra(env::Environment, site::Site)
-    project_ket_on_bra(
-        env.env[(site, :left)], env.ket[site], env.mpo[site], env.env[(site, :right)]
-    )
+    project_ket_on_bra(env.env[(site, :left)], env.ket[site], env.mpo[site], env.env[(site, :right)])
 end
 
 function measure_env(env::Environment, site::Site)

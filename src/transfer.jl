@@ -7,7 +7,7 @@ export
     move_to_CUDA!
 
 move_to_CUDA!(ten::Array{T, N}) where {T, N} = CuArray(ten)
-move_to_CUDA!(ten::CuArray{T, N}) where {T, N} = ten
+move_to_CUDA!(ten::Union{CuArray{T, N}, Nothing}) where {T, N} = ten
 move_to_CUDA!(ten::Diagonal) = Diagonal(move_to_CUDA!(diag(ten)))
 
 function move_to_CUDA!(ten::CentralTensor)
@@ -34,8 +34,6 @@ function move_to_CUDA!(ten::SiteTensor)
     ten
 end
 
-move_to_CUDA!(ten::Nothing) = ten
-
 function move_to_CUDA!(ten::MpoTensor)
     for i ∈ 1:length(ten.top) ten.top[i] = move_to_CUDA!(ten.top[i]) end
     for i ∈ 1:length(ten.bot) ten.bot[i] = move_to_CUDA!(ten.bot[i]) end
@@ -45,6 +43,7 @@ end
 
 function move_to_CUDA!(ψ::Union{QMpo{T}, QMps{T}}) where T
     for k ∈ keys(ψ.tensors) move_to_CUDA!(ψ[k]) end
+    ψ.onGPU = true
     ψ
 end
 

@@ -1,3 +1,5 @@
+# base.jl: This file defines basic tensor structures to be used with SpinGlassEngine
+
 export
     Tensor,
     SiteTensor,
@@ -11,10 +13,8 @@ abstract type AbstractSparseTensor{T, N} end
 
 const Proj{N} = NTuple{N, Array{Int, 1}}
 
-ArrayOrCuArray(L) = typeof(L) <: CuArray ? CuArray : Array # TODO do we need this?
-
 mutable struct SiteTensor{T <: Real, N} <: AbstractSparseTensor{T, N}
-    loc_exp # ::AbstractVector{T}
+    loc_exp::AbstractVector{T}
     projs::Proj{4}  # == pl, pt, pr, pb
     dims::Dims{N}
 
@@ -30,10 +30,10 @@ function mpo_transpose(ten::SiteTensor)
 end
 
 mutable struct CentralTensor{T <: Real, N} <: AbstractSparseTensor{T, N}
-    e11 #::AbstractMatrix{T}
-    e12 #::Matrix{T}
-    e21 #::Matrix{T}
-    e22 #::Matrix{T}
+    e11::AbstractMatrix{T}
+    e12::AbstractMatrix{T}
+    e21::AbstractMatrix{T}
+    e22::AbstractMatrix{T}
     dims::Dims{N}
 
     function CentralTensor(e11, e12, e21, e22)
@@ -57,8 +57,8 @@ end
 dense_central(ten::AbstractArray) = ten
 
 mutable struct DiagonalTensor{T <: Real, N} <: AbstractSparseTensor{T, N}
-    e1 # ::MatOrCentral{T, N}
-    e2 # ::MatOrCentral{T, N}
+    e1::MatOrCentral{T, N}
+    e2::MatOrCentral{T, N}
     dims::Dims{N}
 
     function DiagonalTensor(e1, e2)
@@ -71,7 +71,7 @@ end
 mpo_transpose(ten::DiagonalTensor) = DiagonalTensor(mpo_transpose.((ten.e2, ten.e1))...)
 
 mutable struct VirtualTensor{T <: Real, N} <: AbstractSparseTensor{T, N}
-    con # ::MatOrCentral{T, 2}
+    con::MatOrCentral{T, 2}
     projs::Proj{6}  # == (p_lb, p_l, p_lt, p_rb, p_r, p_rt)
     dims::Dims{N}
 

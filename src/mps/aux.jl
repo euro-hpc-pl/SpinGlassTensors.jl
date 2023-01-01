@@ -1,3 +1,5 @@
+# ./mps/aux.jl: This file provides auxiliary functions to verify various MPS properties.
+
 export
     bond_dimension,
     bond_dimensions,

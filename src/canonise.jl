@@ -1,3 +1,6 @@
+
+# canonise.jl: This file provides basic function to left / right truncate / canonise MPS. CUDA is supported.
+
 export
     canonise!,
     truncate!,
@@ -29,7 +32,7 @@ function canonise_truncate!(ψ::QMps, type::Symbol, Dcut::Int=typemax(Int), tolS
 end
 
 function _right_sweep!(ψ::QMps{T}, Dcut::Int=typemax(Int), tolS::T=eps(); kwargs...) where T <: Real
-    R = CUDA.ones(T, 1, 1) #TODO this should be automatic
+    R = (ψ.onGPU ? CUDA.ones : ones)(T, 1, 1)
     for i ∈ ψ.sites
         A = ψ[i]
         @matmul M[(x, σ), y] := sum(α) R[x, α] * A[α, σ, y]
@@ -41,7 +44,7 @@ function _right_sweep!(ψ::QMps{T}, Dcut::Int=typemax(Int), tolS::T=eps(); kwarg
 end
 
 function _left_sweep!(ψ::QMps{T}, Dcut::Int=typemax(Int), tolS::T=eps(); kwargs...) where T <: Real
-    R = CUDA.ones(T, 1, 1) #TODO as above
+    R = (ψ.onGPU ? CUDA.ones : ones)(T, 1, 1)
     for i ∈ reverse(ψ.sites)
         B = ψ[i]
         @matmul M[x, (σ, y)] := sum(α) B[x, σ, α] * R[α, y]

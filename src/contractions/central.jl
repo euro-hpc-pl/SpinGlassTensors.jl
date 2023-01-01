@@ -3,6 +3,9 @@ export
     contract_matrix_tensor3,
     update_reduced_env_right
 
+#TODO to be removed eventually
+ArrayOrCuArray(L) = typeof(L) <: CuArray ? CuArray : Array
+
 function contract_tensor3_matrix(L::Array{T, 3}, M::CentralTensor{T, 2}) where T <: Real
     e11, e12, e21, e22 = ArrayOrCuArray(L).((M.e11, M.e12, M.e21, M.e22))
 
@@ -68,7 +71,5 @@ function contract_matrix_tensor3( M::CentralTensor{T, 2}, R::Array{T, 3}) where 
 end
 
 function update_reduced_env_right(RR::Array{T, 2}, M::CentralTensor{T, 2}) where T <: Real
-    RR = reshape(RR, size(RR, 1), size(RR, 2), 1)
-    RR = contract_matrix_tensor3(M, RR)
-    dropdims(RR, dims=3)
+    dropdims(contract_matrix_tensor3(M, reshape(RR, size(RR, 1), size(RR, 2), 1)), dims=3)
 end

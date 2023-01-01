@@ -13,7 +13,7 @@ mutable struct Environment{T <: Real} <: AbstractEnvironment
 
     function Environment(bra::QMps{T}, mpo::QMpo{T}, ket::QMps{T}) where T <: Real
         @assert bra.sites == ket.sites && issubset(bra.sites, mpo.sites)
-        id = CUDA.ones(T, 1, 1, 1)
+        id =  (bra.onGPU && mpo.onGPU && ket.onGPU ? CUDA.ones : ones)(T, 1, 1, 1)
         env0 = Dict((bra.sites[1], :left) => id, (bra.sites[end], :right) => id)
         env = new{T}(bra, mpo, ket, env0)
         update_env_left!.(Ref(env), env.bra.sites)
@@ -109,9 +109,9 @@ function project_ket_on_bra(LE::S, B::S, M::T, RE::S) where {S <: AbstractArray{
     B
 end
 
-function project_ket_on_bra(env::Environment, site::Site)
-    project_ket_on_bra(env.env[(site, :left)], env.ket[site], env.mpo[site], env.env[(site, :right)])
-end
+project_ket_on_bra(env::Environment, site::Site) = project_ket_on_bra(
+    env.env[(site, :left)], env.ket[site], env.mpo[site], env.env[(site, :right)]
+)
 
 function measure_env(env::Environment, site::Site)
     L = update_env_left(env.env[(site, :left)], env.bra[site], env.mpo[site], env.ket[site])

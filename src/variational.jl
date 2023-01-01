@@ -1,3 +1,8 @@
+
+
+# variational.jl: This file provides basic functions to perform variational compression for MPS.
+#                 If the MPS is moved to the GPU, its compression will be performed on the device.
+
 export
     variational_compress!,
     variational_sweep!

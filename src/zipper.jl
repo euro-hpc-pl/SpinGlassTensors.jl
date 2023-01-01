@@ -28,7 +28,7 @@ input ϕ (results) should be canonized :left (:right)
 """
 function zipper(ψ::QMpo{R}, ϕ::QMps{R}; method::Symbol=:svd, Dcut::Int=typemax(Int), tol=eps(), kwargs...) where R <: Real
     D = TensorMap{R}()
-    C = CUDA.ones(R, 1, 1, 1)
+    C = (ψ.onGPU && ϕ.onGPU ? CUDA.ones : ones)(R, 1, 1, 1)
     mpo_li = last(ψ.sites)
     for i ∈ reverse(ϕ.sites)
         while mpo_li > i

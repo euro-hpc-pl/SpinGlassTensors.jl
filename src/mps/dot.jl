@@ -1,3 +1,6 @@
+# ./mps/dot.jl: This file provides basic functionality to compute the dot product between MPS
+#               Other functions to contract MPS with other tensors are also provided.
+
 LinearAlgebra.norm(ψ::QMps) = sqrt(abs(dot(ψ, ψ)))
 
 Base.:(*)(ϕ::QMps, ψ::QMps) = dot(ϕ, ψ)
@@ -5,7 +8,7 @@ Base.:(*)(W::QMpo, ψ::QMps) = dot(W, ψ)
 
 function LinearAlgebra.dot(ψ::QMps{T}, ϕ::QMps{T}) where T <: Real
     @assert ψ.sites == ϕ.sites
-    C = CUDA.ones(T, 1, 1)
+    C = (ψ.onGPU && ϕ.onGPU ? CUDA.ones : ones)(T, 1, 1)
     for i ∈ ϕ.sites
         A, B = ϕ[i], ψ[i]
         @tensor C[x, y] := conj(B)[β, σ, x] * C[β, α] * A[α, σ, y] order = (α, β, σ)
@@ -34,7 +37,7 @@ function LinearAlgebra.dot(ψ::QMpo{R}, ϕ::QMps{R}) where R <: Real
         end
         push!(D, i => B)
     end
-    QMps(D)
+    QMps(D; onGPU = ψ.onGPU && ϕ.onGPU)
 end
 
 contract_tensor3_matrix(B::AbstractArray{T, 3}, M::MpoTensor{T, 2}) where T <: Real = contract_tensor3_matrix(B, M.ctr)

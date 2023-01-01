@@ -1,23 +1,27 @@
+# ./mps/identity.jl: This file provides custom MPS Identity. Note, this approach is easier than
+#                    trying to overload the universal identity operator, I, from LinearAlgebra.
+
 export
     local_dims,
     IdentityQMps
 
-function IdentityQMps(::Type{T}, loc_dims::Dict, Dmax::Int=1) where T <: Real
-    id = TensorMap{T}(keys(loc_dims) .=> CUDA.zeros.(T, Dmax, values(loc_dims), Dmax))
+function IdentityQMps(::Type{T}, loc_dims::Dict, Dmax::Int=1; onGPU=true) where T <: Real
+    _zeros = (onGPU ? CUDA.zeros : zeros)
+    id = TensorMap{T}(keys(loc_dims) .=> _zeros.(T, Dmax, values(loc_dims), Dmax))
 
     site_min, ld_min = minimum(loc_dims)
     site_max, ld_max = maximum(loc_dims)
     if site_min == site_max
-        id[site_min] = CUDA.zeros(T, 1, ld_min, 1)
+        id[site_min] = _zeros(T, 1, ld_min, 1)
     else
-        id[site_min] = CUDA.zeros(T, 1, ld_min, Dmax)
-        id[site_max] = CUDA.zeros(T, Dmax, ld_max, 1)
+        id[site_min] = _zeros(T, 1, ld_min, Dmax)
+        id[site_max] = _zeros(T, Dmax, ld_max, 1)
     end
 
     for (site, ld) ∈ loc_dims
-        id[site][1, :, 1] .= CUDA.one(T) / sqrt(ld)
+        id[site][1, :, 1] .= 1 / sqrt(ld)
     end
-    QMps(id)
+    QMps(id; onGPU=onGPU)
 end
 
 function local_dims(mpo::QMpo, dir::Symbol)

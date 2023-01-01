@@ -1,13 +1,12 @@
+# ./mps/base.jl: This file provides basic definitions of custom Matrix Product States / Operators.
+
 export
     Site,
     Sites,
     AbstractTensorNetwork,
-    MpoTensor,
-    TensorMap,
-    QMpo,
-    QMps
+    MpoTensor
 
-abstract type AbstractTensorNetwork end
+abstract type AbstractTensorNetwork{T} end
 
 const Site = Union{Int, Rational{Int}}
 const Sites = NTuple{N, Site} where N
@@ -15,12 +14,10 @@ const TensorMap{T} = Dict{Site, Union{Tensor{T, 2}, Tensor{T, 3}, Tensor{T, 4}}}
 
 mutable struct MpoTensor{T <: Real, N}
     top::Vector{Tensor{T, 2}}  # N == 2 top = []
-    ctr:: Union{Tensor{T, N}, Nothing}
+    ctr::Union{Tensor{T, N}, Nothing}
     bot::Vector{Tensor{T, 2}}  # N == 2 bot = []
     dims::Dims{N}
 end
-
-Base.eltype(ten::MpoTensor{T, N}) where {T, N} = T
 
 function MpoTensor(ten::TensorMap{T}) where T
     sk = sort(collect(keys(ten)))
@@ -49,27 +46,25 @@ function MpoTensor(ten::TensorMap{T}) where T
     MpoTensor{T, nn}(top, ctr, bot, dims)
 end
 
+Base.eltype(ten::MpoTensor{T, N}) where {T, N} = T
 Base.ndims(ten::MpoTensor{T, N}) where {T, N} = N
 Base.size(ten::MpoTensor, n::Int) = ten.dims[n]
 Base.size(ten::MpoTensor) = ten.dims
 
-const MpoTensorMap{T} = Dict{Site, MpoTensor{T}}  # MpoMap
+const MpoTensorMap{T} = Dict{Site, MpoTensor{T}}
 
-struct QMpo{T <: Real} <: AbstractTensorNetwork
-    tensors::MpoTensorMap{T}
-    sites::Vector{Site}
+for (S, M) ∈ ((:QMpo, :MpoTensorMap), (:QMps, :TensorMap))
+    @eval begin
+        export $S, $M
+        mutable struct $S{F <: Real} <: AbstractTensorNetwork{F}
+            tensors::$M{F}
+            sites::Vector{Site}
+            onGPU::Bool
 
-    function QMpo(ten::MpoTensorMap{T}) where T
-        new{T}(ten, sort(collect(keys(ten))))
-    end
-end
-
-struct QMps{T <: Real} <: AbstractTensorNetwork
-    tensors::TensorMap{T}
-    sites::Vector{Site}
-
-    function QMps(ten::TensorMap{T}) where T
-        new{T}(ten, sort(collect(keys(ten))))
+            function $S(ten::$M{F}; onGPU::Bool=false) where F
+                new{F}(ten, sort(collect(keys(ten))), onGPU)
+            end
+        end
     end
 end
 

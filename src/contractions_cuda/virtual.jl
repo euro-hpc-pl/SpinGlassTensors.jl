@@ -137,8 +137,7 @@ function update_env_right(R::S, A::S, M::VirtualTensor{T}, B::S) where {S <: CuA
     slt, srt = size(A, 1), size(A, 3)
     slcp = length(p_l)
 
-    slcb, slc, slct = maximum(p_lb), maximum(p_l), maximum(p_lt)
-    srcb, src, srct = maximum(p_rb), maximum(p_r), maximum(p_rt)
+    slcb, srcb, src, srct = maximum(p_lb), maximum(p_rb), maximum(p_r), maximum(p_rt)
     prs = CuSparseMatrixCSR(T, p_lb, p_l, p_lt)
     ps = CuSparseMatrixCSC(T, p_rb, p_r, p_rt)
 
@@ -149,7 +148,7 @@ function update_env_right(R::S, A::S, M::VirtualTensor{T}, B::S) where {S <: CuA
     rb_from = 1
     while rb_from <= srb
         rb_to = min(rb_from + batch_size - 1, srb)
-        Rslc = R[:, :, rb_from : rb_to]
+        Rslc = R[:, :, rb_from:rb_to]
         Rslc = permutedims(Rslc, (2, 3, 1))  # [rcp, rb, rt]
         @cast Rslc[rcp, (rb, rt)] := Rslc[rcp, rb, rt]
         Rslc = ps * Rslc  # [(rcb, rc, rct), (rb, rt)]
@@ -160,7 +159,7 @@ function update_env_right(R::S, A::S, M::VirtualTensor{T}, B::S) where {S <: CuA
         lb_from = 1
         while lb_from <= slb
             lb_to = min(lb_from + batch_size - 1, slb)
-            Btemp = B[lb_from : lb_to, :, rb_from : rb_to]
+            Btemp = B[lb_from:lb_to, :, rb_from:rb_to]
             @cast B2[(lb, lcb), (rcb, rb)] := Btemp[lb, (lcb, rcb), rb] (rcb ∈ 1:srcb)
             Rtemp = attach_3_matrices_right(Rslc, B2, h, A2)
             @cast Rtemp[lb, lcb, lc, lt, lct] := Rtemp[(lb, lcb), lc, (lt, lct)] (lcb ∈ 1:slcb, lt ∈ 1:slt)

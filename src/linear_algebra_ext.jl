@@ -14,7 +14,6 @@ function LinearAlgebra.svd(A::AbstractMatrix{T}, Dcut::Int=typemax(Int), tol::T=
     CuArray.((U .* ϕ, Σ, V .* ϕ))
 end
 
-
 function qr_fact(M::AbstractMatrix{T}, Dcut::Int=typemax(Int), tol::T=eps(); kwargs...) where T <: Real
     M = Array(M) # TODO to be fixed
     q, r = qr_fix(qr(M; kwargs...))
@@ -26,8 +25,9 @@ end
 
 #=
 function qr_fact(M::AbstractMatrix{T}, Dcut::Int=typemax(Int), tol::T=eps(); kwargs...) where T <: Real
-#    q, r = qr_fix(qr(M; kwargs...))
-    q, r = qr(M; kwargs...)
+    CUDA.allowscalar(true)
+    q, r = qr_fix(qr(M; kwargs...))
+    CUDA.allowscalar(false)
     Dcut >= size(q, 2) && return q, r
     U, Σ, V = svd(r, Dcut, tol)
     q * U, Σ .* V'
@@ -37,10 +37,10 @@ end
 function rq_fact(M::AbstractMatrix{T}, Dcut::Int=typemax(Int), tol::T=eps(); kwargs...) where T <: Real
     q, r = qr_fact(M', Dcut, tol; kwargs...)
     CuArray.((r', q'))
-    #r', q'
 end
 
 function qr_fix(QR_fact; tol::T=eps()) where T <: Real  #LinearAlgebra.QRCompactWY
     ϕ = phase.(diag(QR_fact.R); atol=tol)
     QR_fact.Q * Diagonal(ϕ), ϕ .* QR_fact.R
+#    QR_fact.Q * CuArray(Diagonal(ϕ)), ϕ .* QR_fact.R # do reshape here, CUDA only
 end

@@ -50,7 +50,7 @@ function zipper(ψ::QMpo{R}, ϕ::QMps{R}; method::Symbol=:svd, Dcut::Int=typemax
         C = permutedims(C, (3, 2, 1))
         push!(D, i => V)
     end
-    QMps(D)
+    QMps(D; onGPU = ψ.onGPU && ϕ.onGPU)
 end
 
 function Base.Array(CM::CornerTensor)

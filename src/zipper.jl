@@ -27,8 +27,9 @@ end
 input ϕ (results) should be canonized :left (:right)
 """
 function zipper(ψ::QMpo{R}, ϕ::QMps{R}; method::Symbol=:svd, Dcut::Int=typemax(Int), tol=eps(), kwargs...) where R <: Real
+    onGPU = ψ.onGPU && ϕ.onGPU
     D = TensorMap{R}()
-    C = (ψ.onGPU && ϕ.onGPU ? CUDA.ones : ones)(R, 1, 1, 1)
+    C = (onGPU ? CUDA.ones : ones)(R, 1, 1, 1)
     mpo_li = last(ψ.sites)
     for i ∈ reverse(ϕ.sites)
         while mpo_li > i
@@ -50,7 +51,7 @@ function zipper(ψ::QMpo{R}, ϕ::QMps{R}; method::Symbol=:svd, Dcut::Int=typemax
         C = permutedims(C, (3, 2, 1))
         push!(D, i => V)
     end
-    QMps(D; onGPU = ψ.onGPU && ϕ.onGPU)
+    QMps(D; onGPU = onGPU)
 end
 
 function Base.Array(CM::CornerTensor)

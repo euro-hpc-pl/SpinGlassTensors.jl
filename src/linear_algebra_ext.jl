@@ -2,7 +2,8 @@ export
     rq_fact,
     qr_fact
 
-@inline phase(d::T; atol::T=eps()) where T <: Real = isapprox(d, zero(T), atol=atol) ? one(T) : d / abs(d)
+@inline phase(d::T; atol=eps()) where T <: Real = isapprox(d, zero(T), atol=atol) ? one(T) : d / abs(d)
+@inline phase(d::AbstractArray; atol=eps()) = map(x -> phase(x; atol=atol), d)
 
 function LinearAlgebra.svd(A::AbstractMatrix{T}, Dcut::Int=typemax(Int), tol::T=eps(); kwargs...) where T <: Real
     A = Array(A) # svd is slow on GPU
@@ -14,8 +15,9 @@ function LinearAlgebra.svd(A::AbstractMatrix{T}, Dcut::Int=typemax(Int), tol::T=
     CuArray.((U .* ϕ, Σ, V .* ϕ))
 end
 
+# QR done on CPU
 function qr_fact(M::AbstractMatrix{T}, Dcut::Int=typemax(Int), tol::T=eps(); kwargs...) where T <: Real
-    M = Array(M) # TODO to be fixed
+    M = Array(M)
     q, r = qr_fix(qr(M; kwargs...))
     q, r = CuArray(q), CuArray(r)
     Dcut >= size(q, 2) && return q, r
@@ -24,6 +26,7 @@ function qr_fact(M::AbstractMatrix{T}, Dcut::Int=typemax(Int), tol::T=eps(); kwa
 end
 
 #=
+# QR done on GPU
 function qr_fact(M::AbstractMatrix{T}, Dcut::Int=typemax(Int), tol::T=eps(); kwargs...) where T <: Real
     CUDA.allowscalar(true)
     q, r = qr_fix(qr(M; kwargs...))
@@ -39,8 +42,8 @@ function rq_fact(M::AbstractMatrix{T}, Dcut::Int=typemax(Int), tol::T=eps(); kwa
     CuArray.((r', q'))
 end
 
-function qr_fix(QR_fact; tol::T=eps()) where T <: Real  #LinearAlgebra.QRCompactWY
-    ϕ = phase.(diag(QR_fact.R); atol=tol)
+function qr_fix(QR_fact; tol::T=eps()) where T <: Real
+    ϕ = phase(diag(QR_fact.R); atol=tol)
     QR_fact.Q * Diagonal(ϕ), ϕ .* QR_fact.R
-#    QR_fact.Q * CuArray(Diagonal(ϕ)), ϕ .* QR_fact.R # do reshape here, CUDA only
+#   QR_fact.Q * CuArray(Diagonal(ϕ)), ϕ .* QR_fact.R # TODO can we get rid of CuArray?
 end

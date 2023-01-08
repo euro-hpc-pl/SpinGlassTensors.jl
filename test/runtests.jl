@@ -12,7 +12,8 @@ idx(σ::Int) = (σ == -1) ? 1 : σ + 1
 
 my_tests = [
     "mps.jl",
-    "canonise.jl"
+    "canonise.jl",
+    "environment.jl"
     ]
 
 

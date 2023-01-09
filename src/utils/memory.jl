@@ -2,8 +2,8 @@ export
     measure_memory,
     format_bytes
 
-measure_memory(ten::AbstractArray) = (Base.summarysize(ten), 0)
-measure_memory(ten::CuArray) = (0, prod(size(ten)) * sizeof(eltype(ten)))
+measure_memory(ten::AbstractArray) = [Base.summarysize(ten), 0]
+measure_memory(ten::CuArray) = [0, prod(size(ten)) * sizeof(eltype(ten))]
 measure_memory(ten::Diagonal) = measure_memory(diag(ten))
 measure_memory(ten::SiteTensor) = sum(measure_memory.([ten.loc_exp, ten.projs...]))
 measure_memory(ten::CentralTensor) = sum(measure_memory.([ten.e11, ten.e12, ten.e21, ten.e22]))

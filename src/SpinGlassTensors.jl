@@ -14,6 +14,7 @@ module SpinGlassTensors
     include("./mps/transpose.jl")
     include("./mps/dot.jl")
     include("./mps/identity.jl")
+    include("./mps/aux.jl")
     include("transfer.jl")
     include("environment.jl")
     include("utils/memory.jl")

@@ -4,7 +4,8 @@ export
     Site,
     Sites,
     AbstractTensorNetwork,
-    MpoTensor
+    MpoTensor,
+    QMpsOrMpo
 
 abstract type AbstractTensorNetwork{T} end
 

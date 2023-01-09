@@ -7,14 +7,12 @@ export
     is_left_normalized,
     is_right_normalized,
     length,
-    size,
-    rank
+    size
 
-@inline bond_dimension(ψ::QMps) = maximum(size.(values(ψ.tensors), 3))
-@inline bond_dimensions(ψ::QMps) = [size(ψ.tensors[n]) for n ∈ ψ.sites]
-@inline Base.length(ψ::QMps) = maximum(ψ.sites)
-@inline Base.size(ψ::QMps) = (maximum(ψ.sites),)
-@inline LinearAlgebra.rank(ψ::QMps) = Tuple(size(ψ.tensors[i], 2) for i ∈ ψ.sites)
+@inline bond_dimension(ψ::QMpsOrMpo) = maximum(size.(values(ψ.tensors), 3))
+@inline bond_dimensions(ψ::QMpsOrMpo) = [size(ψ.tensors[n]) for n ∈ ψ.sites]
+@inline Base.length(ψ::QMpsOrMpo) = maximum(ψ.sites)
+@inline Base.size(ψ::QMpsOrMpo) = (maximum(ψ.sites),)
 
 function verify_bonds(ψ::QMps)
     L = maximum(ψ.sites)

@@ -15,7 +15,8 @@ function contract_sparse_with_three(
         X1p = X1[:, :, p1[from:to]]
         X2p = X2[:, :, p2[from:to]]
         X3p = X3[:, :, p3[from:to]]
-        outp = X1p ⊠ X2p ⊠ X3p .* reshape(loc_exp[from:to], 1, 1, :)
+        outp = X1p ⊠ X2p ⊠ X3p
+        outp .*= reshape(loc_exp[from:to], 1, 1, :)
         @cast outp[(x, y), z] := outp[x, y, z]
         poutp = pout[from:to]
         rf, rt = minimum(poutp), maximum(poutp)

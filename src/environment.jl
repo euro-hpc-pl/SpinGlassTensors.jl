@@ -12,8 +12,9 @@ mutable struct Environment{T <: Real} <: AbstractEnvironment
     env::Dict
 
     function Environment(bra::QMps{T}, mpo::QMpo{T}, ket::QMps{T}) where T <: Real
+        onGPU = bra.onGPU && mpo.onGPU && ket.onGPU
         @assert bra.sites == ket.sites && issubset(bra.sites, mpo.sites)
-        id =  (bra.onGPU && mpo.onGPU && ket.onGPU ? CUDA.ones : ones)(T, 1, 1, 1)
+        id = onGPU ? CUDA.ones(T, 1, 1, 1) : ones(T, 1, 1, 1)
         env0 = Dict((bra.sites[1], :left) => id, (bra.sites[end], :right) => id)
         env = new{T}(bra, mpo, ket, env0)
         update_env_left!.(Ref(env), env.bra.sites)

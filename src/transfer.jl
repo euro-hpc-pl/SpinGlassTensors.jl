@@ -3,7 +3,7 @@
 #              tensor's coponents are moved from CPU to GPU and most tensors are generated
 #              on CPU due to the size of factor graph.
 export
-    device,
+    which_device,
     move_to_CUDA!
 
 move_to_CUDA!(ten::Array{T, N}) where {T, N} = CuArray(ten)
@@ -42,18 +42,18 @@ function move_to_CUDA!(ten::MpoTensor)
 end
 
 function move_to_CUDA!(ψ::Union{QMpo{T}, QMps{T}}) where T
-    for k ∈ keys(ψ.tensors) move_to_CUDA!(ψ[k]) end
+    for k ∈ keys(ψ.tensors) ψ[k] = move_to_CUDA!(ψ[k]) end
     ψ.onGPU = true
     ψ
 end
 
-device(ten::Nothing) = Set()
-device(ψ::Union{QMpo{T}, QMps{T}}) where T = union(device.(values(ψ.tensors))...)
-device(ten::MpoTensor) = union(device(ten.ctr), device.(ten.top)..., device.(ten.bot)...)
-device(ten::DiagonalTensor) = union(device.((ten.e1, ten.e2))...)
-device(ten::VirtualTensor) = device(ten.con)
-device(ten::CentralTensor) = union(device.((ten.e11, ten.e12, ten.e21, ten.e22))...)
-device(ten::SiteTensor) = device(ten.loc_exp)
-device(ten::Array{T, N}) where {T, N} = Set((:CPU, ))
-device(ten::CuArray{T, N}) where {T, N} = Set((:GPU, ))
-device(ten::Diagonal) = device(diag(ten))
+which_device(ten::Nothing) = Set()
+which_device(ψ::Union{QMpo{T}, QMps{T}}) where T = union(which_device.(values(ψ.tensors))...)
+which_device(ten::MpoTensor) = union(which_device(ten.ctr), which_device.(ten.top)..., which_device.(ten.bot)...)
+which_device(ten::DiagonalTensor) = union(which_device.((ten.e1, ten.e2))...)
+which_device(ten::VirtualTensor) = which_device(ten.con)
+which_device(ten::CentralTensor) = union(which_device.((ten.e11, ten.e12, ten.e21, ten.e22))...)
+which_device(ten::SiteTensor) = which_device(ten.loc_exp)
+which_device(ten::Array{T, N}) where {T, N} = Set((:CPU, ))
+which_device(ten::CuArray{T, N}) where {T, N} = Set((:GPU, ))
+which_device(ten::Diagonal) = which_device(diag(ten))

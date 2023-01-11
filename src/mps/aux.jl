@@ -18,8 +18,8 @@ function verify_bonds(ψ::QMps)
     L = maximum(ψ.sites)
     @assert size(ψ.tensors[1], 1) == 1 "Incorrect size on the left boundary."
     @assert size(ψ.tensors[L], 3) == 1 "Incorrect size on the right boundary."
-    for (i, j) ∈ enumerate(ψ.sites[begin:end-1]) 
-        @assert size(ψ.tensors[j], 3) == size(ψ.tensors[ψ.sites[i+1]], 1) "Incorrect link between $i and $(i+1)." 
+    for (i, j) ∈ enumerate(ψ.sites[begin:end-1])
+        @assert size(ψ.tensors[j], 3) == size(ψ.tensors[ψ.sites[i+1]], 1) "Incorrect link between $i and $(i+1)."
     end
 end
 

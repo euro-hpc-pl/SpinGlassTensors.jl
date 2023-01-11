@@ -29,8 +29,9 @@ input ϕ (results) should be canonized :left (:right)
 function zipper(ψ::QMpo{R}, ϕ::QMps{R}; method::Symbol=:svd, Dcut::Int=typemax(Int), tol=eps(), kwargs...) where R <: Real
     onGPU = ψ.onGPU && ϕ.onGPU
     D = TensorMap{R}()
-    C = (onGPU ? CUDA.ones : ones)(R, 1, 1, 1)
+    C = onGPU ? CUDA.ones(R, 1, 1, 1) : ones(R, 1, 1, 1)
     mpo_li = last(ψ.sites)
+
     for i ∈ reverse(ϕ.sites)
         while mpo_li > i
             C = contract_matrix_tensor3(ψ[mpo_li], C)
@@ -40,7 +41,7 @@ function zipper(ψ::QMpo{R}, ϕ::QMps{R}; method::Symbol=:svd, Dcut::Int=typemax
         mpo_li = left_nbrs_site(mpo_li, ψ.sites)
 
         CM = CornerTensor(C, ψ[i], ϕ[i])
-        U, Σ, V = svd_corner_matrix(CM, method, Dcut, tol; kwargs...)
+        U, Σ, V = svd_corner_matrix(CM, method, Dcut, tol; toGPU=onGPU, kwargs...)
         C = U * Diagonal(Σ)
 
         V = permutedims(V, (2, 1))
@@ -65,23 +66,24 @@ end
 
 Base.Array(CM::Adjoint{T, CornerTensor{T}}) where T = adjoint(Array(CM.ten))
 
-function svd_corner_matrix(CM, method::Symbol, Dcut::Int, tol::Real; kwargs...)
+# TODO rethink this function
+function svd_corner_matrix(CM, method::Symbol, Dcut::Int, tol::Real; toGPU::Bool=true, kwargs...)
     if method == :svd
-        return svd(Array(CM), Dcut, tol; kwargs...)
+        U, Σ, V = svd_fact(Array(CM), Dcut, tol; kwargs...)
     elseif method == :psvd
-        return psvd(Array(CM), rank=Dcut; kwargs...)
+        U, Σ, V = psvd(Array(CM), rank=Dcut; kwargs...)
     elseif method == :psvd_sparse
-        U, S, V = psvd(CM, rank=Dcut; kwargs...)
-        return CuArray(U), CuArray(S), CuArray(V)
+        U, Σ, V = psvd(CM, rank=Dcut; kwargs...)
     elseif method == :tsvd
-        return tsvd(Array(CM), Dcut; kwargs...)
+        U, Σ, V = tsvd(Array(CM), Dcut; kwargs...)
     elseif method == :tsvd_sparse
-        v0 = 2 .* rand(eltype(CM), size(CM, 1)) .- 1  # TODO CUDA.rand ?
-        U, S, V = tsvd(CM, Dcut, initvec=v0; kwargs...)
-        return CuArray(U), CuArray(S), CuArray(V)
+        v0 = 2 .* rand(eltype(CM), size(CM, 1)) .- 1
+        U, Σ, V = tsvd(CM, Dcut, initvec=v0; kwargs...)
     else
         throw(ArgumentError("Wrong method $method"))
     end
+    toGPU && return CuArray.((U, Σ, V))
+    U, Σ, V
 end
 
 # this is for psvd to work

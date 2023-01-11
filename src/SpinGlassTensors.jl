@@ -6,7 +6,7 @@ module SpinGlassTensors
     using NNlib, NNlibCUDA
     using Memoize
 
-    #CUDA.allowscalar(false)
+    CUDA.allowscalar(false)
 
     include("base.jl")
     include("linear_algebra_ext.jl")
@@ -15,6 +15,7 @@ module SpinGlassTensors
     include("./mps/dot.jl")
     include("./mps/identity.jl")
     include("./mps/aux.jl")
+    include("./mps/rand.jl")
     include("transfer.jl")
     include("environment.jl")
     include("utils/memory.jl")

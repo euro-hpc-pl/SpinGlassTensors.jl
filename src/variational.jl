@@ -30,11 +30,12 @@ function variational_compress!(bra::QMps{T}, mpo::QMpo{T}, ket::QMps{T}, tol=1E-
 end
 
 function _left_sweep_var!(env::Environment; kwargs...)
+    toGPU = env.ket.onGPU && env.mpo.onGPU && env.bra.onGPU
     for site ∈ reverse(env.bra.sites)
         update_env_right!(env, site)
         A = project_ket_on_bra(env, site)
         @cast B[x, (y, z)] := A[x, y, z]
-        _, Q = rq_fact(B; kwargs...)
+        _, Q = rq_fact(B; toGPU = toGPU, kwargs...)
         @cast C[x, σ, y] := Q[x, (σ, y)] (σ ∈ 1:size(A, 2))
         env.bra[site] = C
         clear_env_containing_site!(env, site)
@@ -42,11 +43,12 @@ function _left_sweep_var!(env::Environment; kwargs...)
 end
 
 function _right_sweep_var!(env::Environment; kwargs...)
+    toGPU = env.ket.onGPU && env.mpo.onGPU && env.bra.onGPU
     for site ∈ env.bra.sites
         update_env_left!(env, site)
         A = project_ket_on_bra(env, site)
         @cast B[(x, y), z] := A[x, y, z]
-        Q, _ = qr_fact(B; kwargs...)
+        Q, _ = qr_fact(B; toGPU = toGPU, kwargs...)
         @cast C[x, σ, y] := Q[(x, σ), y] (σ ∈ 1:size(A, 2))
         env.bra[site] = C
         clear_env_containing_site!(env, site)

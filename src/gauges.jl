@@ -5,7 +5,7 @@ export
     optimize_gauges_for_overlaps!!,
     overlap_density_matrix
 
-function update_rq!(ψ::QMps{T}, AT::Array{T, 3}, i::Int) where T <: Real
+function update_rq!(ψ::QMps{T}, AT::Array{T, 3}, i::Union{Rational{Int}, Int}) where T <: Real
     @cast ATR[x, (σ, y)] := AT[x, σ, y]
     RT, QT = rq_fact(ATR)
     RT ./= maximum(abs.(RT))
@@ -14,7 +14,25 @@ function update_rq!(ψ::QMps{T}, AT::Array{T, 3}, i::Int) where T <: Real
     RT
 end
 
-function update_qr!(ψ::QMps{T}, AT::Array{T, 3}, i::Int) where T <: Real
+function update_rq!(ψ::QMps{T}, AT::CuArray{T, 3}, i::Union{Rational{Int}, Int}) where T <: Real
+    @cast ATR[x, (σ, y)] := AT[x, σ, y]
+    RT, QT = rq_fact(ATR)
+    RT ./= maximum(abs.(RT))
+    @cast AT[x, σ, y] := QT[x, (σ, y)] (σ ∈ 1:size(AT, 2))
+    ψ[i] = AT
+    RT
+end
+
+function update_qr!(ψ::QMps{T}, AT::Array{T, 3}, i::Union{Rational{Int}, Int}) where T <: Real
+    @cast ATR[(x, σ), y] := AT[x, σ, y]
+    QT, RT = qr_fact(ATR)
+    RT ./= maximum(abs.(RT))
+    @cast AT[x, σ, y] := QT[(x, σ), y] (σ ∈ 1:size(AT, 2))
+    ψ[i] = AT
+    RT
+end
+
+function update_qr!(ψ::QMps{T}, AT::CuArray{T, 3}, i::Union{Rational{Int}, Int}) where T <: Real
     @cast ATR[(x, σ), y] := AT[x, σ, y]
     QT, RT = qr_fact(ATR)
     RT ./= maximum(abs.(RT))
@@ -79,6 +97,7 @@ function optimize_gauges_for_overlaps!!(ψ_top::QMps{T}, ψ_bot::QMps{T}, tol=1E
     canonise!(ψ_bot, :right)
     overlap_old = dot(ψ_top, ψ_bot)
     gauges = Dict(i => (onGPU ? CUDA.ones : ones)(T, size(ψ_top[i], 2)) for i ∈ ψ_top.sites)
+    #gauges = Dict(i => ones(T, size(ψ_top[i], 2)) for i ∈ ψ_top.sites)
     for _ ∈ 1:max_sweeps
         _gauges_right_sweep!!!(ψ_top, ψ_bot, gauges)
         _gauges_left_sweep!!!(ψ_top, ψ_bot, gauges)

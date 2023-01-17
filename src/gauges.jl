@@ -5,7 +5,7 @@ export
     optimize_gauges_for_overlaps!!,
     overlap_density_matrix
 
-function update_rq!(ψ::QMps{T}, AT::Array{T, 3}, i::Union{Rational{Int}, Int}) where T <: Real
+function update_rq!(ψ::QMps{T}, AT::Array{T, 3}, i::Site) where T <: Real
     @cast ATR[x, (σ, y)] := AT[x, σ, y]
     RT, QT = rq_fact(ATR)
     RT ./= maximum(abs.(RT))
@@ -14,7 +14,7 @@ function update_rq!(ψ::QMps{T}, AT::Array{T, 3}, i::Union{Rational{Int}, Int}) 
     RT
 end
 
-function update_rq!(ψ::QMps{T}, AT::CuArray{T, 3}, i::Union{Rational{Int}, Int}) where T <: Real
+function update_rq!(ψ::QMps{T}, AT::CuArray{T, 3}, i::Site) where T <: Real
     @cast ATR[x, (σ, y)] := AT[x, σ, y]
     RT, QT = rq_fact(ATR)
     RT ./= maximum(abs.(RT))
@@ -23,7 +23,7 @@ function update_rq!(ψ::QMps{T}, AT::CuArray{T, 3}, i::Union{Rational{Int}, Int}
     RT
 end
 
-function update_qr!(ψ::QMps{T}, AT::Array{T, 3}, i::Union{Rational{Int}, Int}) where T <: Real
+function update_qr!(ψ::QMps{T}, AT::Array{T, 3}, i::Site) where T <: Real
     @cast ATR[(x, σ), y] := AT[x, σ, y]
     QT, RT = qr_fact(ATR)
     RT ./= maximum(abs.(RT))
@@ -32,7 +32,7 @@ function update_qr!(ψ::QMps{T}, AT::Array{T, 3}, i::Union{Rational{Int}, Int}) 
     RT
 end
 
-function update_qr!(ψ::QMps{T}, AT::CuArray{T, 3}, i::Union{Rational{Int}, Int}) where T <: Real
+function update_qr!(ψ::QMps{T}, AT::CuArray{T, 3}, i::Site) where T <: Real
     @cast ATR[(x, σ), y] := AT[x, σ, y]
     QT, RT = qr_fact(ATR)
     RT ./= maximum(abs.(RT))

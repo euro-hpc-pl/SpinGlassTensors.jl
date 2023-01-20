@@ -28,33 +28,15 @@ function contract_sparse_with_three(
 end
 
 function update_env_left(LE::S, A::S, M::T, B::S) where {S <: CuArray{R, 3}, T <: SiteTensor{R}} where R <: Real
-    contract_sparse_with_three(
-        permutedims(B, (2, 1, 3)),
-        LE,
-        A,
-        M.loc_exp,
-        M.projs[[4, 1, 2, 3]]...
-    )
+    contract_sparse_with_three(permutedims(B, (2, 1, 3)), LE, A, M.loc_exp, M.projs[[4, 1, 2, 3]]...)
 end
 
 function update_env_right(RE::S, A::S, M::SiteTensor{R}, B::S) where {S <: CuArray{R, 3}} where R <: Real
-    contract_sparse_with_three(
-        B,
-        RE,
-        permutedims(A, (2, 1, 3)),
-        M.loc_exp,
-        M.projs[[4, 3, 2, 1]]...
-    )
+    contract_sparse_with_three(B, RE, permutedims(A, (2, 1, 3)), M.loc_exp, M.projs[[4, 3, 2, 1]]...)
 end
 
 function project_ket_on_bra(LE::S, B::S, M::SiteTensor{R}, RE::S) where {S <: CuArray{R, 3}} where R <: Real
-    contract_sparse_with_three(
-        permutedims(LE, (2, 1, 3)),
-        B,
-        RE,
-        M.loc_exp,
-        M.projs[[1, 4, 3, 2]]...
-    )
+    contract_sparse_with_three(permutedims(LE, (2, 1, 3)), B, RE, M.loc_exp, M.projs[[1, 4, 3, 2]]...)
 end
 
 function update_reduced_env_right(K::CuArray{T, 1}, RE::CuArray{T, 2}, M::SiteTensor{T}, B::CuArray{T, 3}) where T <: Real

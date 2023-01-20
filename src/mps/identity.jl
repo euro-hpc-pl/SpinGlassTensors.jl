@@ -7,19 +7,19 @@ export
 
 function IdentityQMps(::Type{T}, loc_dims::Dict, Dmax::Int=1; onGPU=true) where T <: Real
     _zeros = (onGPU ? CUDA.zeros : zeros)
-    id = TensorMap{T}(keys(loc_dims) .=> _zeros.(T, Dmax, values(loc_dims), Dmax))
+    id = TensorMap{T}(keys(loc_dims) .=> _zeros.(T, Dmax, Dmax, values(loc_dims)))
 
     site_min, ld_min = minimum(loc_dims)
     site_max, ld_max = maximum(loc_dims)
     if site_min == site_max
-        id[site_min] = _zeros(T, 1, ld_min, 1)
+        id[site_min] = _zeros(T, 1, 1, ld_min)
     else
-        id[site_min] = _zeros(T, 1, ld_min, Dmax)
-        id[site_max] = _zeros(T, Dmax, ld_max, 1)
+        id[site_min] = _zeros(T, 1, Dmax, ld_min)
+        id[site_max] = _zeros(T, Dmax, 1, ld_max)
     end
 
     for (site, ld) ∈ loc_dims
-        id[site][1, :, 1] .= 1 / sqrt(ld)
+        id[site][1, 1, :] .= 1 / sqrt(ld)
     end
     QMps(id; onGPU=onGPU)
 end

@@ -3,30 +3,49 @@
 export
     bond_dimension,
     bond_dimensions,
-    verify_bonds,
+    is_consistent,
     is_left_normalized,
     is_right_normalized,
     length,
     size
 
-@inline bond_dimension(ψ::QMpsOrMpo) = maximum(size.(values(ψ.tensors), 3))
+@inline bond_dimension(ψ::QMpsOrMpo) = maximum(size.(values(ψ.tensors), 1))
 @inline bond_dimensions(ψ::QMpsOrMpo) = [size(ψ.tensors[n]) for n ∈ ψ.sites]
 @inline Base.length(ψ::QMpsOrMpo) = maximum(ψ.sites)
 @inline Base.size(ψ::QMpsOrMpo) = (maximum(ψ.sites),)
 
-function verify_bonds(ψ::QMps)
-    L = maximum(ψ.sites)
-    @assert size(ψ.tensors[1], 1) == 1 "Incorrect size on the left boundary."
-    @assert size(ψ.tensors[L], 3) == 1 "Incorrect size on the right boundary."
-    for (i, j) ∈ enumerate(ψ.sites[begin:end-1])
-        @assert size(ψ.tensors[j], 3) == size(ψ.tensors[ψ.sites[i+1]], 1) "Incorrect link between $i and $(i+1)."
+function is_consistent(ψ::QMps)
+    site_min = minimum(ψ.sites)
+    site_max = maximum(ψ.sites)
+    @assert size(ψ.tensors[site_min], 1) == 1 "Incorrect size on the left boundary."
+    @assert size(ψ.tensors[site_max], 2) == 1 "Incorrect size on the right boundary."
+    for (s1, s2) ∈ zip(ψ.sites[begin:end-1], ψ.sites[begin+1:end])
+        @assert size(ψ.tensors[s1], 2) == size(ψ.tensors[s2], 1) "Incorrect link between $i and $(i+1)."
     end
+    a =  ψ.onGPU ? Set((:GPU, )) : Set((:CPU, ))
+    println(a)
+    b = which_device(ψ)
+    println(b)
+    @assert a == b
+    true
 end
+
+eye(ψ, dim) = ψ.onGPU ? CuArray(Diagonal(ones(eltype(ψ), dim))) : Diagonal(ones(eltype(ψ), dim))
 
 function is_left_normalized(ψ::QMps) #TODO rewrite this function
-    all(I(size(A, 3)) ≈ @tensor Id[x, y] := conj(A)[α, σ, x] * A[α, σ, y] order = (α, σ) for A ∈ values(ψ.tensors))
+    CUDA.allowscalar(false)
+    all(eye(ψ, size(A, 2)) ≈ @tensor Id[x, y] := A[α, x, σ] * A[α, y, σ] order = (α, σ) for A ∈ values(ψ.tensors))
 end
 
-function is_right_normalized(ϕ::QMps) #TODO rewrite this function
-    all(I(size(B, 1)) ≈ @tensor Id[x, y] := B[x, σ, α] * conj(B)[y, σ, α] order = (α, σ) for B ∈ values(ϕ.tensors))
+function is_right_normalized(ψ::QMps) #TODO rewrite this function
+    CUDA.allowscalar(false)
+    tmp = []
+    for B ∈ values(ψ.tensors)
+        @tensor Id[x, y] := B[x, α, σ] * B[y, α, σ] order = (α, σ)
+        i2 = eye(ψ, size(B, 1))
+        res = i2 ≈ Id
+        push!(tmp, res)
+    end
+
+    all(tmp)
 end

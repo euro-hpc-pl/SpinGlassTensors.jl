@@ -19,7 +19,7 @@ module SpinGlassTensors
     include("transfer.jl")
     include("environment.jl")
     include("utils/memory.jl")
-    include("canonise.jl")
+    include("./mps/canonise.jl")
     include("variational.jl")
     include("zipper.jl")
     include("gauges.jl")

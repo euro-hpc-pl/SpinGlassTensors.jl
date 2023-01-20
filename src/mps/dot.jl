@@ -11,12 +11,12 @@ function LinearAlgebra.dot(ψ::QMps{T}, ϕ::QMps{T}) where T <: Real
     C = (ψ.onGPU && ϕ.onGPU ? CUDA.ones : ones)(T, 1, 1)
     for i ∈ ϕ.sites
         A, B = ϕ[i], ψ[i]
-        @tensor C[x, y] := conj(B)[β, σ, x] * C[β, α] * A[α, σ, y] order = (α, β, σ)
+        @tensor C[x, y] := conj(B)[β, x, σ] * C[β, α] * A[α, y, σ] order = (α, β, σ)
     end
     tr(C)
 end
 
-function LinearAlgebra.dot(ψ::QMpo{R}, ϕ::QMps{R}) where R <: Real
+function LinearAlgebra.dot(ψ::QMpo{R}, ϕ::QMps{R}) where R <: Real  # TODO
     D = TensorMap{R}()
     for i ∈ reverse(ϕ.sites)
         M, B = ψ[i], ϕ[i]

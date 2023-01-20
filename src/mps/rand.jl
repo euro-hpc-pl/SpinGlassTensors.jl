@@ -2,11 +2,15 @@
 # ./mps/rand.jl: This file provides methods to generate random MPS / MPO
 
 function Base.rand(::Type{QMps{T}}, loc_dims::Dict, Dmax::Int=1) where T <: Real
-    id = TensorMap{T}(keys(loc_dims) .=> rand.(T, Dmax, values(loc_dims), Dmax))
+    id = TensorMap{T}(keys(loc_dims) .=> rand.(T, Dmax, Dmax, values(loc_dims)))
     site_min, ld_min = minimum(loc_dims)
     site_max, ld_max = maximum(loc_dims)
-    id[site_min] = rand.(T, 1, ld_min, Dmax)
-    id[site_max] = rand.(T, Dmax, ld_max, 1)
+    if site_min == site_max
+        id[site_min] = rand(T, 1, 1, ld_min)
+    else
+        id[site_min] = rand(T, 1, Dmax, ld_min)
+        id[site_max] = rand(T, Dmax, 1, ld_max)
+    end
     QMps(id)
 end
 

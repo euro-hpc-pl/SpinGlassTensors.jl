@@ -40,7 +40,6 @@ function _right_sweep!(ψ::QMps{T}, Dcut::Int=typemax(Int), tolS::T=eps(); kwarg
         @cast M[(σ, x), y] := M[σ, x, y]
         Q, R = qr_fact(M, Dcut, tolS; toGPU = ψ.onGPU, kwargs...)
         R ./= maximum(abs.(R))
-
         @cast A[σ, x, y] := Q[(σ, x), y] (σ ∈ 1:size(A, 3))
         A = permutedims(A, (2, 3, 1))  # [x, y, σ]
         ψ[i] = A

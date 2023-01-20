@@ -22,11 +22,9 @@ function is_consistent(ψ::QMps)
     for (s1, s2) ∈ zip(ψ.sites[begin:end-1], ψ.sites[begin+1:end])
         @assert size(ψ.tensors[s1], 2) == size(ψ.tensors[s2], 1) "Incorrect link between $i and $(i+1)."
     end
-    a =  ψ.onGPU ? Set((:GPU, )) : Set((:CPU, ))
-    println(a)
-    b = which_device(ψ)
-    println(b)
-    @assert a == b
+    dev = which_device(ψ)
+    if  ψ.onGPU @assert :GPU ∈ dev && :CPU ∉ dev end
+    if !ψ.onGPU @assert :GPU ∉ dev && :CPU ∈ dev end
     true
 end
 

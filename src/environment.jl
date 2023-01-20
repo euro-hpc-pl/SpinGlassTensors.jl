@@ -117,5 +117,5 @@ project_ket_on_bra(env::Environment, site::Site) = project_ket_on_bra(
 function measure_env(env::Environment, site::Site)
     L = update_env_left(env.env[(site, :left)], env.bra[site], env.mpo[site], env.ket[site])
     R = env.env[(site, :right)]
-    @tensor L[b, c, t] * R[t, c, b]
+    @tensor L[b, t, c] * R[b, t, c]
 end

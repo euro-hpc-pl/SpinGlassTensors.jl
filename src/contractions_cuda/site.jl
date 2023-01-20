@@ -21,17 +21,17 @@ function contract_sparse_with_three(
         poutp = pout[from:to]
         rf, rt = minimum(poutp), maximum(poutp)
         ipr = CuSparseMatrixCSC(R, poutp .- (rf - 1))
-        out[rf:rt, :, :] = out[rf:rt, :, :] .+ reshape(ipr * outp', (:, s1, s4))
+        out[rf:rt, :, :] .+= reshape(ipr * outp', (:, s1, s4))
         from = to + 1
     end
-    permutedims(out, (2, 1, 3))
+    permutedims(out, (2, 3, 1))
 end
 
 function update_env_left(LE::S, A::S, M::T, B::S) where {S <: CuArray{R, 3}, T <: SiteTensor{R}} where R <: Real
     contract_sparse_with_three(
-        permutedims(B, (3, 1, 2)),
-        permutedims(LE, (1, 3, 2)),
-        permutedims(A, (1, 3, 2)),
+        permutedims(B, (2, 1, 3)),
+        LE,
+        A,
         M.loc_exp,
         M.projs[[4, 1, 2, 3]]...
     )
@@ -39,50 +39,51 @@ end
 
 function update_env_right(RE::S, A::S, M::SiteTensor{R}, B::S) where {S <: CuArray{R, 3}} where R <: Real
     contract_sparse_with_three(
-        permutedims(A, (1, 3, 2)),
-        permutedims(RE, (1, 3, 2)),
-        permutedims(B, (3, 1, 2)),
+        B,
+        RE,
+        permutedims(A, (2, 1, 3)),
         M.loc_exp,
-        M.projs[[2, 3, 4, 1]]...
+        M.projs[[4, 3, 2, 1]]...
     )
 end
 
 function project_ket_on_bra(LE::S, B::S, M::SiteTensor{R}, RE::S) where {S <: CuArray{R, 3}} where R <: Real
     contract_sparse_with_three(
-        permutedims(LE, (3, 1, 2)),
-        permutedims(B, (1, 3, 2)),
-        permutedims(RE, (3, 1, 2)),
+        permutedims(LE, (2, 1, 3)),
+        B,
+        RE,
         M.loc_exp,
         M.projs[[1, 4, 3, 2]]...
     )
 end
 
 function update_reduced_env_right(K::CuArray{T, 1}, RE::CuArray{T, 2}, M::SiteTensor{T}, B::CuArray{T, 3}) where T <: Real
-    Bp = permutedims(B, (1, 3, 2))[:, :, M.projs[4]]
+    Bp = B[:, :, M.projs[4]]
     REp = reshape(RE, (size(RE, 1), 1, size(RE, 2)))[:, :, M.projs[3]]
     outp = dropdims(Bp ⊠ REp, dims=2) .* reshape(M.loc_exp .* K[M.projs[2]], 1, :)
     permutedims(CuSparseMatrixCSC(T, M.projs[1]) * outp', (2, 1))
 end
 
 function contract_tensors43(M::SiteTensor{T, 4}, B::CuArray{T, 3}) where T <: Real
-    sb1, _, sb3 = size(B)
+    sb1, sb2, _ = size(B)
     sm1, sm2, sm3 = maximum.(M.projs[1:3])
-    Bp = permutedims(B, (1, 3, 2))[:, :, M.projs[4]] .* reshape(M.loc_exp, 1, 1, :)
+    Bp = B[:, :, M.projs[4]] .* reshape(M.loc_exp, 1, 1, :)
     @cast Bp[(x, y), z] := Bp[x, y, z]
     p123 = M.projs[1] .+ (M.projs[2] .- 1) .* sm1 .+ (M.projs[3] .- 1) .* (sm1 * sm2)
     ip123 = CuSparseMatrixCSC(eltype(B), p123)
-    out = reshape(ip123 * Bp', (sm1, sm2, sm3, sb1, sb3))
-    reshape(permutedims(out, (4, 1, 2, 5, 3)), sb1 * sm1, sm2, sb3 * sm3)
+    out = reshape(ip123 * Bp', (sm1, sm2, sm3, sb1, sb2))
+    reshape(permutedims(out, (4, 1, 5, 3, 2)), sb1 * sm1, sb2 * sm3, sm2)
 end
 
 function corner_matrix(C::S, M::T, B::S) where {S <: CuArray{R, 3}, T <: SiteTensor{R, 4}} where R <: Real
-    Bp = permutedims(B, (1, 3, 2))[:, :, M.projs[4]]
-    Cp = permutedims(C, (3, 1, 2))[:, :, M.projs[3]]
-    outp = Bp ⊠ Cp .* reshape(M.loc_exp, 1, 1, :)
+    Bp = B[:, :, M.projs[4]]
+    Cp = C[:, :, M.projs[3]]
+    outp = Bp ⊠ Cp
+    outp .*= reshape(M.loc_exp, 1, 1, :)
     @cast outp[(x, y), z] := outp[x, y, z]
     sm1 = maximum(M.projs[1])
     p12 = M.projs[1] .+ (M.projs[2] .- 1) .* sm1
     ip12 = CuSparseMatrixCSC(R, p12)
-    out = reshape(ip12 * outp', (sm1, maximum(M.projs[2]), size(B, 1), size(C, 1)))
+    out = reshape(ip12 * outp', (sm1, maximum(M.projs[2]), size(B, 1), size(C, 2)))
     permutedims(out, (3, 1, 2, 4))
 end

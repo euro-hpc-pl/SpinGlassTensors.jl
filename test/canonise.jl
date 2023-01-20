@@ -22,11 +22,13 @@ id = Dict(j => d[i] for (i, j) in enumerate(sites))
             canonise!(ψ, :left)
             @test is_consistent(ψ)
             @test is_left_normalized(ψ)
+            @test dot(ψ, ψ) ≈ one(T)
         end
         @testset "is right normalized" begin
             canonise!(ϕ, :right)
             @test is_consistent(ϕ)
             @test is_right_normalized(ϕ)
+            @test dot(ϕ, ϕ) ≈ one(T)
         end
     end
 end

@@ -30,22 +30,12 @@ function is_consistent(ψ::QMps)
     true
 end
 
-eye(ψ, dim) = ψ.onGPU ? CuArray(Diagonal(ones(eltype(ψ), dim))) : Diagonal(ones(eltype(ψ), dim))
-
-function is_left_normalized(ψ::QMps) #TODO rewrite this function
-    CUDA.allowscalar(false)
-    all(eye(ψ, size(A, 2)) ≈ @tensor Id[x, y] := A[α, x, σ] * A[α, y, σ] order = (α, σ) for A ∈ values(ψ.tensors))
+function eye(::Type{T}, dim) where T
+    id = Diagonal(ones(T, dim))
+    ψ.onGPU && return CuArray(id)
+    id
 end
 
-function is_right_normalized(ψ::QMps) #TODO rewrite this function
-    CUDA.allowscalar(false)
-    tmp = []
-    for B ∈ values(ψ.tensors)
-        @tensor Id[x, y] := B[x, α, σ] * B[y, α, σ] order = (α, σ)
-        i2 = eye(ψ, size(B, 1))
-        res = i2 ≈ Id
-        push!(tmp, res)
-    end
-
-    all(tmp)
+function is_left_normalized(ψ::QMps)
+    all(eye(ltype(ψ), size(A, 2)) ≈ @tensor Id[x, y] := A[α, x, σ] * A[α, y, σ] order = (α, σ) for A ∈ values(ψ.tensors))
 end

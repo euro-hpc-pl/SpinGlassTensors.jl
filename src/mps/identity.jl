@@ -6,7 +6,7 @@ export
     IdentityQMps
 
 function IdentityQMps(::Type{T}, loc_dims::Dict, Dmax::Int=1; onGPU=true) where T <: Real
-    _zeros = (onGPU ? CUDA.zeros : zeros)
+    _zeros = onGPU ? CUDA.zeros : zeros
     id = TensorMap{T}(keys(loc_dims) .=> _zeros.(T, Dmax, Dmax, values(loc_dims)))
 
     site_min, ld_min = minimum(loc_dims)

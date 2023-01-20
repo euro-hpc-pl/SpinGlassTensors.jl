@@ -41,8 +41,7 @@ function _right_sweep!(ψ::QMps{T}, Dcut::Int=typemax(Int), tolS::T=eps(); kwarg
         Q, R = qr_fact(M, Dcut, tolS; toGPU = ψ.onGPU, kwargs...)
         R ./= maximum(abs.(R))
         @cast A[σ, x, y] := Q[(σ, x), y] (σ ∈ 1:size(A, 3))
-        A = permutedims(A, (2, 3, 1))  # [x, y, σ]
-        ψ[i] = A
+        ψ[i] = permutedims(A, (2, 3, 1))  # [x, y, σ]
     end
 end
 
@@ -50,10 +49,17 @@ function _left_sweep!(ψ::QMps{T}, Dcut::Int=typemax(Int), tolS::T=eps(); kwargs
     R = ψ.onGPU ? CUDA.ones(T, 1, 1) : ones(T, 1, 1)
     for i ∈ reverse(ψ.sites)
         B = ψ[i]
-        @matmul M[x, (y, σ)] := sum(α) B[x, α, σ] * R[α, y]
+        #@matmul M[x, (y, σ)] := sum(α) B[x, α, σ] * R[α, y]
+        B = permutedims(B, (1, 3, 2)) # [x, σ, α]
+        @matmul M[x, σ, y] := sum(α) B[x, σ, α] * R[α, y]
+        M = permutedims(M, (1, 3, 2)) # [x, y, σ]
+        @cast M[x, (y, σ)] := M[x, y, σ]
+
         R, Q = rq_fact(M, Dcut, tolS; toGPU = ψ.onGPU, kwargs...)
         R ./= maximum(abs.(R))
-        @cast B[x, y, σ] := Q[x, (y, σ)] (σ ∈ 1:size(B, 3))
-        ψ[i] = B
+        #@cast B[x, y, σ] := Q[x, (σ, y)] (σ ∈ 1:size(B, 3))
+
+        @cast B[x, σ, y] := Q[x, (σ, y)] (σ ∈ 1:size(B, 2))
+        ψ[i] = permutedims(B, (1, 3, 2))
     end
 end

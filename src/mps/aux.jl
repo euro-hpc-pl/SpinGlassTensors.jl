@@ -30,12 +30,16 @@ function is_consistent(ψ::QMps)
     true
 end
 
-function eye(::Type{T}, dim) where T
+function eye(::Type{T}, dim; toGPU::Bool=false) where T
     id = Diagonal(ones(T, dim))
-    ψ.onGPU && return CuArray(id)
+    toGPU && return CuArray(id)
     id
 end
 
 function is_left_normalized(ψ::QMps)
-    all(eye(ltype(ψ), size(A, 2)) ≈ @tensor Id[x, y] := A[α, x, σ] * A[α, y, σ] order = (α, σ) for A ∈ values(ψ.tensors))
+    all(eye(eltype(ψ), size(A, 2); toGPU = ψ.onGPU) ≈ @tensor Id[x, y] := A[α, x, σ] * A[α, y, σ] order = (α, σ) for A ∈ values(ψ.tensors))
+end
+
+function is_right_normalized(ψ::QMps)
+    all(eye(eltype(ψ), size(B, 1); toGPU = ψ.onGPU) ≈ @tensor Id[x, y] := B[x, α, σ] * B[y, α, σ] order = (α, σ) for B ∈ values(ψ.tensors))
 end

@@ -71,6 +71,5 @@ end
 
 function update_reduced_env_right(RR::CuArray{T, 2}, M::CentralTensor{T, 2}) where T <: Real
     RR = reshape(RR, size(RR, 1), size(RR, 2), 1)
-    RR = contract_matrix_tensor3(M, RR)
-    dropdims(RR, dims=3)
+    dropdims(contract_matrix_tensor3(M, RR), dims=3)
 end

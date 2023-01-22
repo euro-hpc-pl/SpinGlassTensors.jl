@@ -47,9 +47,9 @@ function zipper(ψ::QMpo{R}, ϕ::QMps{R}; method::Symbol=:svd, Dcut::Int=typemax
         V = permutedims(V, (2, 1))
         if i == ϕ.sites[1] V = C * V end
         s1, s2 = size(ψ[i])
-        @cast V[x, y, z] := V[x, (y, z)] (y ∈ 1:s2)
+        @cast V[x, y, z] := V[x, (y, z)] (z ∈ 1:s2)
         @cast C[x, y, z] := C[(x, y), z] (y ∈ 1:s1)
-        C = permutedims(C, (3, 2, 1))
+        C = permutedims(C, (1, 3, 2))
         push!(D, i => V)
     end
     QMps(D; onGPU = onGPU)
@@ -95,32 +95,32 @@ Base.adjoint(ten::CornerTensor{T}) where T = Adjoint{T}(ten)
 
 function LinearAlgebra.mul!(y, ten::CornerTensor, x)
     x = CuArray(x) # TODO this an ugly patch
-    x = reshape(x, size(ten.M, 2), size(ten.C, 1), :)
+    x = reshape(x, size(ten.C, 2), size(ten.M, 2), :)
     x = permutedims(x, (3, 1, 2))
     yp = update_env_right(ten.C, x, ten.M, ten.B)
-    y[:, :] .= Array(reshape(permutedims(yp, (3, 2, 1)), size(ten.B, 1) * size(ten.M, 1), :))
+    y[:, :] .= Array(reshape(permutedims(yp, (1, 3, 2)), size(ten.B, 1) * size(ten.M, 1), :))
 end
 
 function LinearAlgebra.mul!(y, ten::Adjoint{T, CornerTensor{T}}, x) where T <: Real
     x = CuArray(x)  # TODO this an ugly patch
     x = reshape(x, size(ten.parent.B, 1), size(ten.parent.M, 1), :)
+    x = permutedims(x, (1, 3, 2))
     yp = project_ket_on_bra(x, ten.parent.B, ten.parent.M, ten.parent.C)
-    y[:, :] .= Array(reshape(permutedims(yp, (2, 3, 1)), size(ten.parent.M, 2) * size(ten.parent.C, 1), :))
+    y[:, :] .= Array(reshape(permutedims(yp, (2, 3, 1)), size(ten.parent.C, 2) * size(ten.parent.M, 2), :))
 end
 
 function Base.:(*)(ten::CornerTensor{T}, x) where T
     x = CuArray(x)  # TODO this an ugly patch
-    x = reshape(x, size(ten.M, 2), size(ten.C, 1), 1)
-    x = permutedims(x, (3, 1, 2))
+    x = reshape(x, 1, size(ten.C, 2), size(ten.M, 2))
     yp = update_env_right(ten.C, x, ten.M, ten.B)
-    out = reshape(permutedims(yp, (3, 2, 1)), size(ten.B, 1) * size(ten.M, 1))
+    out = reshape(yp, size(ten.B, 1) * size(ten.M, 1))
     Array(out)  # TODO this an ugly patch
 end
 
 function Base.:(*)(ten::Adjoint{T, CornerTensor{T}}, x) where T <: Real
     x = CuArray(x)  # TODO this an ugly patch
-    x = reshape(x, size(ten.parent.B, 1), size(ten.parent.M, 1), 1)
+    x = reshape(x, size(ten.parent.B, 1), 1, size(ten.parent.M, 1))
     yp = project_ket_on_bra(x, ten.parent.B, ten.parent.M, ten.parent.C)
-    out = reshape(permutedims(yp, (2, 3, 1)), size(ten.parent.M, 2) * size(ten.parent.C, 1))
+    out = reshape(yp, size(ten.parent.C, 2) * size(ten.parent.M, 2))
     Array(out)  # TODO this an ugly patch
 end

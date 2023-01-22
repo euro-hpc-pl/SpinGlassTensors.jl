@@ -80,5 +80,5 @@ function contract_tensors43(B::CuArray{T, 4}, A::CuArray{T, 3}) where T <: Real
 end
 
 function corner_matrix(C::S, M::T, B::S) where {S <: CuArray{R, 3}, T <: CuArray{R, 4}} where R <: Real
-    @tensor Cnew[l, ml, mt, tt] := M[ml, mt, mr, mb] * B[l, r, mb] * C[tt, r, mr] order = (r, mb, mr)
+    @tensor Cnew[ll, ml, tt, mt] := M[ml, mt, mr, mb] * B[ll, rr, mb] * C[rr, tt, mr] order = (rr, mb, mr)
 end

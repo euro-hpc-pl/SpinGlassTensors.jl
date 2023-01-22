@@ -67,5 +67,5 @@ function corner_matrix(C::S, M::T, B::S) where {S <: CuArray{R, 3}, T <: SiteTen
     p12 = M.projs[1] .+ (M.projs[2] .- 1) .* sm1
     ip12 = CuSparseMatrixCSC(R, p12)
     out = reshape(ip12 * outp', (sm1, maximum(M.projs[2]), size(B, 1), size(C, 2)))
-    permutedims(out, (3, 1, 2, 4))
+    permutedims(out, (3, 1, 4, 2))
 end

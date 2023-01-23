@@ -4,6 +4,8 @@ Select optimal order of attaching matrices to L
 function attach_3_matrices_left(
     L::S, B2::Q, A2::Q, h::C
 ) where {S <: CuArray{T, 3}, Q <: CuArray{T, 2}, C <: Tensor{T, 2}} where T <: Real
+    #println("attach_3_matrices_left L = ", size(L), " h = " , size(h), " B2 = " , size(B2), " A2 = " , size(A2))
+    #@time begin
     if r2_over_r1(h) <= r2_over_r1(B2) <= r2_over_r1(A2)
         L = contract_tensor3_matrix(L, h)  # [..., rc] = [..., lc] * [lc, rc]
         @tensor L[rfb, x, y] := B2[lfb, rfb] * L[lfb, x, y]
@@ -28,6 +30,7 @@ function attach_3_matrices_left(
         @tensor L[rfb, x, y] := B2[lfb, rfb] * L[lfb, x, y]
         @tensor L[x, rft, y] := A2[lft, rft] * L[x, lft, y]
         L = contract_tensor3_matrix(L, h)  # [..., rc] = [..., lc] * [lc, rc]
+    #end
     end
     L
 end
@@ -38,6 +41,8 @@ Select optimal order of attaching matrices to R
 function attach_3_matrices_right(
     R::S, B2::Q, A2::Q, h::C
 ) where {S <: CuArray{T, 3}, Q <: CuArray{T, 2}, C <: Tensor{T, 2}} where T <: Real
+    #println("attach_3_matrices_right R = ", size(R), " h = " , size(h), " B2 = " , size(B2), " A2 = " , size(A2))
+    #@time begin
     if r1_over_r2(h) <= r1_over_r2(B2) <= r1_over_r2(A2)
         R = contract_matrix_tensor3(h, R)  # [..., lc] = [lc, rc] * [..., rc]
         @tensor R[lfb, x, y] := B2[lfb, rfb] * R[rfb, x, y]
@@ -63,12 +68,15 @@ function attach_3_matrices_right(
         @tensor R[x, lft, y] := A2[lft, rft] * R[x, rft, y]
         R = contract_matrix_tensor3(h, R)  # [..., lc] = [lc, rc] * [..., rc]
     end
+#end
     R
 end
 
 function attach_2_matrices(
     L::S, B2::Q, h::C, R::S
 ) where {S <: CuArray{T, 3}, Q <: CuArray{T, 2}, C <: Tensor{T, 2}} where T <: Real
+    #println("attach_2_matrices = ", size(L), " h = " , size(h), " B2 = " , size(B2), " R = " , size(R))
+    #@time begin
     if >=(size(B2)...)
         @tensor L[rfb, x, y] := B2[lfb, rfb] * L[lfb, x, y]
     else
@@ -79,6 +87,7 @@ function attach_2_matrices(
     else
         R = contract_matrix_tensor3(h, R)
     end
+#end
     @tensor LR[lft, rft] := L[fb, lft, fh] * R[fb, rft, fh]
 end
 

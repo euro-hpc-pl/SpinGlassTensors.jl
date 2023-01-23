@@ -88,7 +88,7 @@ end
 
 # this is for psvd to work
 LinearAlgebra.ishermitian(ten::CornerTensor) = false
-Base.size(ten::CornerTensor) = (size(ten.B, 1) * size(ten.M, 1), size(ten.C, 1) * size(ten.M, 2))
+Base.size(ten::CornerTensor) = (size(ten.B, 1) * size(ten.M, 1), size(ten.C, 2) * size(ten.M, 2))
 Base.size(ten::CornerTensor, n::Int) = size(ten)[n]
 Base.eltype(ten::CornerTensor{T}) where T = T
 Base.adjoint(ten::CornerTensor{T}) where T = Adjoint{T}(ten)

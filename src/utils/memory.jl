@@ -12,6 +12,7 @@ measure_memory(ten::VirtualTensor) = sum(measure_memory.([ten.con, ten.projs...]
 measure_memory(ten::MpoTensor) = sum(measure_memory.([ten.top..., ten.ctr, ten.bot...]))
 measure_memory(ten::Union{QMps, QMpo}) = sum(measure_memory.(values(ten.tensors)))
 measure_memory(env::Environment) = sum(measure_memory.(values(env.env)))
+measure_memory(::Nothing) = [0, 0]
 
 function format_bytes(bytes, decimals::Int = 2, k::Int = 1024)
     bytes == 0 && return "0 Bytes"

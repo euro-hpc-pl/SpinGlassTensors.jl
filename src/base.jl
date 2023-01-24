@@ -11,7 +11,7 @@ export
 
 abstract type AbstractSparseTensor{T, N} end
 
-const Proj{N} = NTuple{N, Array{Int, 1}}
+const Proj{N} = Union{NTuple{N, Array{Int, 1}}, NTuple{N, CuArray{Int, 1}}}
 
 mutable struct SiteTensor{T <: Real, N} <: AbstractSparseTensor{T, N}
     loc_exp::AbstractVector{T}

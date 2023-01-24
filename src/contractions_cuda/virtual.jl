@@ -267,7 +267,7 @@ function contract_tensors43(B::VirtualTensor{T, 4}, A::CuArray{T, 3}) where T <:
     A = Array(A)
 
     sal, sar, _  = size(A)
-    p_lb, p_l, p_lt, p_rb, p_r, p_rt = B.projs
+    p_lb, p_l, p_lt, p_rb, p_r, p_rt = Array.(B.projs)
     C = zeros(T, sal, length(p_l), sar, length(p_r), maximum(p_lt), maximum(p_rt))
 
     @cast A4[x, y, k, l] := A[x, y, (k, l)] (k ∈ 1:maximum(p_lb))

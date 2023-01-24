@@ -26,11 +26,13 @@ end
 
 function move_to_CUDA!(ten::VirtualTensor)
     ten.con = move_to_CUDA!(ten.con)
+    ten.projs = move_to_CUDA!.(ten.projs)
     ten
 end
 
 function move_to_CUDA!(ten::SiteTensor)
     ten.loc_exp = move_to_CUDA!(ten.loc_exp)
+    ten.projs = move_to_CUDA!.(ten.projs)
     ten
 end
 

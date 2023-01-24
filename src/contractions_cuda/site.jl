@@ -1,6 +1,6 @@
 function contract_sparse_with_three(
         X1::S, X2::S, X3::S, loc_exp::T, p1::Q, p2::Q, p3::Q, pout::Q
-) where {S <: CuArray{R, 3}, T <: CuArray{R, 1}, Q <: Array{Int, 1}} where R <: Real
+) where {S <: CuArray{R, 3}, T <: CuArray{R, 1}, Q <: CuArray{Int, 1}} where R <: Real
     s1, s2, _ = size(X1)
     s3, s4, _ = size(X3)
 

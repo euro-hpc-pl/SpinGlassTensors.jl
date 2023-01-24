@@ -1,21 +1,12 @@
-function CUDA.CUSPARSE.CuSparseMatrixCSC(::Type{R}, pr::Vector{Int}) where R <: Real
-    n = length(pr)
-    CuSparseMatrixCSC(CuArray(1:n+1), CuArray(pr), CUDA.ones(R, n), (maximum(pr), n))
+@memoize Dict function CUDA.CUSPARSE.CuSparseMatrixCSC(::Type{R}, p::Vector{Int}) where R <: Real
+    n = length(p)
+    CuSparseMatrixCSC(CuArray(1:n+1), CuArray(p), CUDA.ones(R, n), (maximum(p), n))
 end
 
-function CUDA.CUSPARSE.CuSparseMatrixCSC(::Type{T}, p_lb::R, p_l::R, p_lt::R) where {T <: Real, R <: Vector{Int}}
-    @assert length(p_lb) == length(p_l) == length(p_lt)
-
-    p_l, p_lb, p_lt = CuArray.((p_l, p_lb, p_lt))
-    ncol = length(p_lb)
-    n = maximum(p_l)
-    m = maximum(p_lb)
-
-    CuSparseMatrixCSC(
-        CuArray(1:ncol+1), n * m * (p_lt .- 1) .+ m * (p_l .- 1) .+ p_lb, CUDA.ones(T, ncol), (n * m * maximum(p_lt), ncol)
-    )
+function CUDA.CUSPARSE.CuSparseMatrixCSC(::Type{T}, p1::R, p2::R, p3::R) where {T <: Real, R <: Vector{Int}}
+    @assert length(p1) == length(p2) == length(p3)
+    s1, s2 = maximum(p1), maximum(p2)
+    p = p1 .+ s1 * (p2 .- 1) .+ s1 * s2 * (p3 .- 1)
+    CuSparseMatrixCSC(T, p)
 end
 
-function CUDA.CUSPARSE.CuSparseMatrixCSR(::Type{T}, p_lb::R, p_l::R, p_lt::R) where {T <: Real, R <: Vector{Int}}
-    transpose(CuSparseMatrixCSC(T, p_lb, p_l, p_lt))
-end

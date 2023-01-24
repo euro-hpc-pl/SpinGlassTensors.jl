@@ -43,7 +43,8 @@ function update_reduced_env_right(K::CuArray{T, 1}, RE::CuArray{T, 2}, M::SiteTe
     Bp = B[:, :, M.projs[4]]
     REp = reshape(RE, (size(RE, 1), 1, size(RE, 2)))[:, :, M.projs[3]]
     outp = dropdims(Bp ⊠ REp, dims=2) .* reshape(M.loc_exp .* K[M.projs[2]], 1, :)
-    permutedims(CuSparseMatrixCSC(T, M.projs[1]) * outp', (2, 1))
+    ipr = CuSparseMatrixCSC(T, M.projs[1])
+    permutedims(ipr * outp', (2, 1))
 end
 
 function contract_tensors43(M::SiteTensor{T, 4}, B::CuArray{T, 3}) where T <: Real
@@ -51,8 +52,8 @@ function contract_tensors43(M::SiteTensor{T, 4}, B::CuArray{T, 3}) where T <: Re
     sm1, sm2, sm3 = maximum.(M.projs[1:3])
     Bp = B[:, :, M.projs[4]] .* reshape(M.loc_exp, 1, 1, :)
     @cast Bp[(x, y), z] := Bp[x, y, z]
-    p123 = M.projs[1] .+ (M.projs[2] .- 1) .* sm1 .+ (M.projs[3] .- 1) .* (sm1 * sm2)
-    ip123 = CuSparseMatrixCSC(eltype(B), p123)
+    # p123 = M.projs[1] .+ (M.projs[2] .- 1) .* sm1 .+ (M.projs[3] .- 1) .* (sm1 * sm2)
+    ip123 = CuSparseMatrixCSC(eltype(B), M.projs[1], M.projs[2], M.projs[3])
     out = reshape(ip123 * Bp', (sm1, sm2, sm3, sb1, sb2))
     reshape(permutedims(out, (4, 1, 5, 3, 2)), sb1 * sm1, sb2 * sm3, sm2)
 end

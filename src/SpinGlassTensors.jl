@@ -4,7 +4,8 @@ module SpinGlassTensors
     using LowRankApprox, TSVD
     using CUDA, CUDA.CUSPARSE
     using NNlib, NNlibCUDA
-    using Memoize
+    using Memoization
+    # using Memoize
 
     CUDA.allowscalar(false)
 

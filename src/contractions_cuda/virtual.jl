@@ -101,8 +101,8 @@ function update_env_left(L::S, A::S, M::VirtualTensor{T}, B::S) where {S <: CuAr
 
     slcb, slc, slct = maximum(p_lb), maximum(p_l), maximum(p_lt)
     srcb, srct = maximum(p_rb), maximum(p_rt)
-    prs = CuSparseMatrixCSR(T, p_rb, p_rt, p_r)
-    ps = CuSparseMatrixCSC(T, p_lb, p_lt, p_l)
+    prs = CuSparseMatrixCSC(T, p_rb, p_rt, p_r)
+    pls = CuSparseMatrixCSC(T, p_lb, p_lt, p_l)
 
     batch_size = 2
     Lout = CUDA.zeros(T, srb, srt, srcp)
@@ -115,9 +115,9 @@ function update_env_left(L::S, A::S, M::VirtualTensor{T}, B::S) where {S <: CuAr
         lb_to = min(lb_from + batch_size - 1, slb)
         Lslc = L[lb_from:lb_to, :, :]
         @cast Lslc[(lb, lt), lcp] := Lslc[lb, lt, lcp]
-        Lslc = ps * Lslc'  # [(lcb, lct, lc), (lb, lt)]
-        @cast Lslc[lcb, lct, lc, lb, lt] := Lslc[(lcb, lct, lc), (lb, lt)] (lcb ∈ 1:slcb, lc ∈ 1:slc, lt ∈ 1:slt)
-        Lslc = permutedims(Lslc, (4, 1, 5, 2, 3))  # [lb, lcb, lt, lct, lc]
+        Lslc = (pls * Lslc')'  # [(lcb, lct, lc), (lb, lt)]
+        @cast Lslc[lb, lt, lcb, lct, lc] := Lslc[(lb, lt), (lcb, lct, lc)] (lcb ∈ 1:slcb, lc ∈ 1:slc, lt ∈ 1:slt)
+        Lslc = permutedims(Lslc, (1, 3, 2, 4, 5))  # [lb, lcb, lt, lct, lc]
         @cast Lslc[(lb, lcb), (lt, lct), lc] := Lslc[lb, lcb, lt, lct, lc]
 
         rb_from = 1
@@ -131,8 +131,8 @@ function update_env_left(L::S, A::S, M::VirtualTensor{T}, B::S) where {S <: CuAr
             @cast Ltemp[rb, rcb, rt, rct, rc] := Ltemp[(rb, rcb), (rt, rct), rc] (rcb ∈ 1:srcb, rct ∈ 1:srct)
             Ltemp = permutedims(Ltemp, (2, 4, 5, 1, 3))  # [rcb, rct, rc, rb, rt]
             @cast Ltemp[(rcb, rct, rc), (rb, rt)] := Ltemp[rcb, rct, rc, rb, rt]
-            Ltemp = prs * Ltemp  # [rcp, (rb, rt)]
-            Ltemp = permutedims(Ltemp, (2, 1))
+            Ltemp = (prs' * Ltemp)'  # [rcp, (rb, rt)]
+            # Ltemp = permutedims(Ltemp, (2, 1))
             @cast Ltemp[rb, rt, rcp] := Ltemp[(rb, rt), rcp] (rt ∈ 1:srt)
             Lout[rb_from : rb_to, :, :] += Ltemp
             rb_from = rb_to + 1
@@ -151,8 +151,8 @@ function update_env_right(R::S, A::S, M::VirtualTensor{T}, B::S) where {S <: CuA
     slcp = length(p_l)
 
     slcb, srcb, src, srct = maximum(p_lb), maximum(p_rb), maximum(p_r), maximum(p_rt)
-    prs = CuSparseMatrixCSR(T, p_lb, p_lt, p_l)
-    ps = CuSparseMatrixCSC(T, p_rb, p_rt, p_r)
+    prs = CuSparseMatrixCSC(T, p_lb, p_lt, p_l)
+    pls = CuSparseMatrixCSC(T, p_rb, p_rt, p_r)
 
     batch_size = 2
     Rout = CUDA.zeros(T, slb, slt, slcp)
@@ -165,9 +165,9 @@ function update_env_right(R::S, A::S, M::VirtualTensor{T}, B::S) where {S <: CuA
         rb_to = min(rb_from + batch_size - 1, srb)
         Rslc = R[rb_from:rb_to, :, :]
         @cast Rslc[(rb, rt), rcp] := Rslc[rb, rt, rcp]
-        Rslc = ps * Rslc'  # [(rcb, rc, rct), (rb, rt)]
-        @cast Rslc[rcb, rct, rc, rb, rt] := Rslc[(rcb, rct, rc), (rb, rt)] (rcb ∈ 1:srcb, rc ∈ 1:src, rt ∈ 1:srt)
-        Rslc = permutedims(Rslc, (4, 1, 5, 2, 3))  # [rb, rcb, rt, rct, rc]
+        Rslc = (pls * Rslc')'  # [(rcb, rc, rct), (rb, rt)]
+        @cast Rslc[rb, rt, rcb, rct, rc] := Rslc[(rb, rt), (rcb, rct, rc)] (rcb ∈ 1:srcb, rc ∈ 1:src, rt ∈ 1:srt)
+        Rslc = permutedims(Rslc, (1, 3, 2, 4, 5))  # [rb, rcb, rt, rct, rc]
         @cast Rslc[(rb, rcb), (rt, rct), rc] := Rslc[rb, rcb, rt, rct, rc]
 
         lb_from = 1
@@ -181,8 +181,8 @@ function update_env_right(R::S, A::S, M::VirtualTensor{T}, B::S) where {S <: CuA
             @cast Rtemp[lb, lcb, lt, lct, lc] := Rtemp[(lb, lcb), (lt, lct), lc] (lcb ∈ 1:slcb, lt ∈ 1:slt)
             Rtemp = permutedims(Rtemp, (1, 3, 2, 4, 5))  # [lb, lt, lcb, lct, lc]
             @cast Rtemp[(lb, lt), (lcb, lct, lc)] := Rtemp[lb, lt, lcb, lct, lc]
-            Rtemp = prs * Rtemp'  # [lcp, (lb, lt)]
-            Rtemp = permutedims(Rtemp, (2, 1))
+            Rtemp = (prs' * Rtemp')'  # [lcp, (lb, lt)]
+            # Rtemp = permutedims(Rtemp, (2, 1))
             @cast Rtemp[lb, lt, lcp] := Rtemp[(lb, lt), lcp] (lt ∈ 1:slt)
             Rout[lb_from:lb_to, :, :] += Rtemp
             lb_from = lb_to + 1
@@ -201,10 +201,10 @@ function project_ket_on_bra(L::S, B::S, M::VirtualTensor{T}, R::S) where {S <: C
 
     slcb, slc, slct = maximum(p_lb), maximum(p_l), maximum(p_lt)
     srcb, src, srct = maximum(p_rb), maximum(p_r), maximum(p_rt)
-    ps = CuSparseMatrixCSC(T, p_lb, p_lt, p_l)
+    pls = CuSparseMatrixCSC(T, p_lb, p_lt, p_l)
     prs = CuSparseMatrixCSC(T, p_rb, p_rt, p_r)
 
-    batch_size = 2
+    batch_size = 1
     @cast Btemp[lb, rb, lcb, rcb] := B[lb, rb, (lcb, rcb)] (lcb ∈ 1:slcb)
     Btemp = permutedims(Btemp, (1, 3, 2, 4))
     @cast B2[(lb, lcb), (rb, rcb)] := Btemp[lb, lcb, rb, rcb]
@@ -215,9 +215,9 @@ function project_ket_on_bra(L::S, B::S, M::VirtualTensor{T}, R::S) where {S <: C
         l_to = min(l_from + batch_size - 1, sl2)
         Lslc = L[:, l_from:l_to, :]
         @cast Lslc[(lb, lt), lcp] := Lslc[lb, lt, lcp]
-        Lslc = ps * Lslc'  # [(lcb, lc, lct), (lb, lt)]
-        @cast Lslc[lcb, lct, lc, lb, lt] := Lslc[(lcb, lct, lc), (lb, lt)] (lcb ∈ 1:slcb, lc ∈ 1:slc, lb ∈ 1:sl1)
-        Lslc = permutedims(Lslc, (4, 1, 5, 2, 3))  # [lb, lcb, lt, lct, lc]
+        Lslc = (pls * Lslc')'  # [(lcb, lc, lct), (lb, lt)]
+        @cast Lslc[lb, lt, lcb, lct, lc] := Lslc[(lb, lt), (lcb, lct, lc)] (lcb ∈ 1:slcb, lc ∈ 1:slc, lb ∈ 1:sl1)
+        Lslc = permutedims(Lslc, (1, 3, 2, 4, 5))  # [lb, lcb, lt, lct, lc]
         @cast Lslc[(lb, lcb), (lt, lct), lc] := Lslc[lb, lcb, lt, lct, lc]
 
         r_from = 1
@@ -225,9 +225,9 @@ function project_ket_on_bra(L::S, B::S, M::VirtualTensor{T}, R::S) where {S <: C
             r_to = min(r_from + batch_size - 1, sr2)
             Rslc = R[:, r_from:r_to, :]
             @cast Rslc[(rb, rt), rcp] := Rslc[rb, rt, rcp]
-            Rslc = prs * Rslc'  # [(rcb, rct, rc), (rb, rt)]
-            @cast Rslc[rcb, rct, rc, rb, rt] := Rslc[(rcb, rct, rc), (rb, rt)] (rcb ∈ 1:srcb, rc ∈ 1:src, rb ∈ 1:sr1)
-            Rslc = permutedims(Rslc, (4, 1, 5, 2, 3))  # [rb, rcb, rt, rct, rc]
+            Rslc = (prs * Rslc')'  # [(rcb, rct, rc), (rb, rt)]
+            @cast Rslc[rb, rt, rcb, rct, rc] := Rslc[(rb, rt), (rcb, rct, rc)] (rcb ∈ 1:srcb, rc ∈ 1:src, rb ∈ 1:sr1)
+            Rslc = permutedims(Rslc, (1, 3, 2, 4, 5))  # [rb, rcb, rt, rct, rc]
             @cast Rslc[(rb, rcb), (rt, rct), rc] := Rslc[rb, rcb, rt, rct, rc]
             LR = attach_2_matrices(Lslc, B2, h, Rslc)
             @cast LR[lt, lct, rt, rct] := LR[(lt, lct), (rt, rct)] (lct ∈ 1:slct, rct ∈ 1:srct)
@@ -248,13 +248,15 @@ function update_reduced_env_right(K::CuArray{T, 1}, RE::CuArray{T, 2}, M::Virtua
     @cast B2[l, r, lb, rb] := B[l, r, (lb, rb)] (lb ∈ 1:maximum(p_lb))
     B2 = permutedims(B2, (1, 3, 2, 4))  # [l, lb, r, rb]
     @cast B2[(l, lb), (r, rb)] := B2[l, lb, r, rb]
-    Rtemp = CuSparseMatrixCSC(T, p_rb, p_rt, p_r) * permutedims(RE, (2, 1))
-    @cast Rtemp[rb, rt, rc, b] := Rtemp[(rb, rt, rc), b] (rb ∈ 1:maximum(p_rb), rc ∈ 1:maximum(p_r))
-    Rtemp = permutedims(Rtemp, (4, 1, 2, 3))  # [b, rb, rt, rc]
+    pls = CuSparseMatrixCSC(T, p_lb, p_lt, p_l)
+    prs = CuSparseMatrixCSC(T, p_rb, p_rt, p_r)
+    Rtemp = permutedims((prs * RE'), (2, 1))
+    @cast Rtemp[b, rb, rt, rc] := Rtemp[b, (rb, rt, rc)] (rb ∈ 1:maximum(p_rb), rc ∈ 1:maximum(p_r))
+    # Rtemp = permutedims(Rtemp, (4, 1, 2, 3))  # [b, rb, rt, rc]
     @cast Rtemp[(b, rb), rt, rc] := Rtemp[b, rb, rt, rc] 
     Rtemp = attach_3_matrices_right(Rtemp, B2, K2, h)  # [(l, lb), lt, lc]
     @cast Rtemp[l, (lb, lt, lc)] := Rtemp[(l, lb), lt, lc] (lb ∈ 1:maximum(p_lb))
-    permutedims(CuSparseMatrixCSR(T, p_lb, p_lt, p_l) * Rtemp', (2, 1))
+    (pls' * Rtemp')'
 end
 
 # TODO rewrite this function, too many nasty patches now

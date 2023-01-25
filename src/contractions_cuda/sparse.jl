@@ -1,6 +1,11 @@
+@memoize Dict function aux_cusparse(::Type{R}, n::Int64) where R <: Real
+    CuArray(1:n+1), CUDA.ones(R, n)
+end
+
 @memoize Dict function CUDA.CUSPARSE.CuSparseMatrixCSC(::Type{R}, p::Vector{Int}) where R <: Real
     n = length(p)
-    CuSparseMatrixCSC(CuArray(1:n+1), CuArray(p), CUDA.ones(R, n), (maximum(p), n))
+    cn, co = aux_cusparse(R, n)
+    CuSparseMatrixCSC(cn, CuArray(p), co, (maximum(p), n))
 end
 
 function CUDA.CUSPARSE.CuSparseMatrixCSC(::Type{T}, p1::R, p2::R, p3::R) where {T <: Real, R <: Vector{Int}}

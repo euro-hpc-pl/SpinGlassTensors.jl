@@ -12,14 +12,19 @@ function contract_sparse_with_three(
     from, total_size = 1, length(p1)
     while from <= total_size
         to = min(total_size, from + batch_size - 1)
+
         X1p = X1[:, :, p1[from:to]]
         X2p = X2[:, :, p2[from:to]]
         X3p = X3[:, :, p3[from:to]]
+
         outp = X1p ⊠ X2p ⊠ X3p
         outp .*= reshape(loc_exp[from:to], 1, 1, :)
+
         @cast outp[(x, y), z] := outp[x, y, z]
         poutp = pout[from:to]
-        rf, rt = minimum(poutp), maximum(poutp)
+
+        rf = minimum(poutp)
+        rt = maximum(poutp)
         ipr = CuSparseMatrixCSC(R, poutp .- (rf - 1))
         out[rf:rt, :, :] .+= reshape(ipr * outp', (:, s1, s4))
         from = to + 1
@@ -41,8 +46,10 @@ end
 
 function update_reduced_env_right(K::CuArray{T, 1}, RE::CuArray{T, 2}, M::SiteTensor{T}, B::CuArray{T, 3}) where T <: Real
     Bp = B[:, :, M.projs[4]]
-    REp = reshape(RE, (size(RE, 1), 1, size(RE, 2)))[:, :, M.projs[3]]
-    outp = dropdims(Bp ⊠ REp, dims=2) .* reshape(M.loc_exp .* K[M.projs[2]], 1, :)
+    REp = reshape(RE, size(RE, 1), 1, size(RE, 2))
+    REp = REp[:, :, M.projs[3]]
+    outp = dropdims(Bp ⊠ REp, dims=2)
+    outp .*= reshape(M.loc_exp .* K[M.projs[2]], 1, :)
     ipr = CuSparseMatrixCSC(T, M.projs[1])
     permutedims(ipr * outp', (2, 1))
 end
@@ -50,11 +57,12 @@ end
 function contract_tensors43(M::SiteTensor{T, 4}, B::CuArray{T, 3}) where T <: Real
     sb1, sb2, _ = size(B)
     sm1, sm2, sm3 = maximum.(M.projs[1:3])
-    Bp = B[:, :, M.projs[4]] .* reshape(M.loc_exp, 1, 1, :)
+    Bp = B[:, :, M.projs[4]]
+    Bp .*= reshape(M.loc_exp, 1, 1, :)
     @cast Bp[(x, y), z] := Bp[x, y, z]
     # p123 = M.projs[1] .+ (M.projs[2] .- 1) .* sm1 .+ (M.projs[3] .- 1) .* (sm1 * sm2)
-    ip123 = CuSparseMatrixCSC(eltype(B), M.projs[1], M.projs[2], M.projs[3])
-    out = reshape(ip123 * Bp', (sm1, sm2, sm3, sb1, sb2))
+    ip123 = CuSparseMatrixCSC(T, M.projs[1], M.projs[2], M.projs[3])
+    out = reshape(ip123 * Bp', sm1, sm2, sm3, sb1, sb2)
     reshape(permutedims(out, (4, 1, 5, 3, 2)), sb1 * sm1, sb2 * sm3, sm2)
 end
 
@@ -67,6 +75,6 @@ function corner_matrix(C::S, M::T, B::S) where {S <: CuArray{R, 3}, T <: SiteTen
     sm1 = maximum(M.projs[1])
     p12 = M.projs[1] .+ (M.projs[2] .- 1) .* sm1
     ip12 = CuSparseMatrixCSC(R, p12)
-    out = reshape(ip12 * outp', (sm1, maximum(M.projs[2]), size(B, 1), size(C, 2)))
+    out = reshape(ip12 * outp', sm1, maximum(M.projs[2]), size(B, 1), size(C, 2))
     permutedims(out, (3, 1, 4, 2))
 end

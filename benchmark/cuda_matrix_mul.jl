@@ -24,3 +24,6 @@ CUDA.@allowscalar B*A' # scalar indexing
 transpose(A)*B # no scalar indexing
 CUDA.@allowscalar B*transpose(A) # scalar indexing
 # problem is when we multiply dense x sparse
+
+ D = rand(Float64, (100, 100))
+ CUDA.@allowscalar D*A # scalar indexing

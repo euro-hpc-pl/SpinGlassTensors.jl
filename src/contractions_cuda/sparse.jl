@@ -17,4 +17,3 @@ function CUDA.CUSPARSE.CuSparseMatrixCSC(::Type{T}, p1::R, p2::R, p3::R) where {
     p = p1 .+ s1 * (p2 .- 1) .+ s1 * s2 * (p3 .- 1)
     CuSparseMatrixCSC(T, p)
 end
-

@@ -63,7 +63,8 @@ function contract_tensors43(M::SiteTensor{T, 4}, B::CuArray{T, 3}) where T <: Re
     # p123 = M.projs[1] .+ (M.projs[2] .- 1) .* sm1 .+ (M.projs[3] .- 1) .* (sm1 * sm2)
     ip123 = CuSparseMatrixCSC(eltype(B), M.projs[1], M.projs[2], M.projs[3])
     out = reshape(ip123 * Bp', (sm1, sm2, sm3, sb1, sb2))
-    reshape(permutedims(out, (4, 1, 5, 3, 2)), sb1 * sm1, sb2 * sm3, sm2)
+    out = permutedims(out, (4, 1, 5, 3, 2))
+    reshape(out, sb1 * sm1, sb2 * sm3, sm2)
 end
 
 function corner_matrix(C::S, M::T, B::S) where {S <: CuArray{R, 3}, T <: SiteTensor{R, 4}} where R <: Real

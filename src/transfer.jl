@@ -6,7 +6,7 @@ export
     which_device,
     move_to_CUDA!
 
-move_to_CUDA!(ten::Array{T, N}) where {T, N} = CuArray(ten)
+move_to_CUDA!(ten::Array{T, N}) where {T, N} = CuArray(ten) #cu(ten, unified=true)
 #=
 function move_to_CUDA!(a::Array{T, N}) where {T, N}
     buf_a = Mem.alloc(Mem.Unified, sizeof(a))

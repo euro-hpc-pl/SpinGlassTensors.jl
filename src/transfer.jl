@@ -7,6 +7,16 @@ export
     move_to_CUDA!
 
 move_to_CUDA!(ten::Array{T, N}) where {T, N} = CuArray(ten)
+#=
+function move_to_CUDA!(a::Array{T, N}) where {T, N}
+    buf_a = Mem.alloc(Mem.Unified, sizeof(a))
+    d_a = unsafe_wrap(CuArray{T, N}, convert(CuPtr{T}, buf_a), size(a))
+    finalizer(d_a) do _ Mem.free(buf_a) end
+    copyto!(d_a, a)
+    d_a
+end
+=#
+
 move_to_CUDA!(ten::Union{CuArray{T, N}, Nothing}) where {T, N} = ten
 move_to_CUDA!(ten::Diagonal) = Diagonal(move_to_CUDA!(diag(ten)))
 

@@ -9,20 +9,27 @@ function contract_sparse_with_three(
     batch_size = max(Int(floor(total_memory / (8 * (s1 * s2 + s2 * s3 + s3 * s4 + s4 * s1)))), 1)
 
     out = CUDA.zeros(R, maximum(pout), s1, s4)
-    from, total_size = 1, length(p1)
+    from = 1
+    total_size = length(p1)
     while from <= total_size
         to = min(total_size, from + batch_size - 1)
         X1p = X1[:, :, p1[from:to]]
         X2p = X2[:, :, p2[from:to]]
         X3p = X3[:, :, p3[from:to]]
+
         outp = X1p ⊠ X2p ⊠ X3p
-        outp .*= reshape(loc_exp[from:to], 1, 1, :)
+        le = @view loc_exp[from:to]
+        outp .*= reshape(le, 1, 1, :)
         @cast outp[(x, y), z] := outp[x, y, z]
-        poutp = pout[from:to]
-        rf, rt = minimum(poutp), maximum(poutp)
+
+        poutp = @view pout[from:to]
+        rf = minimum(poutp)
+        rt = maximum(poutp)
         ipr = CuSparseMatrixCSC(R, poutp .- (rf - 1))
-        out[rf:rt, :, :] .+= reshape(ipr * outp', (:, s1, s4))
+        out[rf:rt, :, :] .+= reshape(ipr * outp', :, s1, s4)
+
         from = to + 1
+        CUDA.unsafe_free!.((X1p, X3p, X3p, outp, ipr))
     end
     permutedims(out, (2, 3, 1))
 end

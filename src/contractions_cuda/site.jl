@@ -29,7 +29,7 @@ function contract_sparse_with_three(
         out[rf:rt, :, :] .+= reshape(ipr * outp', :, s1, s4)
 
         from = to + 1
-        CUDA.unsafe_free!.((X1p, X3p, X3p, outp, ipr))
+        CUDA.unsafe_free!.((X1p, X3p, X3p, outp))
     end
     permutedims(out, (2, 3, 1))
 end
@@ -48,7 +48,8 @@ end
 
 function update_reduced_env_right(K::CuArray{T, 1}, RE::CuArray{T, 2}, M::SiteTensor{T}, B::CuArray{T, 3}) where T <: Real
     Bp = B[:, :, M.projs[4]]
-    REp = reshape(RE, (size(RE, 1), 1, size(RE, 2)))[:, :, M.projs[3]]
+    REp = reshape(RE, size(RE, 1), 1, size(RE, 2))
+    REp = REp[:, :, M.projs[3]]
     outp = dropdims(Bp ⊠ REp, dims=2) .* reshape(M.loc_exp .* K[M.projs[2]], 1, :)
     ipr = CuSparseMatrixCSC(T, M.projs[1])
     permutedims(ipr * outp', (2, 1))
@@ -74,6 +75,6 @@ function corner_matrix(C::S, M::T, B::S) where {S <: CuArray{R, 3}, T <: SiteTen
     sm1 = maximum(M.projs[1])
     p12 = M.projs[1] .+ (M.projs[2] .- 1) .* sm1
     ip12 = CuSparseMatrixCSC(R, p12)
-    out = reshape(ip12 * outp', (sm1, maximum(M.projs[2]), size(B, 1), size(C, 2)))
+    out = reshape(ip12 * outp', sm1, maximum(M.projs[2]), size(B, 1), size(C, 2))
     permutedims(out, (3, 1, 4, 2))
 end

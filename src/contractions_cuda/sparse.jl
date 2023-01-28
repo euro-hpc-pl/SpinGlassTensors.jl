@@ -1,4 +1,4 @@
-# @memoize Dict
+#TODO add support for CuSparseMatrixCSR (cf. https://github.com/JuliaGPU/CUDA.jl/issues/1113)
 
 @memoize Dict function aux_cusparse(::Type{R}, n::Int64) where R <: Real
     CuArray(1:n+1), CUDA.ones(R, n)

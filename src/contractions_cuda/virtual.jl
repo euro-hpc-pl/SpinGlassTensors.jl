@@ -4,8 +4,6 @@ Select optimal order of attaching matrices to L
 function attach_3_matrices_left(
     L::S, B2::Q, A2::Q, h::C
 ) where {S <: CuArray{T, 3}, Q <: CuArray{T, 2}, C <: Tensor{T, 2}} where T <: Real
-    #println("attach_3_matrices_left L = ", size(L), " h = " , size(h), " B2 = " , size(B2), " A2 = " , size(A2))
-    #@time begin
     if r2_over_r1(h) <= r2_over_r1(B2) <= r2_over_r1(A2)
         L = contract_tensor3_matrix(L, h)  # [..., rc] = [..., lc] * [lc, rc]
         @tensor L[rfb, x, y] := B2[lfb, rfb] * L[lfb, x, y]
@@ -30,7 +28,6 @@ function attach_3_matrices_left(
         @tensor L[rfb, x, y] := B2[lfb, rfb] * L[lfb, x, y]
         @tensor L[x, rft, y] := A2[lft, rft] * L[x, lft, y]
         L = contract_tensor3_matrix(L, h)  # [..., rc] = [..., lc] * [lc, rc]
-    #end
     end
     L
 end
@@ -41,8 +38,6 @@ Select optimal order of attaching matrices to R
 function attach_3_matrices_right(
     R::S, B2::Q, A2::Q, h::C
 ) where {S <: CuArray{T, 3}, Q <: CuArray{T, 2}, C <: Tensor{T, 2}} where T <: Real
-    #println("attach_3_matrices_right R = ", size(R), " h = " , size(h), " B2 = " , size(B2), " A2 = " , size(A2))
-    #@time begin
     if r1_over_r2(h) <= r1_over_r2(B2) <= r1_over_r2(A2)
         R = contract_matrix_tensor3(h, R)  # [..., lc] = [lc, rc] * [..., rc]
         @tensor R[lfb, x, y] := B2[lfb, rfb] * R[rfb, x, y]
@@ -68,15 +63,12 @@ function attach_3_matrices_right(
         @tensor R[x, lft, y] := A2[lft, rft] * R[x, rft, y]
         R = contract_matrix_tensor3(h, R)  # [..., lc] = [lc, rc] * [..., rc]
     end
-#end
     R
 end
 
 function attach_2_matrices(
     L::S, B2::Q, h::C, R::S
 ) where {S <: CuArray{T, 3}, Q <: CuArray{T, 2}, C <: Tensor{T, 2}} where T <: Real
-    #println("attach_2_matrices = ", size(L), " h = " , size(h), " B2 = " , size(B2), " R = " , size(R))
-    #@time begin
     if >=(size(B2)...)
         @tensor L[rfb, x, y] := B2[lfb, rfb] * L[lfb, x, y]
     else
@@ -87,7 +79,6 @@ function attach_2_matrices(
     else
         R = contract_matrix_tensor3(h, R)
     end
-#end
     @tensor LR[lft, rft] := L[fb, lft, fh] * R[fb, rft, fh]
 end
 
@@ -132,7 +123,6 @@ function update_env_left(L::S, A::S, M::VirtualTensor{T}, B::S) where {S <: CuAr
             Ltemp = permutedims(Ltemp, (2, 4, 5, 1, 3))  # [rcb, rct, rc, rb, rt]
             @cast Ltemp[(rcb, rct, rc), (rb, rt)] := Ltemp[rcb, rct, rc, rb, rt]
             Ltemp = (prs' * Ltemp)'  # [rcp, (rb, rt)]
-            # Ltemp = permutedims(Ltemp, (2, 1))
             @cast Ltemp[rb, rt, rcp] := Ltemp[(rb, rt), rcp] (rt ∈ 1:srt)
             Lout[rb_from : rb_to, :, :] += Ltemp
             rb_from = rb_to + 1
@@ -252,8 +242,7 @@ function update_reduced_env_right(K::CuArray{T, 1}, RE::CuArray{T, 2}, M::Virtua
     prs = CuSparseMatrixCSC(T, p_rb, p_rt, p_r)
     Rtemp = permutedims((prs * RE'), (2, 1))
     @cast Rtemp[b, rb, rt, rc] := Rtemp[b, (rb, rt, rc)] (rb ∈ 1:maximum(p_rb), rc ∈ 1:maximum(p_r))
-    # Rtemp = permutedims(Rtemp, (4, 1, 2, 3))  # [b, rb, rt, rc]
-    @cast Rtemp[(b, rb), rt, rc] := Rtemp[b, rb, rt, rc] 
+    @cast Rtemp[(b, rb), rt, rc] := Rtemp[b, rb, rt, rc]
     Rtemp = attach_3_matrices_right(Rtemp, B2, K2, h)  # [(l, lb), lt, lc]
     @cast Rtemp[l, (lb, lt, lc)] := Rtemp[(l, lb), lt, lc] (lb ∈ 1:maximum(p_lb))
     (pls' * Rtemp')'

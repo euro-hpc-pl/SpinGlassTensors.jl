@@ -3,7 +3,6 @@ export
     contract_matrix_tensor3,
     update_reduced_env_right
 
-
 function contract_tensor3_matrix(L::CuArray{T, 3}, M::CentralTensor{T, 2}) where T <: Real
     contract_tensor3_central(L, M.e11, M.e12, M.e21, M.e22)
 end
@@ -17,7 +16,7 @@ function update_reduced_env_right(RR::CuArray{T, 2}, M::CentralTensor{T, 2}) whe
     dropdims(contract_matrix_tensor3(M, RR), dims=2)
 end
 
-function contract_tensor3_central(L, e11, e12, e21, e22)
+function contract_tensor3_central(L, e11, e12, e21, e22) # TODO add types
     sb, st = size(L)
     sbt = sb * st
     sl1, sl2, sr1, sr2 = size(e11, 1), size(e22, 1), size(e11, 2), size(e22, 2)
@@ -52,5 +51,5 @@ function contract_tensor3_central(L, e11, e12, e21, e22)
         L .*= reshape(e22, 1, sl2, sr2, 1)  # [tb, l2, r2, r1] .* [:, l2, r2, :]
         L = permutedims(dropdims(sum(L, dims=2), dims=2), (1, 3, 2))
     end
-    return reshape(L, sb, st, sr1 * sr2)
+    reshape(L, sb, st, sr1 * sr2)
 end

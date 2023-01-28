@@ -1,3 +1,5 @@
+#TODO make sure slicing is done right, cf. https://discourse.julialang.org/t/correct-implementation-of-cuarrays-slicing-operations/90600
+
 function contract_sparse_with_three(
         X1::S, X2::S, X3::S, loc_exp::T, p1::Q, p2::Q, p3::Q, pout::Q
 ) where {S <: CuArray{R, 3}, T <: CuArray{R, 1}, Q <: CuArray{Int, 1}} where R <: Real
@@ -25,7 +27,7 @@ function contract_sparse_with_three(
         poutp = @view pout[from:to]
         rf = minimum(poutp)
         rt = maximum(poutp)
-        ipr = CuSparseMatrixCSC(R, poutp .- (rf - 1))
+        @time ipr = CuSparseMatrixCSC(R, poutp .- (rf - 1)) #  TODO take it out from this loop (?)
         out[rf:rt, :, :] .+= reshape(ipr * outp', :, s1, s4)
 
         from = to + 1
@@ -60,9 +62,8 @@ function contract_tensors43(M::SiteTensor{T, 4}, B::CuArray{T, 3}) where T <: Re
     sm1, sm2, sm3 = maximum.(M.projs[1:3])
     Bp = B[:, :, M.projs[4]] .* reshape(M.loc_exp, 1, 1, :)
     @cast Bp[(x, y), z] := Bp[x, y, z]
-    # p123 = M.projs[1] .+ (M.projs[2] .- 1) .* sm1 .+ (M.projs[3] .- 1) .* (sm1 * sm2)
-    ip123 = CuSparseMatrixCSC(eltype(B), M.projs[1], M.projs[2], M.projs[3])
-    out = reshape(ip123 * Bp', (sm1, sm2, sm3, sb1, sb2))
+    ip123 = CuSparseMatrixCSC(T, M.projs[1], M.projs[2], M.projs[3])
+    out = reshape(ip123 * Bp', sm1, sm2, sm3, sb1, sb2)
     out = permutedims(out, (4, 1, 5, 3, 2))
     reshape(out, sb1 * sm1, sb2 * sm3, sm2)
 end

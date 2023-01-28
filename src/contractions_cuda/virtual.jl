@@ -103,7 +103,7 @@ function update_env_left(L::S, A::S, M::VirtualTensor{T}, B::S) where {S <: CuAr
 
     lb_from = 1
     while lb_from <= slb
-        lb_to = min(lb_from + batch_size - 1, slb)
+        @inbounds lb_to = min(lb_from + batch_size - 1, slb)
         Lslc = L[lb_from:lb_to, :, :]
         @cast Lslc[(lb, lt), lcp] := Lslc[lb, lt, lcp]
         Lslc = (pls * Lslc')'  # [(lcb, lct, lc), (lb, lt)]
@@ -114,7 +114,7 @@ function update_env_left(L::S, A::S, M::VirtualTensor{T}, B::S) where {S <: CuAr
         rb_from = 1
         while rb_from <= srb
             rb_to = min(rb_from + batch_size - 1, srb)
-            Btemp = B[lb_from:lb_to, rb_from:rb_to, :]
+            @inbounds Btemp = B[lb_from:lb_to, rb_from:rb_to, :]
             @cast Btemp[lb, rb, lcb, rcb] := Btemp[lb, rb, (lcb, rcb)] (lcb ∈ 1:slcb)
             Btemp = permutedims(Btemp, (1, 3, 2, 4))
             @cast B2[(lb, lcb), (rb, rcb)] := Btemp[lb, lcb, rb, rcb]
@@ -124,7 +124,7 @@ function update_env_left(L::S, A::S, M::VirtualTensor{T}, B::S) where {S <: CuAr
             @cast Ltemp[(rcb, rct, rc), (rb, rt)] := Ltemp[rcb, rct, rc, rb, rt]
             Ltemp = (prs' * Ltemp)'  # [rcp, (rb, rt)]
             @cast Ltemp[rb, rt, rcp] := Ltemp[(rb, rt), rcp] (rt ∈ 1:srt)
-            Lout[rb_from : rb_to, :, :] += Ltemp
+            @inbounds Lout[rb_from : rb_to, :, :] += Ltemp
             rb_from = rb_to + 1
         end
         lb_from = lb_to + 1
@@ -153,7 +153,7 @@ function update_env_right(R::S, A::S, M::VirtualTensor{T}, B::S) where {S <: CuA
     rb_from = 1
     while rb_from <= srb
         rb_to = min(rb_from + batch_size - 1, srb)
-        Rslc = R[rb_from:rb_to, :, :]
+        @inbounds Rslc = R[rb_from:rb_to, :, :]
         @cast Rslc[(rb, rt), rcp] := Rslc[rb, rt, rcp]
         Rslc = (pls * Rslc')'  # [(rcb, rc, rct), (rb, rt)]
         @cast Rslc[rb, rt, rcb, rct, rc] := Rslc[(rb, rt), (rcb, rct, rc)] (rcb ∈ 1:srcb, rc ∈ 1:src, rt ∈ 1:srt)
@@ -163,7 +163,7 @@ function update_env_right(R::S, A::S, M::VirtualTensor{T}, B::S) where {S <: CuA
         lb_from = 1
         while lb_from <= slb
             lb_to = min(lb_from + batch_size - 1, slb)
-            Btemp = B[lb_from:lb_to, rb_from:rb_to, :]
+            @inbounds Btemp = B[lb_from:lb_to, rb_from:rb_to, :]
             @cast Btemp[lb, rb, lcb, rcb] := Btemp[lb, rb, (lcb, rcb)] (lcb ∈ 1:slcb)
             Btemp = permutedims(Btemp, (1, 3, 2, 4))
             @cast B2[(lb, lcb), (rb, rcb)] := Btemp[lb, lcb, rb, rcb]
@@ -172,9 +172,8 @@ function update_env_right(R::S, A::S, M::VirtualTensor{T}, B::S) where {S <: CuA
             Rtemp = permutedims(Rtemp, (1, 3, 2, 4, 5))  # [lb, lt, lcb, lct, lc]
             @cast Rtemp[(lb, lt), (lcb, lct, lc)] := Rtemp[lb, lt, lcb, lct, lc]
             Rtemp = (prs' * Rtemp')'  # [lcp, (lb, lt)]
-            # Rtemp = permutedims(Rtemp, (2, 1))
             @cast Rtemp[lb, lt, lcp] := Rtemp[(lb, lt), lcp] (lt ∈ 1:slt)
-            Rout[lb_from:lb_to, :, :] += Rtemp
+            @inbounds Rout[lb_from:lb_to, :, :] += Rtemp
             lb_from = lb_to + 1
         end
         rb_from = rb_to + 1
@@ -203,7 +202,7 @@ function project_ket_on_bra(L::S, B::S, M::VirtualTensor{T}, R::S) where {S <: C
     l_from = 1
     while l_from <= sl2
         l_to = min(l_from + batch_size - 1, sl2)
-        Lslc = L[:, l_from:l_to, :]
+        @inbounds Lslc = L[:, l_from:l_to, :]
         @cast Lslc[(lb, lt), lcp] := Lslc[lb, lt, lcp]
         Lslc = (pls * Lslc')'  # [(lcb, lc, lct), (lb, lt)]
         @cast Lslc[lb, lt, lcb, lct, lc] := Lslc[(lb, lt), (lcb, lct, lc)] (lcb ∈ 1:slcb, lc ∈ 1:slc, lb ∈ 1:sl1)
@@ -213,7 +212,7 @@ function project_ket_on_bra(L::S, B::S, M::VirtualTensor{T}, R::S) where {S <: C
         r_from = 1
         while r_from <= sr2
             r_to = min(r_from + batch_size - 1, sr2)
-            Rslc = R[:, r_from:r_to, :]
+            @inbounds Rslc = R[:, r_from:r_to, :]
             @cast Rslc[(rb, rt), rcp] := Rslc[rb, rt, rcp]
             Rslc = (prs * Rslc')'  # [(rcb, rct, rc), (rb, rt)]
             @cast Rslc[rb, rt, rcb, rct, rc] := Rslc[(rb, rt), (rcb, rct, rc)] (rcb ∈ 1:srcb, rc ∈ 1:src, rb ∈ 1:sr1)
@@ -221,13 +220,13 @@ function project_ket_on_bra(L::S, B::S, M::VirtualTensor{T}, R::S) where {S <: C
             @cast Rslc[(rb, rcb), (rt, rct), rc] := Rslc[rb, rcb, rt, rct, rc]
             LR = attach_2_matrices(Lslc, B2, h, Rslc)
             @cast LR[lt, lct, rt, rct] := LR[(lt, lct), (rt, rct)] (lct ∈ 1:slct, rct ∈ 1:srct)
-            LRout[l_from:l_to, :, r_from:r_to, :] += LR
+            @inbounds LRout[l_from:l_to, :, r_from:r_to, :] += LR
             r_from = r_to + 1
         end
         l_from = l_to + 1
     end
 
-    LRout = reshape(permutedims(LRout, (1, 3, 2, 4)), (sl2, sr2, slct * srct))
+    LRout = reshape(permutedims(LRout, (1, 3, 2, 4)), sl2, sr2, slct * srct)
     LRout ./ maximum(abs.(LRout))
 end
 

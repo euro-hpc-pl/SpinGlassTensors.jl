@@ -36,13 +36,13 @@ end
 
 function move_to_CUDA!(ten::VirtualTensor)
     ten.con = move_to_CUDA!(ten.con)
-    ten.projs = move_to_CUDA!.(ten.projs)
+    ten.projs = move_to_CUDA!.(ten.projs) # TODO 1) is this necessary ?
     ten
 end
 
 function move_to_CUDA!(ten::SiteTensor)
     ten.loc_exp = move_to_CUDA!(ten.loc_exp)
-    ten.projs = move_to_CUDA!.(ten.projs)
+    ten.projs = move_to_CUDA!.(ten.projs) # TODO 2) is this necessary ?
     ten
 end
 
@@ -63,9 +63,9 @@ which_device(ten::Nothing) = Set()
 which_device(ψ::Union{QMpo{T}, QMps{T}}) where T = union(which_device.(values(ψ.tensors))...)
 which_device(ten::MpoTensor) = union(which_device(ten.ctr), which_device.(ten.top)..., which_device.(ten.bot)...)
 which_device(ten::DiagonalTensor) = union(which_device.((ten.e1, ten.e2))...)
-which_device(ten::VirtualTensor) = which_device(ten.con)
+which_device(ten::VirtualTensor) = union(which_device.((ten.con, ten.projs))...) # TODO cf. 1)
 which_device(ten::CentralTensor) = union(which_device.((ten.e11, ten.e12, ten.e21, ten.e22))...)
-which_device(ten::SiteTensor) = which_device(ten.loc_exp)
+which_device(ten::SiteTensor) = union(which_device.((ten.loc_exp, ten.projs))...) # TODO cf. 2)
 which_device(ten::Array{T, N}) where {T, N} = Set((:CPU, ))
 which_device(ten::CuArray{T, N}) where {T, N} = Set((:GPU, ))
 which_device(ten::Diagonal) = which_device(diag(ten))

@@ -57,7 +57,10 @@ end
 function update_reduced_env_right(RE::ArrayOrCuArray{R, 2}, m::Int, M::MpoTensor{R, 4}, B::ArrayOrCuArray{R, 3}) where R <: Real
     K = zeros(R, size(M, 2))
     K[m] = one(R)
-    K = reshape(CuArray(K), 1, 1, size(K, 1))
+    if typeof(RE) <: CuArray
+        K = CuArray(K)
+    end
+    K = reshape(K, 1, 1, size(K, 1))
     for v ∈ M.top K = contract_tensor3_matrix(K, v) end
     K = dropdims(K, dims=(1, 2))
 

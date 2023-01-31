@@ -93,8 +93,12 @@ Base.size(ten::CornerTensor, n::Int) = size(ten)[n]
 Base.eltype(ten::CornerTensor{T}) where T = T
 Base.adjoint(ten::CornerTensor{T}) where T = Adjoint{T}(ten)
 
+CuArrayifneeded(ten::CornerTensor, x) = typeof(ten.B) <: CuArray ? CuArray(x) : x
+CuArrayifneeded(ten::Adjoint{T, CornerTensor{T}}, x) where T = CuArrayifneeded(ten.parent, x)
+
+
 function LinearAlgebra.mul!(y, ten::CornerTensor, x)
-    x = CuArray(x) # TODO this an ugly patch
+    x = CuArrayifneeded(ten, x) # CuArray(x) # TODO this an ugly patch
     x = reshape(x, size(ten.C, 2), size(ten.M, 2), :)
     x = permutedims(x, (3, 1, 2))
     yp = update_env_right(ten.C, x, ten.M, ten.B)
@@ -102,7 +106,7 @@ function LinearAlgebra.mul!(y, ten::CornerTensor, x)
 end
 
 function LinearAlgebra.mul!(y, ten::Adjoint{T, CornerTensor{T}}, x) where T <: Real
-    x = CuArray(x)  # TODO this an ugly patch
+    x = CuArrayifneeded(ten, x)  # CuArray(x)  # TODO this an ugly patch
     x = reshape(x, size(ten.parent.B, 1), size(ten.parent.M, 1), :)
     x = permutedims(x, (1, 3, 2))
     yp = project_ket_on_bra(x, ten.parent.B, ten.parent.M, ten.parent.C)
@@ -110,7 +114,7 @@ function LinearAlgebra.mul!(y, ten::Adjoint{T, CornerTensor{T}}, x) where T <: R
 end
 
 function Base.:(*)(ten::CornerTensor{T}, x) where T
-    x = CuArray(x)  # TODO this an ugly patch
+    x = CuArrayifneeded(ten, x)  # CuArray(x)  # TODO this an ugly patch
     x = reshape(x, 1, size(ten.C, 2), size(ten.M, 2))
     yp = update_env_right(ten.C, x, ten.M, ten.B)
     out = reshape(yp, size(ten.B, 1) * size(ten.M, 1))
@@ -118,7 +122,7 @@ function Base.:(*)(ten::CornerTensor{T}, x) where T
 end
 
 function Base.:(*)(ten::Adjoint{T, CornerTensor{T}}, x) where T <: Real
-    x = CuArray(x)  # TODO this an ugly patch
+    x = CuArrayifneeded(ten, x)  # CuArray(x)  # TODO this an ugly patch
     x = reshape(x, size(ten.parent.B, 1), 1, size(ten.parent.M, 1))
     yp = project_ket_on_bra(x, ten.parent.B, ten.parent.M, ten.parent.C)
     out = reshape(yp, size(ten.parent.C, 2) * size(ten.parent.M, 2))

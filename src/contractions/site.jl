@@ -29,7 +29,7 @@ while from <= total_size
     poutp = @view pout[from:to]
     rf = minimum(poutp)
     rt = maximum(poutp)
-    ipr = CuSparseMatrixCSC(R, poutp .- (rf - 1)) #  TODO take it out from this loop (?)
+    ipr = SparseCSC(R, poutp .- (rf - 1)) #  TODO take it out from this loop (?)
     @inbounds out[rf:rt, :, :] .+= reshape(ipr * outp', :, s1, s4)
 
     from = to + 1
@@ -55,7 +55,7 @@ function update_reduced_env_right(K::ArrayOrCuArray{R, 1}, RE::ArrayOrCuArray{R,
     REp = reshape(RE, size(RE, 1), 1, size(RE, 2))
     @inbounds REp = REp[:, :, M.projs[3]]
     outp = dropdims(Bp ⊠ REp, dims=2) .* reshape(M.loc_exp .* K[M.projs[2]], 1, :)
-    ipr = CuSparseMatrixCSC(R, M.projs[1])
+    ipr = SparseCSC(R, M.projs[1])
     permutedims(ipr * outp', (2, 1))
 end
 
@@ -64,7 +64,7 @@ function contract_tensors43(M::SiteTensor{R, 4}, B::ArrayOrCuArray{R, 3}) where 
     sm1, sm2, sm3 = maximum.(M.projs[1:3])
     @inbounds Bp = B[:, :, M.projs[4]] .* reshape(M.loc_exp, 1, 1, :)
     @cast Bp[(x, y), z] := Bp[x, y, z]
-    ip123 = CuSparseMatrixCSC(R, M.projs[1], M.projs[2], M.projs[3])
+    ip123 = SparseCSC(R, M.projs[1], M.projs[2], M.projs[3])
     out = reshape(ip123 * Bp', sm1, sm2, sm3, sb1, sb2)
     out = permutedims(out, (4, 1, 5, 3, 2))
     reshape(out, sb1 * sm1, sb2 * sm3, sm2)
@@ -78,7 +78,7 @@ function corner_matrix(C::S, M::T, B::S) where {S <: ArrayOrCuArray{R, 3}, T <: 
     @cast outp[(x, y), z] := outp[x, y, z]
     sm1 = maximum(M.projs[1])
     @inbounds p12 = M.projs[1] .+ (M.projs[2] .- 1) .* sm1
-    ip12 = CuSparseMatrixCSC(R, p12)
+    ip12 = SparseCSC(R, p12)
     out = reshape(ip12 * outp', sm1, maximum(M.projs[2]), size(B, 1), size(C, 2))
     permutedims(out, (3, 1, 4, 2))
 end

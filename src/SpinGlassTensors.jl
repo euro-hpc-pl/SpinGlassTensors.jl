@@ -25,18 +25,11 @@ module SpinGlassTensors
     include("variational.jl")
     include("zipper.jl")
     include("gauges.jl")
-    # TODO this is to be eventually merged / removed
     include("contractions/sparse.jl")
     include("contractions/dense.jl")
     include("contractions/central.jl")
     include("contractions/diagonal.jl")
     include("contractions/site.jl")
     include("contractions/virtual.jl")
-    #
-    # include("contractions_cuda/dense.jl")
-    # include("contractions_cuda/site.jl")
-    # include("contractions_cuda/central.jl")
-    # include("contractions_cuda/diagonal.jl")
-    # include("contractions_cuda/virtual.jl")
 
 end # module

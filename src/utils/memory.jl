@@ -1,7 +1,7 @@
 export
     measure_memory,
     format_bytes
-
+                                    # [CPU_memory, GPU_memory]
 measure_memory(ten::AbstractArray) = [Base.summarysize(ten), 0]
 measure_memory(ten::CuArray) = [0, prod(size(ten)) * sizeof(eltype(ten))]
 measure_memory(ten::Diagonal) = measure_memory(diag(ten))

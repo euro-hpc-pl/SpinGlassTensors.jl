@@ -234,7 +234,9 @@ function project_ket_on_bra(LE::S, B::S, M::VirtualTensor{R, 4}, RE::S) where {S
     LRout ./ maximum(abs.(LRout))
 end
 
-function update_reduced_env_right(K::ArrayOrCuArray{R, 1}, RE::ArrayOrCuArray{R, 2}, M::VirtualTensor{R, 4}, B::ArrayOrCuArray{R, 3}) where R <: Real
+function update_reduced_env_right(
+    K::ArrayOrCuArray{R, 1}, RE::ArrayOrCuArray{R, 2}, M::VirtualTensor{R, 4}, B::ArrayOrCuArray{R, 3}
+) where R <: Real
     h = M.con
     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
     @cast K2[t1, t2] := K[(t1, t2)] (t1 ∈ 1:maximum(p_lt))

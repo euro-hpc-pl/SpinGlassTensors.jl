@@ -33,7 +33,6 @@ while from <= total_size
     @inbounds out[rf:rt, :, :] .+= reshape(ipr * outp', :, s1, s4)
 
     from = to + 1
-    # CUDA.unsafe_free!.((X1p, X3p, X3p, outp))
 end
 permutedims(out, (2, 3, 1))
 end
@@ -50,7 +49,9 @@ function project_ket_on_bra(LE::S, B::S, M::SiteTensor{R, 4}, RE::S) where {S <:
     contract_sparse_with_three(permutedims(LE, (2, 1, 3)), B, RE, M.loc_exp, M.projs[[1, 4, 3, 2]]...)
 end
 
-function update_reduced_env_right(K::ArrayOrCuArray{R, 1}, RE::ArrayOrCuArray{R, 2}, M::SiteTensor{R, 4}, B::ArrayOrCuArray{R, 3}) where R <: Real
+function update_reduced_env_right(
+    K::ArrayOrCuArray{R, 1}, RE::ArrayOrCuArray{R, 2}, M::SiteTensor{R, 4}, B::ArrayOrCuArray{R, 3}
+) where R <: Real
     @inbounds Bp = B[:, :, M.projs[4]]
     REp = reshape(RE, size(RE, 1), 1, size(RE, 2))
     @inbounds REp = REp[:, :, M.projs[3]]

@@ -5,15 +5,15 @@ export
     contract_matrix_tensor3,
     update_reduced_env_right
 
-function contract_tensor3_matrix(LE::Union{Array{R, 3}, CuArray{R, 3}}, M::CentralTensor{R, 2}) where R <: Real
+function contract_tensor3_matrix(LE::ArrayOrCuArray{R, 3}, M::CentralTensor{R, 2}) where R <: Real
     contract_tensor3_central(LE, M.e11, M.e12, M.e21, M.e22)
 end
 
-function contract_matrix_tensor3(M::CentralTensor{R, 2}, RE::Union{Array{R, 3}, CuArray{R, 3}}) where R <: Real
+function contract_matrix_tensor3(M::CentralTensor{R, 2}, RE::ArrayOrCuArray{R, 3}) where R <: Real
     contract_tensor3_central(RE, M.e11', M.e21', M.e12', M.e22')
 end
 
-function update_reduced_env_right(RR::Union{Array{R, 2}, CuArray{R, 2}}, M::CentralTensor{R, 2}) where R <: Real
+function update_reduced_env_right(RR::ArrayOrCuArray{R, 2}, M::CentralTensor{R, 2}) where R <: Real
     RR = reshape(RR, size(RR, 1), 1, size(RR, 2))
     dropdims(contract_matrix_tensor3(M, RR), dims=2)
 end

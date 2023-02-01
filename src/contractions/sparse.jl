@@ -26,4 +26,3 @@ function SparseCSC(::Type{T}, p1::R, p2::R, p3::R) where {T <: Real, R <: Union{
     p = p1 .+ s1 * (p2 .- 1) .+ s1 * s2 * (p3 .- 1)
     SparseCSC(T, p)
 end
-

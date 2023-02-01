@@ -1,6 +1,9 @@
 # contractions of dense objects on CPU and CUDA
 
-const MatrixOrCuMatrix{R} = Union{CuArray{R, 2}, Diagonal{R, CuArray{R, 1, Mem.DeviceBuffer}}, Array{R, 2}, Diagonal{R, Vector{R}}}
+# TODO can those be replaced by Tensor{T, N} ?
+const MatrixOrCuMatrix{R} = Union{
+    CuArray{R, 2}, Diagonal{R, CuArray{R, 1, Mem.DeviceBuffer}}, Array{R, 2}, Diagonal{R, Vector{R}}
+}
 const ArrayOrCuArray{R, N} = Union{Array{R, N}, CuArray{R, N}}
 
 function contract_tensor3_matrix(A::ArrayOrCuArray{R, 3}, M::MatrixOrCuMatrix{R}) where R <: Real
@@ -57,9 +60,7 @@ end
 function update_reduced_env_right(RE::ArrayOrCuArray{R, 2}, m::Int, M::MpoTensor{R, 4}, B::ArrayOrCuArray{R, 3}) where R <: Real
     K = zeros(R, size(M, 2))
     K[m] = one(R)
-    if typeof(RE) <: CuArray
-        K = CuArray(K)
-    end
+    if typeof(RE) <: CuArray K = CuArray(K) end
     K = reshape(K, 1, 1, size(K, 1))
     for v ∈ M.top K = contract_tensor3_matrix(K, v) end
     K = dropdims(K, dims=(1, 2))
@@ -70,7 +71,9 @@ function update_reduced_env_right(RE::ArrayOrCuArray{R, 2}, m::Int, M::MpoTensor
     update_reduced_env_right(K, RE, M.ctr, B)
 end
 
-function update_reduced_env_right(K::ArrayOrCuArray{R, 1}, RE::ArrayOrCuArray{R, 2}, M::ArrayOrCuArray{R, 4}, B::ArrayOrCuArray{R, 3}) where R <: Real
+function update_reduced_env_right(
+    K::ArrayOrCuArray{R, 1}, RE::ArrayOrCuArray{R, 2}, M::ArrayOrCuArray{R, 4}, B::ArrayOrCuArray{R, 3}
+) where R <: Real
     @tensor RE[x, y] := K[d] * M[y, d, β, γ] * B[x, α, γ] * RE[α, β] order = (d, β, γ, α)
 end
 

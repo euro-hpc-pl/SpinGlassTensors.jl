@@ -27,13 +27,13 @@ function qr_fact(M::AbstractMatrix{T}, Dcut::Int=typemax(Int), tol::T=eps(); toG
     end
     U, Σ, V = svd_fact(r, Dcut, tol, kwargs...)
     toGPU && return CuArray.((q * U, Σ .* V'))
-    Array(q * U), Array(Σ .* V')
+    q * U, Σ .* V'
 end
 
 function rq_fact(M::AbstractMatrix{T}, Dcut::Int=typemax(Int), tol::T=eps(); toGPU::Bool=true, kwargs...) where T <: Real
     q, r = qr_fact(M', Dcut, tol; toGPU=toGPU, kwargs...)
     toGPU && return CuArray.((r', q'))
-    Array(r'), Array(q')
+    r', q'
 end
 
 function qr_fix(QR_fact; tol::T=eps()) where T <: Real

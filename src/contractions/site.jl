@@ -4,7 +4,7 @@
 
 function contract_sparse_with_three(
     X1::S, X2::S, X3::S, loc_exp::T, p1::Q, p2::Q, p3::Q, pout::Q
-) where {S <: ArrayOrCuArray{R, 3}, T <: ArrayOrCuArray{R, 1}, Q <: Union{Vector{Int64}, CuArray{Int, 1}}} where R <: Real
+) where {S <: Tensor{R, 3}, T <: Tensor{R, 1}, Q <: Union{Vector{Int64}, CuArray{Int, 1}}} where R <: Real
 s1, s2, _ = size(X1)
 s3, s4, _ = size(X3)
 
@@ -37,20 +37,20 @@ end
 permutedims(out, (2, 3, 1))
 end
 
-function update_env_left(LE::S, A::S, M::T, B::S) where {S <: ArrayOrCuArray{R, 3}, T <: SiteTensor{R, 4}} where R <: Real
+function update_env_left(LE::S, A::S, M::T, B::S) where {S <: Tensor{R, 3}, T <: SiteTensor{R, 4}} where R <: Real
     contract_sparse_with_three(permutedims(B, (2, 1, 3)), LE, A, M.loc_exp, M.projs[[4, 1, 2, 3]]...)
 end
 
-function update_env_right(RE::S, A::S, M::SiteTensor{R, 4}, B::S) where {S <: ArrayOrCuArray{R, 3}} where R <: Real
+function update_env_right(RE::S, A::S, M::SiteTensor{R, 4}, B::S) where {S <: Tensor{R, 3}} where R <: Real
     contract_sparse_with_three(B, RE, permutedims(A, (2, 1, 3)), M.loc_exp, M.projs[[4, 3, 2, 1]]...)
 end
 
-function project_ket_on_bra(LE::S, B::S, M::SiteTensor{R, 4}, RE::S) where {S <: ArrayOrCuArray{R, 3}} where R <: Real
+function project_ket_on_bra(LE::S, B::S, M::SiteTensor{R, 4}, RE::S) where {S <: Tensor{R, 3}} where R <: Real
     contract_sparse_with_three(permutedims(LE, (2, 1, 3)), B, RE, M.loc_exp, M.projs[[1, 4, 3, 2]]...)
 end
 
 function update_reduced_env_right(
-    K::ArrayOrCuArray{R, 1}, RE::ArrayOrCuArray{R, 2}, M::SiteTensor{R, 4}, B::ArrayOrCuArray{R, 3}
+    K::Tensor{R, 1}, RE::Tensor{R, 2}, M::SiteTensor{R, 4}, B::Tensor{R, 3}
 ) where R <: Real
     @inbounds Bp = B[:, :, M.projs[4]]
     REp = reshape(RE, size(RE, 1), 1, size(RE, 2))
@@ -60,7 +60,7 @@ function update_reduced_env_right(
     permutedims(ipr * outp', (2, 1))
 end
 
-function contract_tensors43(M::SiteTensor{R, 4}, B::ArrayOrCuArray{R, 3}) where R <: Real
+function contract_tensors43(M::SiteTensor{R, 4}, B::Tensor{R, 3}) where R <: Real
     sb1, sb2, _ = size(B)
     sm1, sm2, sm3 = maximum.(M.projs[1:3])
     @inbounds Bp = B[:, :, M.projs[4]] .* reshape(M.loc_exp, 1, 1, :)
@@ -71,7 +71,7 @@ function contract_tensors43(M::SiteTensor{R, 4}, B::ArrayOrCuArray{R, 3}) where 
     reshape(out, sb1 * sm1, sb2 * sm3, sm2)
 end
 
-function corner_matrix(C::S, M::T, B::S) where {S <: ArrayOrCuArray{R, 3}, T <: SiteTensor{R, 4}} where R <: Real
+function corner_matrix(C::S, M::T, B::S) where {S <: Tensor{R, 3}, T <: SiteTensor{R, 4}} where R <: Real
     @inbounds Bp = B[:, :, M.projs[4]]
     @inbounds Cp = C[:, :, M.projs[3]]
     outp = Bp ⊠ Cp

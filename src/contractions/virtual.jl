@@ -99,7 +99,7 @@ function update_env_left(LE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <: 
     pls = SparseCSC(R, p_lb, p_lt, p_l)
 
     batch_size = 2
-    Lout = CUDA.zeros(R, srb, srt, srcp)
+    Lout = typeof(LE) <: CuArray ? CUDA.zeros(R, srb, srt, srcp) : zeros(R, srb, srt, srcp)
     @cast A2[lt, rt, lct, rct] := A[lt, rt, (lct, rct)] (lct ∈ 1:slct)
     A2 = permutedims(A2, (1, 3, 2, 4))
     @cast A2[(lt, lct), (rt, rct)] := A2[lt, lct, rt, rct]
@@ -148,7 +148,7 @@ function update_env_right(RE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <:
     pls = SparseCSC(R, p_rb, p_rt, p_r)
 
     batch_size = 2
-    Rout = CUDA.zeros(R, slb, slt, slcp)
+    Rout = typeof(RE) <: CuArray ? CUDA.zeros(R, slb, slt, slcp) : zeros(R, slb, slt, slcp)
     @cast A2[lt, rt, lct, rct] := A[lt, rt, (lct, rct)] (rct ∈ 1:srct)
     A2 = permutedims(A2, (1, 3, 2, 4))
     @cast A2[(lt, lct), (rt, rct)] := A2[lt, lct, rt, rct]
@@ -200,7 +200,8 @@ function project_ket_on_bra(LE::S, B::S, M::VirtualTensor{R, 4}, RE::S) where {S
     @cast Btemp[lb, rb, lcb, rcb] := B[lb, rb, (lcb, rcb)] (lcb ∈ 1:slcb)
     Btemp = permutedims(Btemp, (1, 3, 2, 4))
     @cast B2[(lb, lcb), (rb, rcb)] := Btemp[lb, lcb, rb, rcb]
-    LRout = CUDA.zeros(R, sl2, slct, sr2, srct)
+
+    LRout = typeof(LE) <: CuArray ? CUDA.zeros(R, sl2, slct, sr2, srct) : zeros(R, sl2, slct, sr2, srct)
 
     l_from = 1
     while l_from <= sl2

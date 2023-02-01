@@ -70,11 +70,11 @@ function update_reduced_env_right(RE::ArrayOrCuArray{R, 2}, m::Int, M::MpoTensor
     update_reduced_env_right(K, RE, M.ctr, B)
 end
 
-function update_reduced_env_right(K::CuArray{R, 1}, RE::ArrayOrCuArray{R, 2}, M::ArrayOrCuArray{R, 4}, B::ArrayOrCuArray{R, 3}) where R <: Real
+function update_reduced_env_right(K::ArrayOrCuArray{R, 1}, RE::ArrayOrCuArray{R, 2}, M::ArrayOrCuArray{R, 4}, B::ArrayOrCuArray{R, 3}) where R <: Real
     @tensor RE[x, y] := K[d] * M[y, d, β, γ] * B[x, α, γ] * RE[α, β] order = (d, β, γ, α)
 end
 
-function update_reduced_env_right(RR::S, M0::S) where S <: CuArray{<:Real, 2}
+function update_reduced_env_right(RR::S, M0::S) where S <: ArrayOrCuArray{<:Real, 2}
     @tensor RR[x, y] := M0[y, z] * RR[x, z]
 end
 

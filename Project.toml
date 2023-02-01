@@ -14,6 +14,7 @@ NNlibCUDA = "a00861dc-f156-4864-bf3c-e6376f28a68d"
 CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
 LowRankApprox = "898213cb-b102-5a47-900c-97e73b919f73"
 TSVD = "9449cd9e-2762-5aa3-a617-5413e99d722e"
+SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 
 [compat]
 TensorCast = "0.4"

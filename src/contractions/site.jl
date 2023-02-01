@@ -4,7 +4,7 @@
 
 function contract_sparse_with_three(
     X1::S, X2::S, X3::S, loc_exp::T, p1::Q, p2::Q, p3::Q, pout::Q
-) where {S <: CuArray{R, 3}, T <: CuArray{R, 1}, Q <: CuArray{Int, 1}} where R <: Real
+) where {S <: ArrayOrCuArray{R, 3}, T <: ArrayOrCuArray{R, 1}, Q <: Union{Vector{Int64}, CuArray{Int, 1}}} where R <: Real
 s1, s2, _ = size(X1)
 s3, s4, _ = size(X3)
 
@@ -12,7 +12,7 @@ s3, s4, _ = size(X3)
 total_memory = 2^33
 batch_size = max(Int(floor(total_memory / (8 * (s1 * s2 + s2 * s3 + s3 * s4 + s4 * s1)))), 1)
 
-out = CUDA.zeros(R, maximum(pout), s1, s4)
+out = typeof(loc_exp) <: CuArray ? CUDA.zeros(R, maximum(pout), s1, s4) : zeros(R, maximum(pout), s1, s4)
 from = 1
 total_size = length(p1)
 while from <= total_size
@@ -33,7 +33,7 @@ while from <= total_size
     @inbounds out[rf:rt, :, :] .+= reshape(ipr * outp', :, s1, s4)
 
     from = to + 1
-    CUDA.unsafe_free!.((X1p, X3p, X3p, outp))
+    # CUDA.unsafe_free!.((X1p, X3p, X3p, outp))
 end
 permutedims(out, (2, 3, 1))
 end

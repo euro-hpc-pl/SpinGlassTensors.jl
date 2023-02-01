@@ -16,7 +16,7 @@ function SparseCSC(::Type{R}, p::Vector{Int64}) where R <: Real
     mp = maximum(p)
     cn = collect(1:n)
     co = ones(R, n)
-    sparse(cn, p, co, mp, n)
+    sparse(p, cn, co, mp, n)
 end
 
 

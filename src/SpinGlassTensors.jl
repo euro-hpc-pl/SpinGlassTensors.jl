@@ -5,6 +5,7 @@ module SpinGlassTensors
     using CUDA, CUDA.CUSPARSE
     using NNlib, NNlibCUDA
     using Memoization
+    using SparseArrays
     # using Memoize
 
     CUDA.allowscalar(false)

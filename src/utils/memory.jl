@@ -12,6 +12,7 @@ measure_memory(ten::VirtualTensor) = sum(measure_memory.([ten.con, ten.projs...]
 measure_memory(ten::MpoTensor) = sum(measure_memory.([ten.top..., ten.ctr, ten.bot...]))
 measure_memory(ten::Union{QMps, QMpo}) = sum(measure_memory.(values(ten.tensors)))
 measure_memory(env::Environment) = sum(measure_memory.(values(env.env)))
+measure_memory(dict::Dict) = sum(measure_memory.(values(dict)))
 measure_memory(::Nothing) = [0, 0]
 
 function format_bytes(bytes, decimals::Int = 2, k::Int = 1024)
@@ -20,4 +21,12 @@ function format_bytes(bytes, decimals::Int = 2, k::Int = 1024)
     sizes = ["Bytes", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"]
     i = convert(Int, floor(log(bytes) / log(k)))
     string(round((bytes / ^(k, i)), digits=dm)) * " " * sizes[i+1]
+end
+
+function measure_memory(caches::IdDict{Any, Any}, bytes::Bool = true)
+    memoization_memory = bytes ? Dict{Any, Vector{String}}() : Dict{Any, Vector{Int64}}()
+    for key in keys(caches)
+        push!(memoization_memory, key => bytes ? format_bytes.(measure_memory(caches[key])) : measure_memory(caches[key]))
+    end
+    memoization_memory
 end

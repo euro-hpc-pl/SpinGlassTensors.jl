@@ -1,14 +1,13 @@
-#TODO make sure slicing is done right, cf. https://discourse.julialang.org/t/correct-implementation-of-cuarrays-slicing-operations/90600
+# site.jl: contractions with SiteTensor on CPU and CUDA
 
-# # contractions with SiteTensor on CPU and CUDA
-
+# TODO make sure slicing is done right, cf. https://discourse.julialang.org/t/correct-implementation-of-cuarrays-slicing-operations/90600
 function contract_sparse_with_three(
     X1::S, X2::S, X3::S, loc_exp::T, p1::Q, p2::Q, p3::Q, pout::Q
 ) where {S <: Tensor{R, 3}, T <: Tensor{R, 1}, Q <: Union{Vector{Int64}, CuArray{Int, 1}}} where R <: Real
 s1, s2, _ = size(X1)
 s3, s4, _ = size(X3)
 
-#TODO add better handling for this
+# TODO add better handling for this
 total_memory = 2^33
 batch_size = max(Int(floor(total_memory / (8 * (s1 * s2 + s2 * s3 + s3 * s4 + s4 * s1)))), 1)
 

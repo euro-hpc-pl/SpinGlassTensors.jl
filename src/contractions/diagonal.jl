@@ -1,4 +1,4 @@
-# contractions with DiagonalTensor on CPU and CUDA
+# diagonal.jl: contractions with DiagonalTensor on CPU and CUDA
 
 function contract_tensor3_matrix(B::Tensor{R, 3}, C::DiagonalTensor{R}) where R <: Real
     @cast B[l, (r, s1), s2] := B[l, r, (s1, s2)] (s2 ∈ 1:size(C.e2, 1))

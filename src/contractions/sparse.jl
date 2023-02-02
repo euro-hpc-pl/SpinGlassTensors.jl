@@ -19,7 +19,6 @@ function SparseCSC(::Type{R}, p::Vector{Int64}) where R <: Real
     sparse(p, cn, co, mp, n)
 end
 
-
 function SparseCSC(::Type{T}, p1::R, p2::R, p3::R) where {T <: Real, R <: Union{CuArray{Int64, 1}, Vector{Int64}}}
     @assert length(p1) == length(p2) == length(p3)
     s1, s2 = maximum(p1), maximum(p2)

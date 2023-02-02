@@ -1,8 +1,8 @@
 export
     measure_memory,
     format_bytes
-                                    # [CPU_memory, GPU_memory]
-measure_memory(ten::AbstractArray) = [Base.summarysize(ten), 0]
+
+measure_memory(ten::AbstractArray) = [Base.summarysize(ten), 0] # [CPU_memory, GPU_memory]
 measure_memory(ten::CuArray) = [0, prod(size(ten)) * sizeof(eltype(ten))]
 measure_memory(ten::SparseMatrixCSC) = sum(measure_memory.([ten.colptr, ten.rowval, ten.nzval]))
 measure_memory(ten::CuSparseMatrixCSC) = sum(measure_memory.([ten.colPtr, ten.rowVal, ten.nzVal]))
@@ -34,3 +34,5 @@ function measure_memory(caches::IdDict{Any, Any}, bytes::Bool = true)
     end
     memoization_memory
 end
+
+#measure_memory(caches::IdDict) = Dict(key => format_bytes.(measure_memory(caches[key])) for key ∈ keys(caches))

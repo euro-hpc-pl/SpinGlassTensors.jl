@@ -33,6 +33,3 @@ D = CUDA.CUSPARSE.CuSparseMatrixCSC(Float64, p)
 CUDA.memory_status()
 println("/n")
 measure_memory(Memoization.caches)
-
-
-

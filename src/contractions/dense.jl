@@ -1,11 +1,11 @@
 # contractions of dense objects on CPU and CUDA
 
 # TODO replace with Tensor{R, 2}
-#const MatrixOrCuMatrix{R} = Union{
-#    CuArray{R, 2}, Diagonal{R, CuArray{R, 1, Mem.DeviceBuffer}}, Array{R, 2}, Diagonal{R, Vector{R}}
-#}
+const MatrixOrCuMatrix{R} = Union{
+    CuArray{R, 2}, Diagonal{R, CuArray{R, 1, Mem.DeviceBuffer}}, Array{R, 2}, Diagonal{R, Vector{R}}
+}
 
-const MatrixOrCuMatrix{R} = Tensor{R, 2}
+#const MatrixOrCuMatrix{R} = Tensor{R, 2}
 
 function contract_tensor3_matrix(A::Tensor{R, 3}, M::MatrixOrCuMatrix{R}) where R <: Real
     sl1, sl2, sl3 = size(A)

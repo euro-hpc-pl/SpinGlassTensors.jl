@@ -6,7 +6,7 @@ Select optimal order of attaching matrices to LE
 """
 function attach_3_matrices_left(
     LE::S, B2::Q, A2::Q, h::C
-) where {S <: ArrayOrCuArray{R, 3}, Q <: ArrayOrCuArray{R, 2}, C <: Tensor{R, 2}} where R <: Real
+) where {S <: Tensor{R, 3}, Q <: Tensor{R, 2}, C <: Tensor{R, 2}} where R <: Real
     if r2_over_r1(h) <= r2_over_r1(B2) <= r2_over_r1(A2)
         LE = contract_tensor3_matrix(LE, h)  # [..., rc] = [..., lc] * [lc, rc]
         @tensor LE[rfb, x, y] := B2[lfb, rfb] * LE[lfb, x, y]
@@ -40,7 +40,7 @@ Select optimal order of attaching matrices to RE
 """
 function attach_3_matrices_right(
     RE::S, B2::Q, A2::Q, h::C
-) where {S <: ArrayOrCuArray{R, 3}, Q <: ArrayOrCuArray{R, 2}, C <: Tensor{R, 2}} where R <: Real
+) where {S <: Tensor{R, 3}, Q <: Tensor{R, 2}, C <: Tensor{R, 2}} where R <: Real
     if r1_over_r2(h) <= r1_over_r2(B2) <= r1_over_r2(A2)
         RE = contract_matrix_tensor3(h, RE)  # [..., lc] = [lc, rc] * [..., rc]
         @tensor RE[lfb, x, y] := B2[lfb, rfb] * RE[rfb, x, y]
@@ -71,7 +71,7 @@ end
 
 function attach_2_matrices(
     LE::S, B2::Q, h::C, RE::S
-) where {S <: ArrayOrCuArray{R, 3}, Q <: ArrayOrCuArray{R, 2}, C <: Tensor{R, 2}} where R <: Real
+) where {S <: Tensor{R, 3}, Q <: Tensor{R, 2}, C <: Tensor{R, 2}} where R <: Real
     if >=(size(B2)...)
         @tensor LE[rfb, x, y] := B2[lfb, rfb] * LE[lfb, x, y]
     else
@@ -85,7 +85,7 @@ function attach_2_matrices(
     @tensor LR[lft, rft] := LE[fb, lft, fh] * RE[fb, rft, fh]
 end
 
-function update_env_left(LE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <: ArrayOrCuArray{R, 3}} where R <: Real
+function update_env_left(LE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <: Tensor{R, 3}} where R <: Real
     h = M.con
     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
 
@@ -99,7 +99,7 @@ function update_env_left(LE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <: 
     pls = SparseCSC(R, p_lb, p_lt, p_l)
 
     batch_size = 2
-    Lout = CUDA.zeros(R, srb, srt, srcp)
+    Lout = typeof(LE) <: CuArray ? CUDA.zeros(R, srb, srt, srcp) : zeros(R, srb, srt, srcp)
     @cast A2[lt, rt, lct, rct] := A[lt, rt, (lct, rct)] (lct ∈ 1:slct)
     A2 = permutedims(A2, (1, 3, 2, 4))
     @cast A2[(lt, lct), (rt, rct)] := A2[lt, lct, rt, rct]
@@ -135,7 +135,7 @@ function update_env_left(LE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <: 
     Lout ./ maximum(abs.(Lout))  # [rb, rt, rcp]
 end
 
-function update_env_right(RE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <: ArrayOrCuArray{R, 3}} where R <: Real
+function update_env_right(RE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <: Tensor{R, 3}} where R <: Real
     h = M.con
     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
 
@@ -148,7 +148,7 @@ function update_env_right(RE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <:
     pls = SparseCSC(R, p_rb, p_rt, p_r)
 
     batch_size = 2
-    Rout = CUDA.zeros(R, slb, slt, slcp)
+    Rout = typeof(RE) <: CuArray ? CUDA.zeros(R, slb, slt, slcp) : zeros(R, slb, slt, slcp)
     @cast A2[lt, rt, lct, rct] := A[lt, rt, (lct, rct)] (rct ∈ 1:srct)
     A2 = permutedims(A2, (1, 3, 2, 4))
     @cast A2[(lt, lct), (rt, rct)] := A2[lt, lct, rt, rct]
@@ -184,7 +184,7 @@ function update_env_right(RE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <:
     Rout ./ maximum(abs.(Rout))  # [lb, lt, lcp]
 end
 
-function project_ket_on_bra(LE::S, B::S, M::VirtualTensor{R, 4}, RE::S) where {S <: ArrayOrCuArray{R, 3}} where R <: Real
+function project_ket_on_bra(LE::S, B::S, M::VirtualTensor{R, 4}, RE::S) where {S <: Tensor{R, 3}} where R <: Real
     h = M.con
     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
 
@@ -200,7 +200,8 @@ function project_ket_on_bra(LE::S, B::S, M::VirtualTensor{R, 4}, RE::S) where {S
     @cast Btemp[lb, rb, lcb, rcb] := B[lb, rb, (lcb, rcb)] (lcb ∈ 1:slcb)
     Btemp = permutedims(Btemp, (1, 3, 2, 4))
     @cast B2[(lb, lcb), (rb, rcb)] := Btemp[lb, lcb, rb, rcb]
-    LRout = CUDA.zeros(R, sl2, slct, sr2, srct)
+
+    LRout = typeof(LE) <: CuArray ? CUDA.zeros(R, sl2, slct, sr2, srct) : zeros(R, sl2, slct, sr2, srct)
 
     l_from = 1
     while l_from <= sl2
@@ -233,7 +234,9 @@ function project_ket_on_bra(LE::S, B::S, M::VirtualTensor{R, 4}, RE::S) where {S
     LRout ./ maximum(abs.(LRout))
 end
 
-function update_reduced_env_right(K::ArrayOrCuArray{R, 1}, RE::ArrayOrCuArray{R, 2}, M::VirtualTensor{R, 4}, B::ArrayOrCuArray{R, 3}) where R <: Real
+function update_reduced_env_right(
+    K::Tensor{R, 1}, RE::Tensor{R, 2}, M::VirtualTensor{R, 4}, B::Tensor{R, 3}
+) where R <: Real
     h = M.con
     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
     @cast K2[t1, t2] := K[(t1, t2)] (t1 ∈ 1:maximum(p_lt))
@@ -251,7 +254,7 @@ function update_reduced_env_right(K::ArrayOrCuArray{R, 1}, RE::ArrayOrCuArray{R,
 end
 
 # TODO rewrite this function, too many nasty patches now
-function contract_tensors43(B::VirtualTensor{R, 4}, A::ArrayOrCuArray{R, 3}) where R <: Real
+function contract_tensors43(B::VirtualTensor{R, 4}, A::Tensor{R, 3}) where R <: Real
     h = B.con
     ongpu = typeof(A) <: CuArray
 

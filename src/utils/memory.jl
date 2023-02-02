@@ -4,6 +4,9 @@ export
                                     # [CPU_memory, GPU_memory]
 measure_memory(ten::AbstractArray) = [Base.summarysize(ten), 0]
 measure_memory(ten::CuArray) = [0, prod(size(ten)) * sizeof(eltype(ten))]
+measure_memory(ten::SparseMatrixCSC) = sum(measure_memory.([ten.colptr, ten.rowval, ten.nzval]))
+measure_memory(ten::CuSparseMatrixCSC) = sum(measure_memory.([ten.colPtr, ten.rowVal, ten.nzVal]))
+measure_memory(ten::CuSparseDeviceMatrixCSR) = sum(measure_memory.([ten.rowPtr, ten.colVal, ten.nzVal]))
 measure_memory(ten::Diagonal) = measure_memory(diag(ten))
 measure_memory(ten::SiteTensor) = sum(measure_memory.([ten.loc_exp, ten.projs...]))
 measure_memory(ten::CentralTensor) = sum(measure_memory.([ten.e11, ten.e12, ten.e21, ten.e22]))
@@ -13,6 +16,7 @@ measure_memory(ten::MpoTensor) = sum(measure_memory.([ten.top..., ten.ctr, ten.b
 measure_memory(ten::Union{QMps, QMpo}) = sum(measure_memory.(values(ten.tensors)))
 measure_memory(env::Environment) = sum(measure_memory.(values(env.env)))
 measure_memory(dict::Dict) = sum(measure_memory.(values(dict)))
+measure_memory(tuple::Tuple) = sum(measure_memory.(tuple))
 measure_memory(::Nothing) = [0, 0]
 
 function format_bytes(bytes, decimals::Int = 2, k::Int = 1024)

@@ -14,19 +14,27 @@ abstract type AbstractSparseTensor{T, N} end
 const Proj{N} = Union{NTuple{N, Array{Int, 1}}, NTuple{N, CuArray{Int, 1}}}
 
 mutable struct SiteTensor{T <: Real, N} <: AbstractSparseTensor{T, N}
+    lp
     loc_exp::AbstractVector{T}
-    projs::Proj{4}  # == pl, pt, pr, pb
+    projs::NTuple{4, Int} # pl, pt, pr, pb
     dims::Dims{N}
 
-    function SiteTensor(loc_exp, projs::Proj{4}; dims=maximum.(projs))
+    function SiteTensor(lp, loc_exp, projs::Proj{4}; dims=maximum.(projs))
         T = eltype(loc_exp)
-        new{T, 4}(loc_exp, projs, dims)
+        ks = Tuple(add_projector!(lp, p) for p in projs)
+        new{T, 4}(lp, loc_exp, ks, dims)
+    end
+
+    function SiteTensor(lp, loc_exp, projs::NTuple{4, Int}; dims=maximum.(projs))
+        T = eltype(loc_exp)
+        new{T, 4}(lp, loc_exp, projs, dims)
     end
 end
 
+
 function mpo_transpose(ten::SiteTensor)
     perm = [1, 4, 3, 2]
-    SiteTensor(ten.loc_exp, ten.projs[perm], dims=ten.dims[perm])
+    SiteTensor(ten.lp, ten.loc_exp, ten.projs[perm], dims=ten.dims[perm])
 end
 
 mutable struct CentralTensor{T <: Real, N} <: AbstractSparseTensor{T, N}

@@ -26,13 +26,11 @@ function SparseCSC(::Type{T}, p1::R, p2::R, p3::R) where {T <: Real, R <: Union{
     SparseCSC(T, p)
 end
 
-
-
-@memoize Dict function SparseCSCslice(::Type{R}, lp::PoolOfProjectors, p::Int, from::Int, to::Int, device::Symbol) where R <: Real
-    pout = get_projector!(lp, p, device)
-    poutp = @view pout[from:to]
-    rf = minimum(poutp)
-    rt = maximum(poutp)
-    ipr = SparseCSC(R, poutp .- (rf - 1))
+@memoize Dict function SparseCSC(::Type{R}, lp::PoolOfProjectors, k::Int, device::Symbol; from::Int=1, to::Int=length(lp, k)) where R <: Real
+    p = get_projector!(lp, k, device)
+    pp = @view p[from:to]
+    rf = minimum(pp)
+    rt = maximum(pp)
+    ipr = SparseCSC(R, pp .- (rf - 1))
     (ipr, rf, rt)
 end

@@ -11,14 +11,13 @@ device = typeof(loc_exp) <: CuArray ? :GPU : :CPU
 p1 = get_projector!(lp, k1, device)
 p2 = get_projector!(lp, k2, device)
 p3 = get_projector!(lp, k3, device)
-pout = get_projector!(lp, kout, device)
 
-# TODO add better handling for this
-total_memory = 2^33
+total_memory = 2^33 # TODO add better handling for this; also depending on device
+
 batch_size = max(Int(floor(total_memory / (8 * (s1 * s2 + s2 * s3 + s3 * s4 + s4 * s1)))), 1)
 batch_size = Int(2^floor(log2(batch_size) + 1e-6))
+out = typeof(loc_exp) <: CuArray ? CUDA.zeros(R, size(lp, kout), s1, s4) : zeros(R, size(lp, kout), s1, s4)
 
-out = typeof(loc_exp) <: CuArray ? CUDA.zeros(R, maximum(pout), s1, s4) : zeros(R, maximum(pout), s1, s4)
 from = 1
 total_size = length(p1)
 while from <= total_size
@@ -31,11 +30,7 @@ while from <= total_size
     le = @view loc_exp[from:to]
     outp .*= reshape(le, 1, 1, :)
     @cast outp[(x, y), z] := outp[x, y, z]
-    ipr, rf, rt = SparseCSCslice(R, lp, kout, from, to, device)
-    # poutp = @view pout[from:to]
-    # rf = minimum(poutp)
-    # rt = maximum(poutp)
-    # ipr = SparseCSC(R, poutp .- (rf - 1)) #  TODO take it out from this loop (?)
+    ipr, rf, rt = SparseCSC(R, lp, kout, device; from, to)
     @inbounds out[rf:rt, :, :] .+= reshape(ipr * outp', :, s1, s4)
     from = to + 1
 end
@@ -58,12 +53,12 @@ function update_reduced_env_right(
     K::Tensor{R, 1}, RE::Tensor{R, 2}, M::SiteTensor{R, 4}, B::Tensor{R, 3}
 ) where R <: Real
     device = typeof(M.loc_exp) <: CuArray ? :GPU : :CPU
-    projs = [get_projector!(M.lp, x, device) for x in M.projs]
-    @inbounds Bp = B[:, :, projs[4]]
+    p2, p3, p4 = (get_projector!(M.lp, x, device) for x in M.projs[2:4])
+    @inbounds Bp = B[:, :, p4]
     REp = reshape(RE, size(RE, 1), 1, size(RE, 2))
-    @inbounds REp = REp[:, :, projs[3]]
-    outp = dropdims(Bp ⊠ REp, dims=2) .* reshape(M.loc_exp .* K[projs[2]], 1, :)
-    ipr = SparseCSC(R, projs[1])
+    @inbounds REp = REp[:, :, p3]
+    outp = dropdims(Bp ⊠ REp, dims=2) .* reshape(M.loc_exp .* K[p2], 1, :)
+    ipr, _, _ = SparseCSC(R, M.lp, M.projs[1], device)
     permutedims(ipr * outp', (2, 1))
 end
 

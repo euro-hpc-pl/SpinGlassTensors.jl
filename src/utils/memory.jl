@@ -8,7 +8,7 @@ measure_memory(ten::SparseMatrixCSC) = sum(measure_memory.([ten.colptr, ten.rowv
 measure_memory(ten::CuSparseMatrixCSC) = sum(measure_memory.([ten.colPtr, ten.rowVal, ten.nzVal]))
 measure_memory(ten::CuSparseMatrixCSR) = sum(measure_memory.([ten.rowPtr, ten.colVal, ten.nzVal]))
 measure_memory(ten::Diagonal) = measure_memory(diag(ten))
-measure_memory(ten::SiteTensor) = sum(measure_memory.([ten.loc_exp, ten.projs...]))
+measure_memory(ten::SiteTensor) = sum(measure_memory.([ten.loc_exp, ])) # ten.projs...]))
 measure_memory(ten::CentralTensor) = sum(measure_memory.([ten.e11, ten.e12, ten.e21, ten.e22]))
 measure_memory(ten::DiagonalTensor) = sum(measure_memory.([ten.e1, ten.e2]))
 measure_memory(ten::VirtualTensor) = sum(measure_memory.([ten.con, ten.projs...]))
@@ -18,6 +18,8 @@ measure_memory(env::Environment) = sum(measure_memory.(values(env.env)))
 measure_memory(dict::Dict) = sum(measure_memory.(values(dict)))
 measure_memory(tuple::Tuple) = sum(measure_memory.(tuple))
 measure_memory(::Nothing) = [0, 0]
+measure_memory(lp::PoolOfProjectors) =   sum([sum(measure_memory.(values(da))) for da ∈ values(lp.data)])
+
 
 function format_bytes(bytes, decimals::Int = 2, k::Int = 1024)
     bytes == 0 && return "0 Bytes"

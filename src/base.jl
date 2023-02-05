@@ -14,18 +14,19 @@ abstract type AbstractSparseTensor{T, N} end
 const Proj{N} = Union{NTuple{N, Array{Int, 1}}, NTuple{N, CuArray{Int, 1}}}
 
 mutable struct SiteTensor{T <: Real, N} <: AbstractSparseTensor{T, N}
-    lp
+    lp::PoolOfProjectors
     loc_exp::AbstractVector{T}
     projs::NTuple{4, Int} # pl, pt, pr, pb
     dims::Dims{N}
 
-    function SiteTensor(lp, loc_exp, projs::Proj{4}; dims=maximum.(projs))
+    function SiteTensor(lp::PoolOfProjectors, loc_exp, projs::Proj{4})
         T = eltype(loc_exp)
         ks = Tuple(add_projector!(lp, p) for p in projs)
+        dims = size.(Ref(lp), ks)
         new{T, 4}(lp, loc_exp, ks, dims)
     end
 
-    function SiteTensor(lp, loc_exp, projs::NTuple{4, Int}; dims=maximum.(projs))
+    function SiteTensor(lp::PoolOfProjectors, loc_exp, projs::NTuple{4, Int}, dims::NTuple{4, Int})
         T = eltype(loc_exp)
         new{T, 4}(lp, loc_exp, projs, dims)
     end
@@ -34,7 +35,7 @@ end
 
 function mpo_transpose(ten::SiteTensor)
     perm = [1, 4, 3, 2]
-    SiteTensor(ten.lp, ten.loc_exp, ten.projs[perm], dims=ten.dims[perm])
+    SiteTensor(ten.lp, ten.loc_exp, ten.projs[perm], ten.dims[perm])
 end
 
 mutable struct CentralTensor{T <: Real, N} <: AbstractSparseTensor{T, N}
@@ -79,19 +80,26 @@ end
 mpo_transpose(ten::DiagonalTensor) = DiagonalTensor(mpo_transpose.((ten.e2, ten.e1))...)
 
 mutable struct VirtualTensor{T <: Real, N} <: AbstractSparseTensor{T, N}
+    lp::PoolOfProjectors
     con::MatOrCentral{T, 2}
-    projs::Proj{6}  # == (p_lb, p_l, p_lt, p_rb, p_r, p_rt)
+    projs::NTuple{6, Int}  # == (p_lb, p_l, p_lt, p_rb, p_r, p_rt)
     dims::Dims{N}
 
-    function VirtualTensor(con, projs::Proj{6})
+    function VirtualTensor(lp::PoolOfProjectors, con, projs::Proj{6})
         T = eltype(con)
-        dims = (length(projs[2]), maximum(projs[3]) * maximum(projs[6]),
-                length(projs[5]), maximum(projs[1]) * maximum(projs[4]))
-        new{T, 4}(con, projs, dims)
+        ks = Tuple(add_projector!(lp, p) for p in projs)
+        dims = (length(lp, ks[2]), size(lp, ks[3]) * size(lp, ks[6]), length(lp, ks[5]), size(lp, ks[1]) * size(lp, ks[4]))
+        new{T, 4}(lp, con, ks, dims)
+    end
+
+    function VirtualTensor(lp::PoolOfProjectors, con, projs::NTuple{6, Int}, dims::NTuple{4, Int})
+        T = eltype(con)
+        new{T, 4}(lp, con, projs, dims)
     end
 end
 
-mpo_transpose(ten::VirtualTensor) = VirtualTensor(ten.con, ten.projs[[3, 2, 1, 6, 5, 4]])
+
+mpo_transpose(ten::VirtualTensor) = VirtualTensor(ten.lp, ten.con, ten.projs[[3, 2, 1, 6, 5, 4]], ten.dims[[1, 4, 3, 2]])
 mpo_transpose(ten::AbstractArray{T, 4}) where T = permutedims(ten, (1, 4, 3, 2))
 mpo_transpose(ten::AbstractArray{T, 2}) where T = permutedims(ten, (2, 1))
 

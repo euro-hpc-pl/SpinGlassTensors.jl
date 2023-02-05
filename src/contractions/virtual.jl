@@ -91,12 +91,14 @@ function update_env_left(LE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <: 
 
     slb, srb = size(B, 1), size(B, 2)
     slt, srt = size(A, 1), size(A, 2)
-    srcp = length(p_r)
+    srcp = length(M.lp, p_r)
 
-    slcb, slc, slct = maximum(p_lb), maximum(p_l), maximum(p_lt)
-    srcb, srct = maximum(p_rb), maximum(p_rt)
-    prs = SparseCSC(R, p_rb, p_rt, p_r)
-    pls = SparseCSC(R, p_lb, p_lt, p_l)
+    slcb, slc, slct = size(M.lp, p_lb), size(M.lp, p_l), size(M.lp, p_lt)
+    srcb, srct = size(M.lp, p_rb), size(M.lp, p_rt)
+
+    device = Tuple(which_device(h))[1]
+    prs = SparseCSC(R, M.lp, p_rb, p_rt, p_r, device)
+    pls = SparseCSC(R, M.lp, p_lb, p_lt, p_l, device)
 
     batch_size = 2
     Lout = typeof(LE) <: CuArray ? CUDA.zeros(R, srb, srt, srcp) : zeros(R, srb, srt, srcp)
@@ -141,11 +143,13 @@ function update_env_right(RE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <:
 
     slb, srb = size(B, 1), size(B, 2)
     slt, srt = size(A, 1), size(A, 2)
-    slcp = length(p_l)
+    slcp = length(M.lp, p_l)
 
-    slcb, srcb, src, srct = maximum(p_lb), maximum(p_rb), maximum(p_r), maximum(p_rt)
-    prs = SparseCSC(R, p_lb, p_lt, p_l)
-    pls = SparseCSC(R, p_rb, p_rt, p_r)
+    slcb, srcb, src, srct = size(M.lp, p_lb), size(M.lp, p_rb), size(M.lp, p_r), size(M.lp, p_rt)
+
+    device = Tuple(which_device(h))[1]
+    prs = SparseCSC(R, M.lp, p_lb, p_lt, p_l, device)
+    pls = SparseCSC(R, M.lp, p_rb, p_rt, p_r, device)
 
     batch_size = 2
     Rout = typeof(RE) <: CuArray ? CUDA.zeros(R, slb, slt, slcp) : zeros(R, slb, slt, slcp)
@@ -191,10 +195,12 @@ function project_ket_on_bra(LE::S, B::S, M::VirtualTensor{R, 4}, RE::S) where {S
     sl1, sl2 = size(LE, 1), size(LE, 2)
     sr1, sr2 = size(RE, 1), size(RE, 2)
 
-    slcb, slc, slct = maximum(p_lb), maximum(p_l), maximum(p_lt)
-    srcb, src, srct = maximum(p_rb), maximum(p_r), maximum(p_rt)
-    pls = SparseCSC(R, p_lb, p_lt, p_l)
-    prs = SparseCSC(R, p_rb, p_rt, p_r)
+    slcb, slc, slct = size(M.lp, p_lb), size(M.lp, p_l), size(M.lp, p_lt)
+    srcb, src, srct = size(M.lp, p_rb), size(M.lp, p_r), size(M.lp, p_rt)
+
+    device = Tuple(which_device(h))[1]
+    pls = SparseCSC(R, M.lp, p_lb, p_lt, p_l, device)
+    prs = SparseCSC(R, M.lp, p_rb, p_rt, p_r, device)
 
     batch_size = 1
     @cast Btemp[lb, rb, lcb, rcb] := B[lb, rb, (lcb, rcb)] (lcb ∈ 1:slcb)
@@ -239,17 +245,23 @@ function update_reduced_env_right(
 ) where R <: Real
     h = M.con
     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
-    @cast K2[t1, t2] := K[(t1, t2)] (t1 ∈ 1:maximum(p_lt))
-    @cast B2[l, r, lb, rb] := B[l, r, (lb, rb)] (lb ∈ 1:maximum(p_lb))
+
+    slcb, slc, slct = size(M.lp, p_lb), size(M.lp, p_l), size(M.lp, p_lt)
+    srcb, src, srct = size(M.lp, p_rb), size(M.lp, p_r), size(M.lp, p_rt)
+
+    @cast K2[t1, t2] := K[(t1, t2)] (t1 ∈ 1:slct)
+    @cast B2[l, r, lb, rb] := B[l, r, (lb, rb)] (lb ∈ 1:slcb)
     B2 = permutedims(B2, (1, 3, 2, 4))  # [l, lb, r, rb]
     @cast B2[(l, lb), (r, rb)] := B2[l, lb, r, rb]
-    pls = SparseCSC(R, p_lb, p_lt, p_l)
-    prs = SparseCSC(R, p_rb, p_rt, p_r)
+    
+    device = Tuple(which_device(h))[1]
+    pls = SparseCSC(R, M.lp, p_lb, p_lt, p_l, device)
+    prs = SparseCSC(R, M.lp, p_rb, p_rt, p_r, device)
     Rtemp = permutedims((prs * RE'), (2, 1))
-    @cast Rtemp[b, rb, rt, rc] := Rtemp[b, (rb, rt, rc)] (rb ∈ 1:maximum(p_rb), rc ∈ 1:maximum(p_r))
+    @cast Rtemp[b, rb, rt, rc] := Rtemp[b, (rb, rt, rc)] (rb ∈ 1:srcb, rc ∈ 1:src)
     @cast Rtemp[(b, rb), rt, rc] := Rtemp[b, rb, rt, rc]
     Rtemp = attach_3_matrices_right(Rtemp, B2, K2, h)  # [(l, lb), lt, lc]
-    @cast Rtemp[l, (lb, lt, lc)] := Rtemp[(l, lb), lt, lc] (lb ∈ 1:maximum(p_lb))
+    @cast Rtemp[l, (lb, lt, lc)] := Rtemp[(l, lb), lt, lc] (lb ∈ 1:slcb)
     (pls' * Rtemp')'
 end
 
@@ -262,7 +274,8 @@ function contract_tensors43(B::VirtualTensor{R, 4}, A::Tensor{R, 3}) where R <: 
     A = Array(A)
 
     sal, sar, _  = size(A)
-    p_lb, p_l, p_lt, p_rb, p_r, p_rt = Array.(B.projs)
+    p_lb, p_l, p_lt, p_rb, p_r, p_rt = get_projector!.(Ref(B.lp), B.projs)
+
     C = zeros(R, sal, length(p_l), sar, length(p_r), maximum(p_lt), maximum(p_rt))
 
     @cast A4[x, y, k, l] := A[x, y, (k, l)] (k ∈ 1:maximum(p_lb))

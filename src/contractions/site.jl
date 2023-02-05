@@ -64,12 +64,12 @@ end
 
 function contract_tensors43(M::SiteTensor{R, 4}, B::Tensor{R, 3}) where R <: Real
     device = typeof(M.loc_exp) <: CuArray ? :GPU : :CPU
-    projs = [get_projector!(M.lp, x, device) for x in M.projs]
+    p4 = get_projector!(M.lp, M.projs[4], device)
     sb1, sb2, _ = size(B)
-    sm1, sm2, sm3 = maximum.(projs[1:3])
-    @inbounds Bp = B[:, :, projs[4]] .* reshape(M.loc_exp, 1, 1, :)
+    sm1, sm2, sm3 = size.(Ref(M.lp), M.projs[1:3])
+    @inbounds Bp = B[:, :, p4] .* reshape(M.loc_exp, 1, 1, :)
     @cast Bp[(x, y), z] := Bp[x, y, z]
-    ip123 = SparseCSC(R, projs[1], projs[2], projs[3])
+    ip123 = SparseCSC(R, M.lp, M.projs[1], M.projs[2], M.projs[3], device)
     out = reshape(ip123 * Bp', sm1, sm2, sm3, sb1, sb2)
     out = permutedims(out, (4, 1, 5, 3, 2))
     reshape(out, sb1 * sm1, sb2 * sm3, sm2)

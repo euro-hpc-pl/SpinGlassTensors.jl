@@ -36,7 +36,7 @@ end
 
 function move_to_CUDA!(ten::VirtualTensor)
     ten.con = move_to_CUDA!(ten.con)
-    ten.projs = move_to_CUDA!.(ten.projs) # TODO 1) is this necessary ?
+    # ten.projs = move_to_CUDA!.(ten.projs) # TODO 1) is this necessary ?
     ten
 end
 

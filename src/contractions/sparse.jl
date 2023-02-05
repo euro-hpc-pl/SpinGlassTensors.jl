@@ -19,9 +19,12 @@ function SparseCSC(::Type{R}, p::Vector{Int64}) where R <: Real
     sparse(p, cn, co, mp, n)
 end
 
-function SparseCSC(::Type{T}, p1::R, p2::R, p3::R) where {T <: Real, R <: Union{CuArray{Int64, 1}, Vector{Int64}}}
+function SparseCSC(::Type{T}, lp::PoolOfProjectors, k1::R, k2::R, k3::R, device::Symbol) where {T <: Real, R <: Int}
+    p1 = get_projector!(lp, k1, device)
+    p2 = get_projector!(lp, k2, device)
+    p3 = get_projector!(lp, k3, device)
     @assert length(p1) == length(p2) == length(p3)
-    s1, s2 = maximum(p1), maximum(p2)
+    s1, s2 = size(lp, k1), size(lp, k2)
     p = p1 .+ s1 * (p2 .- 1) .+ s1 * s2 * (p3 .- 1)
     SparseCSC(T, p)
 end

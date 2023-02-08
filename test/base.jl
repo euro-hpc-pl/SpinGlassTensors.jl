@@ -19,7 +19,7 @@
         end
 
         @testset "has correct rank" begin
-            @test rank(ψ) == Tuple(fill(d, 1:sites))
+            @test rank(ψ) == Tuple(fill(d, sites))
         end
 
         @testset "has correct bonds" begin

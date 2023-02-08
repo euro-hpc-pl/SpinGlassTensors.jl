@@ -98,8 +98,6 @@ function Base.randn(::Type{MPO{T}}, D::Int, rank::Union{Vector,NTuple}) where {T
     MPO(randn(MPS{T}, D, rank .^ 2))
 end
 
-Base.randn(::Type{MPO}, args...) = randn(MPO{Float64}, args...)
-
 is_left_normalized(ψ::MPS) = all(
     I(size(A, 3)) ≈ @tensor Id[x, y] := conj(A[α, σ, x]) * A[α, σ, y] order = (α, σ) for
     A ∈ ψ

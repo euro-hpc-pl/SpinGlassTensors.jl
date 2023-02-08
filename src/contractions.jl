@@ -1,7 +1,4 @@
-export 
-    left_env, 
-    right_env, 
-    dot!
+export left_env, right_env, dot!
 
 # --------------------------- Conventions -----------------------
 #
@@ -27,7 +24,7 @@ Creates left environment (ϕ - bra, ψ - ket)
 function left_env(ϕ::AbstractMPS, ψ::AbstractMPS)
     T = promote_type(eltype(ψ), eltype(ϕ))
     S = typeof(similar(ψ[1], T, (1, 1)))
-    L = Vector{S}(undef, length(ψ)+1)
+    L = Vector{S}(undef, length(ψ) + 1)
     L[1] = similar(ψ[1], T, (1, 1))
     L[1][1, 1] = one(T)
     for (i, (A, B)) ∈ enumerate(zip(ψ, ϕ))
@@ -42,7 +39,9 @@ end
 # TODO: remove it (after SpinGlassEngine is updated)
 @memoize Dict function left_env(ϕ::AbstractMPS, σ::Vector{Int})
     l = length(σ)
-    if l == 0 return ones(eltype(ϕ), 1) end
+    if l == 0
+        return ones(eltype(ϕ), 1)
+    end
     m = σ[l]
     L̃ = left_env(ϕ, σ[1:l-1])
     M = ϕ[l]
@@ -57,7 +56,7 @@ function right_env(ϕ::AbstractMPS, ψ::AbstractMPS)
     L = length(ψ)
     T = promote_type(eltype(ψ), eltype(ϕ))
     S = typeof(similar(ψ[1], T, (1, 1)))
-    R = Vector{S}(undef, L+1)
+    R = Vector{S}(undef, L + 1)
     R[end] = similar(ψ[1], T, (1, 1))
     R[end][1, 1] = one(T)
     for i ∈ L:-1:1
@@ -71,7 +70,11 @@ function right_env(ϕ::AbstractMPS, ψ::AbstractMPS)
 end
 
 # TODO: remove it (after SpinGlassEngine is updated)
-@memoize Dict function right_env(ϕ::AbstractMPS{T}, W::AbstractMPO{T}, σ::Union{Vector, NTuple}) where {T}
+@memoize Dict function right_env(
+    ϕ::AbstractMPS{T},
+    W::AbstractMPO{T},
+    σ::Union{Vector,NTuple},
+) where {T}
     l = length(σ)
     if l == 0
         R = similar(ϕ[1], T, (1, 1))
@@ -109,12 +112,13 @@ Calculates the matrix element of \$O\$
 ```
 in one pass, utlizing `TensorOperations`.
 """
-function LinearAlgebra.dot(ϕ::AbstractMPS, O::Union{Vector, NTuple}, ψ::AbstractMPS) #where T <: AbstractMatrix
+function LinearAlgebra.dot(ϕ::AbstractMPS, O::Union{Vector,NTuple}, ψ::AbstractMPS) #where T <: AbstractMatrix
     S = promote_type(eltype(ψ), eltype(ϕ), eltype(O[1]))
     C = similar(ψ[1], S, (1, 1))
     C[1, 1] = one(S)
     for (A, W, B) ∈ zip(ϕ, O, ψ)
-        @tensor C[x, y] := conj(A)[β, σ, x] * W[σ, η] * C[β, α] * B[α, η, y] order = (α, η, β, σ)
+        @tensor C[x, y] := conj(A)[β, σ, x] * W[σ, η] * C[β, α] * B[α, η, y] order =
+            (α, η, β, σ)
     end
     tr(C)
 end
@@ -141,6 +145,6 @@ function LinearAlgebra.dot(O1::AbstractMPO, O2::AbstractMPO)
         O[i] = V
     end
     O
-end 
+end
 
 Base.:(*)(A::AbstractTensorNetwork, B::AbstractTensorNetwork) = dot(A, B)

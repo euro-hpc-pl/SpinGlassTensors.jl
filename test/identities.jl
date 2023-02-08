@@ -32,7 +32,7 @@ end
 
     @testset "the multiplication drops the correct dims" begin
         for i ∈ eachindex(O)
-            @test ϕ[i] == dropdims(sum(O[i], dims=4), dims=4)
+            @test ϕ[i] == dropdims(sum(O[i], dims = 4), dims = 4)
         end
     end
 end
@@ -63,11 +63,11 @@ end
     end
 end
 
-@testset "IdentityMPS is only equal to itself" begin    
+@testset "IdentityMPS is only equal to itself" begin
     @test IdentityMPS() == IdentityMPS()
 
     true_identity = IdentityMPS()
-    tensors = [true_identity[i] for i in 1:4]
+    tensors = [true_identity[i] for i = 1:4]
 
     @test IdentityMPS() != MPS(tensors)
     @test MPS(tensors) != IdentityMPS()

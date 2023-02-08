@@ -1,21 +1,29 @@
-export 
-    canonise!, 
-    truncate!,
-    compress!,
-    compress
+export canonise!, truncate!, compress!, compress
 
 
 # This is for backwards compatibility
-function compress(ϕ::AbstractMPS, Dcut::Int, tol::Number=1E-8, max_sweeps::Int=4, args...)
+function compress(
+    ϕ::AbstractMPS,
+    Dcut::Int,
+    tol::Number = 1E-8,
+    max_sweeps::Int = 4,
+    args...,
+)
     ψ = copy(ϕ)
     compress!(ψ, Dcut, tol, max_sweeps, args...)
     ψ
 end
 
 
-function compress!(ϕ::AbstractMPS, Dcut::Int, tol::Number=1E-8, max_sweeps::Int=4, args...)
+function compress!(
+    ϕ::AbstractMPS,
+    Dcut::Int,
+    tol::Number = 1E-8,
+    max_sweeps::Int = 4,
+    args...,
+)
     # right canonise ϕ
-    _left_sweep!(ϕ, args...) 
+    _left_sweep!(ϕ, args...)
 
     # Initial guess - truncated ϕ
     ψ = copy(ϕ)
@@ -48,7 +56,7 @@ function compress!(ϕ::AbstractMPS, Dcut::Int, tol::Number=1E-8, max_sweeps::Int
 end
 
 
-function truncate!(ψ::AbstractMPS, s::Symbol, Dcut::Int=typemax(Int), args...)
+function truncate!(ψ::AbstractMPS, s::Symbol, Dcut::Int = typemax(Int), args...)
     @assert s ∈ (:left, :right)
     if s == :right
         _right_sweep!(ψ, args...)
@@ -65,9 +73,9 @@ canonise!(ψ::AbstractMPS, ::Val{:right}) = _left_sweep!(ψ, typemax(Int))
 canonise!(ψ::AbstractMPS, ::Val{:left}) = _right_sweep!(ψ, typemax(Int))
 
 
-function _right_sweep!(ψ::AbstractMPS, Dcut::Int=typemax(Int), args...)
+function _right_sweep!(ψ::AbstractMPS, Dcut::Int = typemax(Int), args...)
     R = ones(eltype(ψ), 1, 1)
-    for (i, A) ∈ enumerate(ψ)      
+    for (i, A) ∈ enumerate(ψ)
         @matmul M̃[(x, σ), y] := sum(α) R[x, α] * A[α, σ, y]
         Q, R = qr_fact(M̃, Dcut, args...)
         R = R ./ maximum(abs.(R))
@@ -77,10 +85,10 @@ function _right_sweep!(ψ::AbstractMPS, Dcut::Int=typemax(Int), args...)
 end
 
 
-function _left_sweep!(ψ::AbstractMPS, Dcut::Int=typemax(Int), args...)
+function _left_sweep!(ψ::AbstractMPS, Dcut::Int = typemax(Int), args...)
     R = ones(eltype(ψ), 1, 1)
     for i ∈ length(ψ):-1:1
-        B = ψ[i]   
+        B = ψ[i]
         @matmul M̃[x, (σ, y)] := sum(α) B[x, σ, α] * R[α, y]
         R, Q = rq_fact(M̃, Dcut, args...)
         R = R ./ maximum(abs.(R))
@@ -90,7 +98,12 @@ function _left_sweep!(ψ::AbstractMPS, Dcut::Int=typemax(Int), args...)
 end
 
 
-function _left_sweep_var!!(ϕ::AbstractMPS, env::Vector{<:AbstractMatrix}, ψ::AbstractMPS, args...)
+function _left_sweep_var!!(
+    ϕ::AbstractMPS,
+    env::Vector{<:AbstractMatrix},
+    ψ::AbstractMPS,
+    args...,
+)
     env[end] = ones(eltype(ϕ), 1, 1)
 
     for i ∈ length(ψ):-1:1
@@ -98,7 +111,7 @@ function _left_sweep_var!!(ϕ::AbstractMPS, env::Vector{<:AbstractMatrix}, ψ::A
 
         # optimize site
         M = ψ[i]
-        @tensor MM[x, σ, α] := L[x, β] * M[β, σ, α] 
+        @tensor MM[x, σ, α] := L[x, β] * M[β, σ, α]
         @matmul MM[x, (σ, y)] := sum(α) MM[x, σ, α] * R[α, y]
 
         _, Q = rq_fact(MM, args...)
@@ -115,7 +128,12 @@ function _left_sweep_var!!(ϕ::AbstractMPS, env::Vector{<:AbstractMatrix}, ψ::A
 end
 
 
-function _right_sweep_var!!(ϕ::AbstractMPS, env::Vector{<:AbstractMatrix}, ψ::AbstractMPS, args...)
+function _right_sweep_var!!(
+    ϕ::AbstractMPS,
+    env::Vector{<:AbstractMatrix},
+    ψ::AbstractMPS,
+    args...,
+)
     env[1] = ones(eltype(ϕ), 1, 1)
 
     for (i, M) ∈ enumerate(ψ)
@@ -139,7 +157,11 @@ function _right_sweep_var!!(ϕ::AbstractMPS, env::Vector{<:AbstractMatrix}, ψ::
 end
 
 
-function _right_sweep(A::AbstractArray, Dcut::Int=typemax(Int), args...) where {T <: AbstractMPS}
+function _right_sweep(
+    A::AbstractArray,
+    Dcut::Int = typemax(Int),
+    args...,
+) where {T<:AbstractMPS}
     rank = ndims(A)
     ψ = MPS(eltype(A), rank)
     R = reshape(copy(A), (1, length(A)))
@@ -156,7 +178,11 @@ function _right_sweep(A::AbstractArray, Dcut::Int=typemax(Int), args...) where {
 end
 
 
-function _left_sweep(A::AbstractArray, Dcut::Int=typemax(Int), args...) where {T <: AbstractMPS}
+function _left_sweep(
+    A::AbstractArray,
+    Dcut::Int = typemax(Int),
+    args...,
+) where {T<:AbstractMPS}
     rank = ndims(A)
     ψ = MPS(eltype(A), rank)
     R = reshape(copy(A), (length(A), 1))
@@ -171,4 +197,3 @@ function _left_sweep(A::AbstractArray, Dcut::Int=typemax(Int), args...) where {T
     end
     ψ
 end
-

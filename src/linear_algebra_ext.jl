@@ -34,7 +34,6 @@ function LinearAlgebra.svd(
     tol::Float64 = 1E-12,
     args...,
 )
-    #U, Σ, V = psvd(A, rank=Dcut, args...)
 
     U, Σ, V = svd(A, args...)
 

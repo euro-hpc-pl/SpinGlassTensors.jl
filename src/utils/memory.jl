@@ -15,10 +15,11 @@ measure_memory(ten::VirtualTensor) = sum(measure_memory.([ten.con, ]))  # ten.pr
 measure_memory(ten::MpoTensor) = sum(measure_memory.([ten.top..., ten.ctr, ten.bot...]))
 measure_memory(ten::Union{QMps, QMpo}) = sum(measure_memory.(values(ten.tensors)))
 measure_memory(env::Environment) = sum(measure_memory.(values(env.env)))
-measure_memory(dict::Dict) = sum(measure_memory.(values(dict)))
+measure_memory(lp::PoolOfProjectors) = sum([measure_memory(da) for da ∈ values(lp.data)])
+measure_memory(dict::Dict) = isempty(dict) ? [0, 0] : sum(measure_memory.(values(dict)))
 measure_memory(tuple::Tuple) = sum(measure_memory.(tuple))
+measure_memory(ten::Int) = [sizeof(ten), 0]
 measure_memory(::Nothing) = [0, 0]
-measure_memory(lp::PoolOfProjectors) =   sum([sum(measure_memory.(values(da))) for da ∈ values(lp.data)])
 
 
 function format_bytes(bytes, decimals::Int = 2, k::Int = 1024)

@@ -69,21 +69,7 @@ function attach_3_matrices_right(
     RE
 end
 
-function attach_2_matrices(
-    LE::S, B2::Q, h::C, RE::S
-) where {S <: Tensor{R, 3}, Q <: Tensor{R, 2}, C <: Tensor{R, 2}} where R <: Real
-    if >=(size(B2)...)
-        @tensor LE[rfb, x, y] := B2[lfb, rfb] * LE[lfb, x, y]
-    else
-        @tensor RE[lfb, x, y] := B2[lfb, rfb] * RE[rfb, x, y]
-    end
-    if >=(size(h)...)
-        LE = contract_tensor3_matrix(LE, h)
-    else
-        RE = contract_matrix_tensor3(h, RE)
-    end
-    @tensor LR[lft, rft] := LE[fb, lft, fh] * RE[fb, rft, fh]
-end
+
 
 function update_env_left(LE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <: Tensor{R, 3}} where R <: Real
     h = M.con
@@ -186,6 +172,83 @@ function update_env_right(RE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <:
         rb_from = rb_to + 1
     end
     Rout ./ maximum(abs.(Rout))  # [lb, lt, lcp]
+end
+
+
+# function project_ket_on_bra(LE::S, B::S, M::VirtualTensor{R, 4}, RE::S) where {S <: Tensor{R, 3}} where R <: Real
+#     h = M.con
+#     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
+
+#     slb, slt = size(LE, 1), size(LE, 2)
+#     srb, srt = size(RE, 1), size(RE, 2)
+#     slcb, slc, slct = size(M.lp, p_lb), size(M.lp, p_l), size(M.lp, p_lt)
+#     srcb, src, srct = size(M.lp, p_rb), size(M.lp, p_r), size(M.lp, p_rt)
+
+#     device = Tuple(which_device(h))[1]  # extracting device from Set
+#     pls = SparseCSC(R, M.lp, p_lb, p_lt, p_l, device)
+#     prs = SparseCSC(R, M.lp, p_rb, p_rt, p_r, device)
+
+#     @cast Btemp[lb, rb, lcb, rcb] := B[lb, rb, (lcb, rcb)] (lcb ∈ 1:slcb)
+#     Btemp = permutedims(Btemp, (1, 3, 2, 4))
+#     @cast B2[(lb, lcb), (rb, rcb)] := Btemp[lb, lcb, rb, rcb]
+
+#     # LRout = typeof(LE) <: CuArray ? CUDA.zeros(R, sl2, slct, sr2, srct) : zeros(R, slt, slct, srt, srct)
+
+#     if slcb >= srcb
+#         @cast Lslc[(lb, lt), lcp] := LE[lb, lt, lcp]
+#         Lslc = (pls * Lslc')'  # [(lb, lt), (lcb, lct, lc)]
+#         @cast Lslc[lb, lt, lcb, lct, lc] := Lslc[(lb, lt), (lcb, lct, lc)] (lcb ∈ 1:slcb, lc ∈ 1:slc, lb ∈ 1:slb)
+#         Lslc = permutedims(Lslc, (1, 3, 2, 4, 5))  # [lb, lcb, lt, lct, lc]
+#         @cast Lslc[(lb, lcb), (lt, lct), lc] := Lslc[lb, lcb, lt, lct, lc]
+
+#         @tensor Lslc[rfb, x, y] := B2[lfb, rfb] * Lslc[lfb, x, y]  # [(rb, rcb), (lt, lct), lc]
+#         Lslc = contract_tensor3_matrix(Lslc, h)  # # [(rb, rcb), (lt, lct), rc]
+
+#         @cast Rslc[(rb, rt), rcp] := RE[rb, rt, rcp]
+#         Rslc = (prs * Rslc')'  # [(rb, rt), (rcb, rct, rc)]
+#         @cast Rslc[rb, rt, rcb, rct, rc] := Rslc[(rb, rt), (rcb, rct, rc)] (rcb ∈ 1:srcb, rc ∈ 1:src, rb ∈ 1:srb)
+#         Rslc = permutedims(Rslc, (1, 3, 2, 4, 5))  # [rb, rcb, rt, rct, rc]
+#         @cast Rslc[(rb, rcb), (rt, rct), rc] := Rslc[rb, rcb, rt, rct, rc]
+
+#         @tensor LR[lft, rft] := Lslc[fb, lft, fh] * Rslc[fb, rft, fh]
+#     else
+#         @cast Rslc[(rb, rt), rcp] := RE[rb, rt, rcp]
+#         Rslc = (prs * Rslc')'  # [(rb, rt), (rcb, rct, rc)]
+#         @cast Rslc[rb, rt, rcb, rct, rc] := Rslc[(rb, rt), (rcb, rct, rc)] (rcb ∈ 1:srcb, rc ∈ 1:src, rb ∈ 1:srb)
+#         Rslc = permutedims(Rslc, (1, 3, 2, 4, 5))  # [rb, rcb, rt, rct, rc]
+#         @cast Rslc[(rb, rcb), (rt, rct), rc] := Rslc[rb, rcb, rt, rct, rc]
+
+#         @tensor Rslc[lfb, x, y] := B2[lfb, rfb] * Rslc[rfb, x, y]
+#         Rslc = contract_matrix_tensor3(h, Rslc)
+
+#         @cast Lslc[(lb, lt), lcp] := LE[lb, lt, lcp]
+#         Lslc = (pls * Lslc')'  # [(lb, lt), (lcb, lct, lc)]
+#         @cast Lslc[lb, lt, lcb, lct, lc] := Lslc[(lb, lt), (lcb, lct, lc)] (lcb ∈ 1:slcb, lc ∈ 1:slc, lb ∈ 1:slb)
+#         Lslc = permutedims(Lslc, (1, 3, 2, 4, 5))  # [lb, lcb, lt, lct, lc]
+#         @cast Lslc[(lb, lcb), (lt, lct), lc] := Lslc[lb, lcb, lt, lct, lc]
+
+#         @tensor LR[lft, rft] := Lslc[fb, lft, fh] * Rslc[fb, rft, fh]
+#     end
+
+#     @cast LR[lt, lct, rt, rct] := LR[(lt, lct), (rt, rct)] (lct ∈ 1:slct, rct ∈ 1:srct)
+#     LR = reshape(permutedims(LR, (1, 3, 2, 4)), slt, srt, slct * srct)
+#     LR ./ maximum(abs.(LR))
+# end
+
+function attach_2_matrices(
+    LE::S, B2::Q, h::C, RE::S
+) where {S <: Tensor{R, 3}, Q <: Tensor{R, 2}, C <: Tensor{R, 2}} where R <: Real
+        if >=(size(B2)...)
+            @tensor LE[rfb, x, y] := B2[lfb, rfb] * LE[lfb, x, y]
+        else
+            @tensor RE[lfb, x, y] := B2[lfb, rfb] * RE[rfb, x, y]
+        end
+        if >=(size(h)...)
+            LE = contract_tensor3_matrix(LE, h)
+        else
+            RE = contract_matrix_tensor3(h, RE)
+        end
+    @tensor LR[lft, rft] := LE[fb, lft, fh] * RE[fb, rft, fh]
 end
 
 function project_ket_on_bra(LE::S, B::S, M::VirtualTensor{R, 4}, RE::S) where {S <: Tensor{R, 3}} where R <: Real

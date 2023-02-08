@@ -15,7 +15,6 @@ CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
 LowRankApprox = "898213cb-b102-5a47-900c-97e73b919f73"
 TSVD = "9449cd9e-2762-5aa3-a617-5413e99d722e"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
-SpinGlassNetworks = "b7f6bd3e-55dc-4da6-96a9-ef9dbec6ac19"
 
 
 [compat]

@@ -11,15 +11,13 @@ export
 
 abstract type AbstractSparseTensor{T, N} end
 
-const Proj{N} = Union{NTuple{N, Array{Int, 1}}, NTuple{N, CuArray{Int, 1}}}
-
 mutable struct SiteTensor{T <: Real, N} <: AbstractSparseTensor{T, N}
     lp::PoolOfProjectors
     loc_exp::AbstractVector{T}
     projs::NTuple{4, Int} # pl, pt, pr, pb
     dims::Dims{N}
 
-    function SiteTensor(lp::PoolOfProjectors, loc_exp, projs::Proj{4})
+    function SiteTensor(lp::PoolOfProjectors, loc_exp, projs::NTuple{4, Vector{Int}})
         T = eltype(loc_exp)
         ks = Tuple(add_projector!(lp, p) for p in projs)
         dims = size.(Ref(lp), ks)
@@ -85,7 +83,7 @@ mutable struct VirtualTensor{T <: Real, N} <: AbstractSparseTensor{T, N}
     projs::NTuple{6, Int}  # == (p_lb, p_l, p_lt, p_rb, p_r, p_rt)
     dims::Dims{N}
 
-    function VirtualTensor(lp::PoolOfProjectors, con, projs::Proj{6})
+    function VirtualTensor(lp::PoolOfProjectors, con, projs::NTuple{6, Vector{Int}})
         T = eltype(con)
         ks = Tuple(add_projector!(lp, p) for p in projs)
         dims = (length(lp, ks[2]), size(lp, ks[3]) * size(lp, ks[6]), length(lp, ks[5]), size(lp, ks[1]) * size(lp, ks[4]))

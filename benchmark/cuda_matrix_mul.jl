@@ -10,7 +10,7 @@ Ind = CuArray(rand(1:100, nnz))
 
 A = CUDA.CUSPARSE.CuSparseMatrixCSR(Ptr, Ind, Val, (100, 100))
 B = CUDA.rand(Float64, 100, 100)
-C = CUDA.CUSPARSE.CuSparseMatrixCSC(Ptr, Ind, Val, (100, 100)) 
+C = CUDA.CUSPARSE.CuSparseMatrixCSC(Ptr, Ind, Val, (100, 100))
 
 A*B # no scalar indexing
 CUDA.@allowscalar B*A # scalar indexing

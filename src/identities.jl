@@ -1,26 +1,26 @@
 export IdentityMPO, IdentityMPS
-struct IdentityMPS{T <: Number, S <: AbstractArray} <: AbstractMPS{T} end
-struct IdentityMPO{T <: Number, S <: AbstractArray} <: AbstractMPO{T} end
-IdentityMPS() = IdentityMPS{Float64, Array}()
-IdentityMPO() = IdentityMPO{Float64, Array}()
+struct IdentityMPS{T<:Number,S<:AbstractArray} <: AbstractMPS{T} end
+struct IdentityMPO{T<:Number,S<:AbstractArray} <: AbstractMPO{T} end
+IdentityMPS() = IdentityMPS{Float64,Array}()
+IdentityMPO() = IdentityMPO{Float64,Array}()
 
-IdentityMPS(::Type{T}) where {T <: AbstractArray} = IdentityMPS{Float64, T}
-IdentityMPO(::Type{T}) where {T <: AbstractArray} = IdentityMPO{Float64, T}
+IdentityMPS(::Type{T}) where {T<:AbstractArray} = IdentityMPS{Float64,T}
+IdentityMPO(::Type{T}) where {T<:AbstractArray} = IdentityMPO{Float64,T}
 
-IdentityMPS(::Type{S}, ::Type{T}) where {S <: Number, T <: AbstractArray} = IdentityMPS{S, T}
-IdentityMPO(::Type{S}, ::Type{T}) where {S <: Number, T <: AbstractArray} = IdentityMPO{S, T}
+IdentityMPS(::Type{S}, ::Type{T}) where {S<:Number,T<:AbstractArray} = IdentityMPS{S,T}
+IdentityMPO(::Type{S}, ::Type{T}) where {S<:Number,T<:AbstractArray} = IdentityMPO{S,T}
 
-const IdentityMPSorMPO = Union{IdentityMPO, IdentityMPS}
+const IdentityMPSorMPO = Union{IdentityMPO,IdentityMPS}
 
 
-@inline function Base.getindex(::IdentityMPS{S, T}, ::Int) where {S, T}
+@inline function Base.getindex(::IdentityMPS{S,T}, ::Int) where {S,T}
     ret = similar(T{S}, (1, 1, 1))
     ret[1] = one(S)
     ret
 end
 
 
-@inline function Base.getindex(::IdentityMPO{S, T}, ::Int) where {S, T}
+@inline function Base.getindex(::IdentityMPO{S,T}, ::Int) where {S,T}
     ret = similar(T{S}, (1, 1, 1, 1))
     ret[1] = one(S)
     ret
@@ -32,8 +32,8 @@ LinearAlgebra.dot(::IdentityMPO, O::AbstractMPO) = O
 Base.length(::IdentityMPSorMPO) = Inf
 
 
-LinearAlgebra.dot(O::AbstractMPO, ::IdentityMPS) = 
-MPS([dropdims(sum(A, dims=4), dims=4) for A ∈ O])
+LinearAlgebra.dot(O::AbstractMPO, ::IdentityMPS) =
+    MPS([dropdims(sum(A, dims = 4), dims = 4) for A ∈ O])
 
 
 LinearAlgebra.dot(::IdentityMPO, ψ::AbstractMPS) = ψ

@@ -161,7 +161,7 @@ function _right_sweep(
     A::AbstractArray,
     Dcut::Int = typemax(Int),
     args...,
-) where {T<:AbstractMPS}
+)
     rank = ndims(A)
     ψ = MPS(eltype(A), rank)
     R = reshape(copy(A), (1, length(A)))
@@ -182,7 +182,7 @@ function _left_sweep(
     A::AbstractArray,
     Dcut::Int = typemax(Int),
     args...,
-) where {T<:AbstractMPS}
+)
     rank = ndims(A)
     ψ = MPS(eltype(A), rank)
     R = reshape(copy(A), (length(A), 1))

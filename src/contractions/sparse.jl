@@ -1,13 +1,14 @@
 #TODO add support for CuSparseMatrixCSR (cf. https://github.com/JuliaGPU/CUDA.jl/issues/1113)
 
-@memoize Dict function aux_cusparse(::Type{R}, n::Int64) where R <: Real
-    CuArray(1:n+1), CUDA.ones(R, n)
-end
+# @memoize Dict function aux_cusparse(::Type{R}, n::Int64) where R <: Real
+#     CuArray(1:n+1), CUDA.ones(R, n)
+# end
 
 function SparseCSC(::Type{R}, p::CuArray{Int64, 1}) where R <: Real
     n = length(p)
     mp = maximum(p)
-    cn, co = aux_cusparse(R, n)
+    cn = CuArray(1:n+1)  # aux_cusparse(R, n)
+    co = CUDA.ones(R, n)
     CuSparseMatrixCSC(cn, p, co, (mp, n))
 end
 
@@ -19,7 +20,7 @@ function SparseCSC(::Type{R}, p::Vector{Int64}) where R <: Real
     sparse(p, cn, co, mp, n)
 end
 
-function SparseCSC(::Type{T}, lp::PoolOfProjectors, k1::R, k2::R, k3::R, device::Symbol) where {T <: Real, R <: Int}
+@memoize Dict function SparseCSC(::Type{T}, lp::PoolOfProjectors, k1::R, k2::R, k3::R, device::Symbol) where {T <: Real, R <: Int}
     p1 = get_projector!(lp, k1, device)
     p2 = get_projector!(lp, k2, device)
     p3 = get_projector!(lp, k3, device)

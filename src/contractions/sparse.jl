@@ -4,6 +4,15 @@
 #     CuArray(1:n+1), CUDA.ones(R, n)
 # end
 
+# TODO This function is a patch and may not provide any advantage - to be tested
+#=
+function CUDA.:*(Md::DenseCuMatrix{T}, Mcsr::CUSPARSE.CuSparseMatrixCSR{T}) where T
+    ret = CUDA.zeros(T, size(Md, 1), size(Mcsr, 2))
+    CUSPARSE.mm!('T', 'T', one(T), Mcsr, Md, zero(T), ret, 'O')
+    ret'
+end
+=#
+
 function SparseCSC(::Type{R}, p::CuArray{Int64, 1}) where R <: Real
     n = length(p)
     mp = maximum(p)

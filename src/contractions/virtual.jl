@@ -37,60 +37,6 @@ function attach_3_matrices_right(
 end
 
 
-
-
-function update_env_right(RE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <: Tensor{R, 3}} where R <: Real
-    h = M.con
-    p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
-
-    slb, srb = size(B, 1), size(B, 2)
-    slt, srt = size(A, 1), size(A, 2)
-    slcp = length(M.lp, p_l)
-
-    slcb, srcb, src, srct = size(M.lp, p_lb), size(M.lp, p_rb), size(M.lp, p_r), size(M.lp, p_rt)
-
-    device = Tuple(which_device(h))[1]
-    prs = SparseCSC(R, M.lp, p_lb, p_lt, p_l, device)
-    pls = SparseCSC(R, M.lp, p_rb, p_rt, p_r, device)
-
-    batch_size = 2
-    Rout = typeof(RE) <: CuArray ? CUDA.zeros(R, slb, slt, slcp) : zeros(R, slb, slt, slcp)
-    @cast A2[lt, rt, lct, rct] := A[lt, rt, (lct, rct)] (rct ∈ 1:srct)
-    A2 = permutedims(A2, (1, 3, 2, 4))
-    @cast A2[(lt, lct), (rt, rct)] := A2[lt, lct, rt, rct]
-
-    rb_from = 1
-    while rb_from <= srb
-        rb_to = min(rb_from + batch_size - 1, srb)
-        @inbounds Rslc = RE[rb_from:rb_to, :, :]
-        @cast Rslc[(rb, rt), rcp] := Rslc[rb, rt, rcp]
-        Rslc = (pls * Rslc')'  # [(rcb, rc, rct), (rb, rt)]
-        @cast Rslc[rb, rt, rcb, rct, rc] := Rslc[(rb, rt), (rcb, rct, rc)] (rcb ∈ 1:srcb, rc ∈ 1:src, rt ∈ 1:srt)
-        Rslc = permutedims(Rslc, (1, 3, 2, 4, 5))  # [rb, rcb, rt, rct, rc]
-        @cast Rslc[(rb, rcb), (rt, rct), rc] := Rslc[rb, rcb, rt, rct, rc]
-
-        lb_from = 1
-        while lb_from <= slb
-            lb_to = min(lb_from + batch_size - 1, slb)
-            @inbounds Btemp = B[lb_from:lb_to, rb_from:rb_to, :]
-            @cast Btemp[lb, rb, lcb, rcb] := Btemp[lb, rb, (lcb, rcb)] (lcb ∈ 1:slcb)
-            Btemp = permutedims(Btemp, (1, 3, 2, 4))
-            @cast B2[(lb, lcb), (rb, rcb)] := Btemp[lb, lcb, rb, rcb]
-            Rtemp = attach_3_matrices_right(Rslc, B2, A2, h)
-            @cast Rtemp[lb, lcb, lt, lct, lc] := Rtemp[(lb, lcb), (lt, lct), lc] (lcb ∈ 1:slcb, lt ∈ 1:slt)
-            Rtemp = permutedims(Rtemp, (1, 3, 2, 4, 5))  # [lb, lt, lcb, lct, lc]
-            @cast Rtemp[(lb, lt), (lcb, lct, lc)] := Rtemp[lb, lt, lcb, lct, lc]
-            Rtemp = (prs' * Rtemp')'  # [lcp, (lb, lt)]
-            @cast Rtemp[lb, lt, lcp] := Rtemp[(lb, lt), lcp] (lt ∈ 1:slt)
-            @inbounds Rout[lb_from:lb_to, :, :] += Rtemp
-            lb_from = lb_to + 1
-        end
-        rb_from = rb_to + 1
-    end
-    Rout ./ maximum(abs.(Rout))  # [lb, lt, lcp]
-end
-
-
 # function update_env_right(RE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <: Tensor{R, 3}} where R <: Real
 #     h = M.con
 #     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
@@ -141,6 +87,75 @@ end
 #     end
 #     Rout ./ maximum(abs.(Rout))  # [lb, lt, lcp]
 # end
+
+
+
+
+function update_env_right(RE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <: Tensor{R, 3}} where R <: Real
+    p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
+
+    slb, srb = size(B, 1), size(B, 2)
+    slt, srt = size(A, 1), size(A, 2)
+    slcb, slc, slct = size(M.lp, p_lb), size(M.lp, p_l), size(M.lp, p_lt)
+    srcb, src, srct = size(M.lp, p_rb), size(M.lp, p_r), size(M.lp, p_rt)
+    slcp = length(M.lp, p_l)
+
+    device = typeof(RE) <: CuArray ? :GPU : :CPU
+    Rout = typeof(RE) <: CuArray ? CUDA.zeros(R, slcp, slb, slt) : zeros(R, slcp, slb, slt)
+
+    A = reshape(A, (slt, srt, slct, srct))
+    B = reshape(B, (slb, srb, slcb, srcb))
+
+    if srcb >= srct
+        pls = SparseCSC(R, M.lp, p_lt, p_l, p_lb, device)
+        prs = SparseCSC(R, M.lp, p_rt, p_r, p_rb, device)
+        B2 = permutedims(B, (3, 1, 4, 2))  # [lcb, lb, rcb, rb]
+        B2 = reshape(B2, (slcb * slb, srcb * srb))  # [(lcb, lb), (rcb, rb)]
+        for irt ∈ 1 : srt
+            Rslc = RE[:, irt, :]  # [rb, rc]
+            Rslc = prs * Rslc'  # [(rct, rc, rcb), rb]
+            Rslc = reshape(Rslc, (srct * src, srcb * srb))  # [(rct, rc), (rcb, rb)]
+            Rslc = Rslc * B2'  # [(rct, rc), (rcb, rb)] * [(lcb, lb), (rcb, rb)]'
+            Rslc = reshape(Rslc, (srct, src, slcb * slb))  # [rct, rc, (lcb, lb)]
+            Rslc = permutedims(Rslc, (1, 3, 2))  # [rct, (lcb, lb), rc]
+            Rslc = contract_matrix_tensor3(M.con, Rslc)  # [rct, (lcb, lb), lc]
+            Rslc = permutedims(Rslc, (1, 3, 2))  # [rct, lc, (lcb, lb)]
+            Rslc = reshape(Rslc, (srct, slc * slcb * slb))  # [rct, (lc, lcb, lb)]
+            for ilt ∈ 1 : slt
+                A2 = A[ilt, irt, :, :]  # [lct, rct]
+                Rtemp = A2 * Rslc  # [lct, (lc, lcb, lb)]
+                Rtemp = reshape(Rtemp, (slct * slc * slcb, slb))
+                Rtemp = pls' * Rtemp  # [lcp, lb]
+                Rout[:, :, ilt] += Rtemp
+            end
+        end
+    else
+        pls = SparseCSC(R, M.lp, p_lb, p_l, p_lt, device)
+        prs = SparseCSC(R, M.lp, p_rb, p_r, p_rt, device)
+        A2 = permutedims(A, (3, 1, 4, 2))  # [lcb, lb, rcb, rb]
+        A2 = reshape(A2, (slct * slt, srct * srt))  # [(lct, lt), (rct, rt)]
+        for irb ∈ 1 : srb
+            Rslc = RE[irb, :, :]  # [rt, rc]
+            Rslc = prs * Rslc'  # [(rcb, rc, rct), rt]
+            Rslc = reshape(Rslc, (srcb * src, srct * srt))  # [(rcb, rc), (rct, rt)]
+            Rslc = Rslc * A2'  # [(rcb, rc), (rct, rt)] * [(lct, lt), (rct, rt)]'
+            Rslc = reshape(Rslc, (srcb, src, slct * slt))  # [rcb, rc, (lct, lt)]
+            Rslc = permutedims(Rslc, (1, 3, 2))  # [rcb, (lct, lt), rc]
+            Rslc = contract_matrix_tensor3(M.con, Rslc)  # [rcb, (lct, lt), lc]
+            Rslc = permutedims(Rslc, (1, 3, 2))  # [rcb, lc, (lct, lt)]
+            Rslc = reshape(Rslc, (srcb, slc * slct * slt))  # [rcb, (lc, lct, lt)]
+            for ilb ∈ 1 : slb
+                B2 = B[ilb, irb, :, :]  # [lcb, rcb]
+                Rtemp = B2 * Rslc  # [lcb, (lc, lct, lt)]
+                Rtemp = reshape(Rtemp, (slcb * slc * slct, slt))
+                Rtemp = pls' * Rtemp  # [lcp, lt]
+                Rout[:, ilb, :] += Rtemp
+            end
+        end
+    end
+    Rout = permutedims(Rout, (2, 3, 1))  # [lb, lt, lcp]
+    Rout ./ maximum(abs.(Rout))
+end
 
 
 

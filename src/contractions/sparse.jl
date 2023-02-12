@@ -13,6 +13,7 @@ function CUDA.:*(Md::DenseCuMatrix{T}, Mcsr::CUSPARSE.CuSparseMatrixCSR{T}) wher
 end
 =#
 
+# TODO shouldn't we have CSR format instead?
 function SparseCSC(::Type{R}, p::CuArray{Int64, 1}) where R <: Real
     n = length(p)
     mp = maximum(p)

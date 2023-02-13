@@ -25,6 +25,7 @@ function variational_compress!(bra::QMps{T}, mpo::QMpo{T}, ket::QMps{T}, tol=1E-
         else
             overlap_0 = overlap
         end
+        # println(" sweep  = ", sweep , " overlap = ", overlap, " Delta = ", Δ)
     end
     println("Memory bra = ", format_bytes.(measure_memory(bra)), " mpo = ", format_bytes.(measure_memory(mpo)), " env = ", format_bytes.(measure_memory(env)))
     overlap, env

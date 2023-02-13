@@ -14,7 +14,7 @@ p3 = get_projector!(lp, k3, device)
 
 total_memory = 2^33 # TODO add better handling for this; also depending on device
 
-batch_size = max(Int(floor(total_memory / (8 * (s1 * s2 + s2 * s3 + s3 * s4 + s4 * s1)))), 1)
+batch_size = max(Int(floor(total_memory / (8 * (s1 * s2 + s2 * s3 + s3 * s4 + s4 * s1 + min(s1 * s3, s2 * s4))))), 1)
 batch_size = Int(2^floor(log2(batch_size) + 1e-6))
 out = typeof(loc_exp) <: CuArray ? CUDA.zeros(R, size(lp, kout), s1, s4) : zeros(R, size(lp, kout), s1, s4)
 
@@ -22,11 +22,15 @@ from = 1
 total_size = length(p1)
 while from <= total_size
     to = min(total_size, from + batch_size - 1)
-    @inbounds X1p = X1[:, :, p1[from:to]]
-    @inbounds X2p = X2[:, :, p2[from:to]]
-    @inbounds X3p = X3[:, :, p3[from:to]]
+    vp1 = @view p1[from:to]
+    vp2 = @view p2[from:to]
+    vp3 = @view p3[from:to]
 
-    outp = X1p ⊠ X2p ⊠ X3p
+    @inbounds X1p = X1[:, :, vp1]
+    @inbounds X2p = X2[:, :, vp2]
+    @inbounds X3p = X3[:, :, vp3]
+
+    outp = s1 * s3 < s2 * s4 ? (X1p ⊠ X2p) ⊠ X3p : X1p ⊠ (X2p ⊠ X3p)
     le = @view loc_exp[from:to]
     outp .*= reshape(le, 1, 1, :)
     @cast outp[(x, y), z] := outp[x, y, z]

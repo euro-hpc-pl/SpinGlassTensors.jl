@@ -57,13 +57,37 @@ function update_reduced_env_right(
     K::Tensor{R, 1}, RE::Tensor{R, 2}, M::SiteTensor{R, 4}, B::Tensor{R, 3}
 ) where R <: Real
     device = typeof(M.loc_exp) <: CuArray ? :GPU : :CPU
+    s1, s2, _ = size(B)
+
     p2, p3, p4 = (get_projector!(M.lp, x, device) for x in M.projs[2:4])
-    @inbounds Bp = B[:, :, p4]
-    REp = reshape(RE, size(RE, 1), 1, size(RE, 2))
-    @inbounds REp = REp[:, :, p3]
-    outp = dropdims(Bp ⊠ REp, dims=2) .* reshape(M.loc_exp .* K[p2], 1, :)
-    ipr, _, _ = SparseCSC(R, M.lp, M.projs[1], device)
-    permutedims(ipr * outp', (2, 1))
+    k1 = M.projs[1]
+    total_memory = 2^33 # TODO add better handling for this; also depending on device
+
+    batch_size = max(Int(floor(total_memory / (8 * (s1 * s2 + s1 + s2 + 1)))), 1)
+    batch_size = Int(2^floor(log2(batch_size) + 1e-6))
+
+    out = typeof(M.loc_exp) <: CuArray ? CUDA.zeros(R, size(M.lp, k1), s1) : zeros(R, size(M.lp, k1), s1)
+    RE = reshape(RE, size(RE, 1), 1, size(RE, 2))
+
+    from = 1
+    total_size = length(p4)
+    while from <= total_size
+        to = min(total_size, from + batch_size - 1)
+        vp2 = @view p2[from:to]
+        vp3 = @view p3[from:to]
+        vp4 = @view p4[from:to]
+
+        @inbounds Kp = K[vp2]
+        @inbounds REp = RE[:, :, vp3]
+        @inbounds Bp = B[:, :, vp4]
+        le = @view M.loc_exp[from:to]
+
+        outp = dropdims(Bp ⊠ REp, dims=2) .* reshape(le .* Kp, 1, :)
+        ipr, rf, rt = SparseCSC(R, M.lp, k1, device; from, to)
+        @inbounds out[rf:rt, :] .+= ipr * outp'
+        from = to + 1
+    end
+    permutedims(out, (2, 1))
 end
 
 function contract_tensors43(M::SiteTensor{R, 4}, B::Tensor{R, 3}) where R <: Real

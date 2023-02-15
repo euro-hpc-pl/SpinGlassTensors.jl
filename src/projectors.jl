@@ -24,7 +24,13 @@ end
 Base.eltype(lp::PoolOfProjectors{T}) where T = T
 Base.length(lp::PoolOfProjectors) = length(lp.data[lp.default_device])
 Base.length(lp::PoolOfProjectors, device::Symbol) = length(lp.data[device])
-Base.empty!(lp::PoolOfProjectors, device::Symbol) = empty!(lp.data[device])
+
+function Base.empty!(lp::PoolOfProjectors, device::Symbol) 
+    if device ∈ keys(lp.data)
+        empty!(lp.data[device])
+    end
+end
+
 Base.length(lp::PoolOfProjectors, index::Int) = length(lp.data[lp.default_device][index])
 Base.size(lp::PoolOfProjectors, index::Int) = lp.sizes[index]
 

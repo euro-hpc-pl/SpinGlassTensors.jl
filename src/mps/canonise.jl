@@ -4,7 +4,27 @@
 export
     canonise!,
     truncate!,
-    canonise_truncate!
+    canonise_truncate!,
+    measure_spectrum
+
+
+function measure_spectrum(ψ::QMps{T}) where T <: Real
+    # Assume that ψ is left_canonical
+    R = ones(T, 1, 1)
+    schmidt = Dict() # {Site =>AbstractArray}
+    for i ∈ reverse(ψ.sites)
+        B = permutedims(Array(ψ[i]), (1, 3, 2)) # [x, σ, α]
+        @matmul M[x, σ, y] := sum(α) B[x, σ, α] * R[α, y]
+        @cast M[x, (σ, y)] := M[x, σ, y]
+        Dcut, tolS = 100000, 0.
+        U, S, _ = svd_fact(Array(M), Dcut, tolS)
+        push!(schmidt, i => S)
+        R = U * Diagonal(S)
+    end
+    schmidt
+end
+
+
 
 function truncate!(ψ::QMps{T}, s::Symbol, Dcut::Int=typemax(Int), tolS::T=eps(); kwargs...) where T <: Real
     @assert s ∈ (:left, :right)

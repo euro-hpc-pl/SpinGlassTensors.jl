@@ -42,6 +42,7 @@ function zipper(ψ::QMpo{R}, ϕ::QMps{R}; method::Symbol=:svd, Dcut::Int=typemax
 
         CM = CornerTensor(C, ψ[i], ϕ[i])
         U, Σ, V = svd_corner_matrix(CM, method, Dcut, tol; toGPU=onGPU, kwargs...)
+        Σ ./= sqrt(sum(Σ .^ 2))
         C = U * Diagonal(Σ)
 
         V = permutedims(V, (2, 1))

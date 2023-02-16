@@ -8,6 +8,8 @@ export
     variational_sweep!
 
 function variational_compress!(bra::QMps{T}, mpo::QMpo{T}, ket::QMps{T}, tol=1E-10, max_sweeps::Int=4, kwargs...) where T <: Real
+    @assert is_left_normalized(bra)
+    @assert is_left_normalized(ket)
     env = Environment(bra, mpo, ket)
     overlap = Inf
     overlap_0 = measure_env(env, last(env.bra.sites))

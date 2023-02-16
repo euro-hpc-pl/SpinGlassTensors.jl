@@ -28,6 +28,7 @@ input ϕ (results) should be canonized :left (:right)
 """
 function zipper(ψ::QMpo{R}, ϕ::QMps{R}; method::Symbol=:svd, Dcut::Int=typemax(Int), tol=eps(), kwargs...) where R <: Real
     onGPU = ψ.onGPU && ϕ.onGPU
+    @assert is_left_normalized(ϕ)
     D = TensorMap{R}()
     C = onGPU ? CUDA.ones(R, 1, 1, 1) : ones(R, 1, 1, 1)
     mpo_li = last(ψ.sites)

@@ -10,6 +10,7 @@ export
 
 function measure_spectrum(ψ::QMps{T}) where T <: Real
     # Assume that ψ is left_canonical
+    @assert is_left_normalized(ψ)
     R = ones(T, 1, 1)
     schmidt = Dict() # {Site =>AbstractArray}
     for i ∈ reverse(ψ.sites)

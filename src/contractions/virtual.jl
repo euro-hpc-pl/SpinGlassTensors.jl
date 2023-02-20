@@ -15,7 +15,7 @@ function update_env_left(LE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <: 
     A = reshape(A, (slt, srt, slct, srct))
     B = reshape(B, (slb, srb, slcb, srcb))
 
-    if slcb >= slct
+    if slcb * srct >= slct * srcb
         pls = SparseCSC(R, M.lp, p_lt, p_l, p_lb, device)
         prs = SparseCSC(R, M.lp, p_rt, p_r, p_rb, device)
         B2 = permutedims(B, (3, 1, 4, 2))  # [lcb, lb, rcb, rb]
@@ -141,7 +141,7 @@ function update_env_right(RE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <:
     A = reshape(A, (slt, srt, slct, srct))
     B = reshape(B, (slb, srb, slcb, srcb))
 
-    if srcb >= srct
+    if srcb * slct >= srct * slcb
         pls = SparseCSC(R, M.lp, p_lt, p_l, p_lb, device)
         prs = SparseCSC(R, M.lp, p_rt, p_r, p_rb, device)
         B2 = permutedims(B, (3, 1, 4, 2))  # [lcb, lb, rcb, rb]
@@ -211,7 +211,7 @@ function update_reduced_env_right(
     pls = SparseCSC(R, M.lp, p_lt, p_l, p_lb, device)
     prs = SparseCSC(R, M.lp, p_rt, p_r, p_rb, device)
     Rtemp = prs * RE'  # [(rct, rc, rcb), rb]
-    if srcb >= srct
+    if srcb * slct >= srct * slcb
         Rtemp = reshape(Rtemp, (srct * src, srcb * srb))  # [(rct, rc), (rcb, rb)]
         Rtemp = Rtemp * B2'  # [(rct, rc), (rcb, rb)] * [(lcb, lb), (rcb, rb)]'
         Rtemp = reshape(Rtemp, (srct, src, slcb * slb))  # [rct, rc, (lcb, lb)]

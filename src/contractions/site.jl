@@ -82,7 +82,9 @@ function update_reduced_env_right(
         @inbounds Bp = B[:, :, vp4]
         le = @view M.loc_exp[from:to]
 
-        outp = dropdims(Bp ⊠ REp, dims=2) .* reshape(le .* Kp, 1, :)
+        outp = dropdims(Bp ⊠ REp, dims=2)
+        outp .*= reshape(le .* Kp, 1, :)
+
         ipr, rf, rt = SparseCSC(R, M.lp, k1, device; from, to)
         @inbounds out[rf:rt, :] .+= ipr * outp'
         from = to + 1

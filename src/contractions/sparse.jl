@@ -31,20 +31,26 @@ function SparseCSC(::Type{R}, p::Vector{Int64}) where R <: Real
 end
 
 @memoize Dict function SparseCSC(::Type{T}, lp::PoolOfProjectors, k1::R, k2::R, k3::R, device::Symbol) where {T <: Real, R <: Int}
-    p1 = get_projector!(lp, k1, device)
-    p2 = get_projector!(lp, k2, device)
-    p3 = get_projector!(lp, k3, device)
+    p1 = get_projector!(lp, k1) #, device)
+    p2 = get_projector!(lp, k2) #, device)
+    p3 = get_projector!(lp, k3) #, device)
     @assert length(p1) == length(p2) == length(p3)
     s1, s2 = size(lp, k1), size(lp, k2)
     p = p1 .+ s1 * (p2 .- 1) .+ s1 * s2 * (p3 .- 1)
+    if device == :GPU
+        p = CuArray(p)
+    end
     SparseCSC(T, p)
 end
 
 @memoize Dict function SparseCSC(::Type{R}, lp::PoolOfProjectors, k::Int, device::Symbol; from::Int=1, to::Int=length(lp, k)) where R <: Real
-    p = get_projector!(lp, k, device)
+    p = get_projector!(lp, k)
     pp = @view p[from:to]
     rf = minimum(pp)
     rt = maximum(pp)
+    if device == :GPU
+        pp = CuArray(pp)
+    end
     ipr = SparseCSC(R, pp .- (rf - 1))
     (ipr, rf, rt)
 end

@@ -4,7 +4,8 @@
 #              on CPU due to the size of factor graph.
 export
     which_device,
-    move_to_CUDA!
+    move_to_CUDA!,
+    move_to_CPU!
 
 move_to_CUDA!(ten::Array{T, N}) where {T, N} = CuArray(ten) #cu(ten, unified=true)
 #=
@@ -58,6 +59,18 @@ function move_to_CUDA!(ψ::Union{QMpo{T}, QMps{T}}) where T
     ψ.onGPU = true
     ψ
 end
+
+move_to_CPU!(ten::CuArray{T, N}) where {T, N} = Array(ten)
+move_to_CPU!(ten::Union{Array{T, N}, Nothing}) where {T, N} = ten
+move_to_CPU!(ten::Diagonal) = Diagonal(move_to_CPU!(diag(ten)))
+
+function move_to_CPU!(ψ::QMps{T}) where T
+    for k ∈ keys(ψ.tensors) ψ[k] = move_to_CPU!(ψ[k]) end
+    ψ.onGPU = false
+    ψ
+end
+
+
 
 which_device(ten::Nothing) = Set()
 which_device(ψ::Union{QMpo{T}, QMps{T}}) where T = union(which_device.(values(ψ.tensors))...)

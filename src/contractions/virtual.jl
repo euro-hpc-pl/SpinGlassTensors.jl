@@ -20,6 +20,7 @@ function update_env_left(LE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <: 
         prs = SparseCSC(R, M.lp, p_rt, p_r, p_rb, device)
         B2 = permutedims(B, (3, 1, 4, 2))  # [lcb, lb, rcb, rb]
         B2 = reshape(B2, (slcb * slb, srcb * srb))  # [(lcb, lb), (rcb, rb)]
+        A2 = permutedims(A, (3, 4, 1, 2))  # [lt, rt, rct, lct]
         for ilt ∈ 1 : slt
             Lslc = LE[:, ilt, :]  # [lb, lcp]
             Lslc = pls * Lslc'  # [(lct, lc, lcb), lb]
@@ -31,11 +32,9 @@ function update_env_left(LE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <: 
             Lslc = permutedims(Lslc, (1, 3, 2))  # [lct, rc, (rcb, rb)]
             Lslc = reshape(Lslc, (slct, src * srcb * srb))  # [lct, (rc, rcb, rb)]
             for irt ∈ 1 : srt
-                A2 = A[ilt, irt, :, :]  # [lct, rct]
-                Ltemp = A2' * Lslc  # [rct, (rc, rcb, rb)]
+                Ltemp = (@view A2[:, :, ilt, irt])' * Lslc  # [rct, (rc, rcb, rb)]
                 Ltemp = reshape(Ltemp, (srct * src * srcb, srb))
-                Ltemp = prs' * Ltemp  # [rcp, rb]
-                Lout[:, :, irt] += Ltemp
+                Lout[:, :, irt] += prs' * Ltemp # [rcp, rb]
             end
         end
     else
@@ -43,6 +42,7 @@ function update_env_left(LE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <: 
         prs = SparseCSC(R, M.lp, p_rb, p_r, p_rt, device)
         A2 = permutedims(A, (3, 1, 4, 2))  # [lct, lt, rct, rt]
         A2 = reshape(A2, (slct * slt, srct * srt))  # [(lct, lt), (rct, rt)]
+        B2 = permutedims(B, (3, 4, 1, 2))  # [lcb, rcb, lb, rb]
         for ilb ∈ 1 : slb
             Lslc = LE[ilb, :, :]  # [lt, lcp]
             Lslc = pls * Lslc'  # [(lcb, lc, lct), lt]
@@ -54,11 +54,9 @@ function update_env_left(LE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <: 
             Lslc = permutedims(Lslc, (1, 3, 2))  # [lcb, rc, (rct, rt)]
             Lslc = reshape(Lslc, (slcb, src * srct * srt))  # [lcb, (rc, rct, rt)]
             for irb ∈ 1 : srb
-                B2 = B[ilb, irb, :, :]  # [lcb, rcb]
-                Ltemp = B2' * Lslc  # [rcb, (rc, rct, rt)]
+                Ltemp = (@view B2[:, :, ilb, irb])' * Lslc  # [rcb, (rc, rct, rt)]
                 Ltemp = reshape(Ltemp, (srcb * src * srct, srt))
-                Ltemp = prs' * Ltemp  # [rcp, rt]
-                Lout[:, irb, :] += Ltemp
+                Lout[:, irb, :] += prs' * Ltemp  # [rcp, rt]
             end
         end
     end
@@ -85,10 +83,11 @@ function project_ket_on_bra(LE::S, B::S, M::VirtualTensor{R, 4}, RE::S) where {S
     B2 = permutedims(B, (3, 1, 4, 2))  # [lcb, lb, rcb, rb]
     B2 = reshape(B2, (slcb * slb, srcb * srb))  # [(lcb, lb), (rcb, rb)]
 
+    RE = permutedims(RE, (1, 3, 2))
+    LE = permutedims(LE, (1, 3, 2))
     if slcb >= srcb
         for ilt ∈ 1 : slt
-            Lslc = LE[:, ilt, :]  # [lb, lc]
-            Lslc = pls * Lslc'  # [(lct, lc, lcb), lb]
+            Lslc = pls * (@view LE[:, :, ilt])'  # [(lct, lc, lcb), lb]
             Lslc = reshape(Lslc, (slct * slc, slcb * slb))  # [(lct, lc), (lcb, lb)]
             Lslc = Lslc * B2  # [(lct, lc), (lcb, lb)] * [(lcb, lb), (rcb, rb)]
             Lslc = reshape(Lslc, (slct, slc, srcb * srb))  # [lct, lc, (rcb, rb)]
@@ -97,16 +96,14 @@ function project_ket_on_bra(LE::S, B::S, M::VirtualTensor{R, 4}, RE::S) where {S
             Lslc = permutedims(Lslc, (1, 3, 2))  # [lct, rc, (rcb, rb)]
             Lslc = reshape(Lslc, (slct, src * srcb * srb))  # [lct, (rc, rcb, rb)]
             for irt ∈ 1 : srt
-                Rslc = RE[:, irt, :]  # [rb, rc]
-                Rslc = prs * Rslc'  # [(rct, rc, rcb), rb]
+                Rslc = prs * (@view RE[:, :, irt])'  # [(rct, rc, rcb), rb]
                 Rslc = reshape(Rslc, (srct, src * srcb * srb))  # [rct, (rc, rcb, rb)]
                 LR[ilt, irt, :, :] = Lslc * Rslc'  # [lct, rct]
             end
         end
     else
         for irt ∈ 1 : srt
-            Rslc = RE[:, irt, :]  # [rb, rc]
-            Rslc = prs * Rslc'  # [(rct, rc, rcb), rb]
+            Rslc = prs * (@view RE[:, :, irt])'  # [(rct, rc, rcb), rb]
             Rslc = reshape(Rslc, (srct * src, srcb * srb))  # [(rct, rc), (rcb, rb)]
             Rslc = Rslc * B2'  # [(rct, rc), (rcb, rb)] * [(lcb, lb), (rcb, rb)]'
             Rslc = reshape(Rslc, (srct, src, slcb * slb))  # [rct, rc, (lcb, lb)]
@@ -115,8 +112,7 @@ function project_ket_on_bra(LE::S, B::S, M::VirtualTensor{R, 4}, RE::S) where {S
             Rslc = permutedims(Rslc, (1, 3, 2))  # [rct, lc, (lcb, lb)]
             Rslc = reshape(Rslc, (srct, slc * slcb * slb))  # [rct, (lc, lcb, lb)]
             for ilt ∈ 1 : slt
-                Lslc = LE[:, ilt, :]  # [lb, lc]
-                Lslc = pls * Lslc'  # [(lct, lc, lcb), lb]
+                Lslc = pls * (@view LE[:, :, ilt])'  # [(lct, lc, lcb), lb]
                 Lslc = reshape(Lslc, (slct, slc * slcb * slb))  # [lct, (lc, lcb, lb)]
                 LR[ilt, irt, :, :] = Lslc * Rslc'  # [lct, rct]
             end
@@ -146,6 +142,7 @@ function update_env_right(RE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <:
         prs = SparseCSC(R, M.lp, p_rt, p_r, p_rb, device)
         B2 = permutedims(B, (3, 1, 4, 2))  # [lcb, lb, rcb, rb]
         B2 = reshape(B2, (slcb * slb, srcb * srb))  # [(lcb, lb), (rcb, rb)]
+        A2 = permutedims(A, (3, 4, 1, 2))
         for irt ∈ 1 : srt
             Rslc = RE[:, irt, :]  # [rb, rc]
             Rslc = prs * Rslc'  # [(rct, rc, rcb), rb]
@@ -157,11 +154,9 @@ function update_env_right(RE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <:
             Rslc = permutedims(Rslc, (1, 3, 2))  # [rct, lc, (lcb, lb)]
             Rslc = reshape(Rslc, (srct, slc * slcb * slb))  # [rct, (lc, lcb, lb)]
             for ilt ∈ 1 : slt
-                A2 = A[ilt, irt, :, :]  # [lct, rct]
-                Rtemp = A2 * Rslc  # [lct, (lc, lcb, lb)]
+                Rtemp = (@view A2[:, :, ilt, irt]) * Rslc  # [lct, (lc, lcb, lb)]
                 Rtemp = reshape(Rtemp, (slct * slc * slcb, slb))
-                Rtemp = pls' * Rtemp  # [lcp, lb]
-                Rout[:, :, ilt] += Rtemp
+                Rout[:, :, ilt] += pls' * Rtemp  # [lcp, lb]
             end
         end
     else
@@ -169,6 +164,7 @@ function update_env_right(RE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <:
         prs = SparseCSC(R, M.lp, p_rb, p_r, p_rt, device)
         A2 = permutedims(A, (3, 1, 4, 2))  # [lcb, lb, rcb, rb]
         A2 = reshape(A2, (slct * slt, srct * srt))  # [(lct, lt), (rct, rt)]
+        B2 = permutedims(B, (3, 4, 1, 2))
         for irb ∈ 1 : srb
             Rslc = RE[irb, :, :]  # [rt, rc]
             Rslc = prs * Rslc'  # [(rcb, rc, rct), rt]
@@ -180,11 +176,9 @@ function update_env_right(RE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <:
             Rslc = permutedims(Rslc, (1, 3, 2))  # [rcb, lc, (lct, lt)]
             Rslc = reshape(Rslc, (srcb, slc * slct * slt))  # [rcb, (lc, lct, lt)]
             for ilb ∈ 1 : slb
-                B2 = B[ilb, irb, :, :]  # [lcb, rcb]
-                Rtemp = B2 * Rslc  # [lcb, (lc, lct, lt)]
+                Rtemp = (@view B2[:, :, ilb, irb]) * Rslc  # [lcb, (lc, lct, lt)]
                 Rtemp = reshape(Rtemp, (slcb * slc * slct, slt))
-                Rtemp = pls' * Rtemp  # [lcp, lt]
-                Rout[:, ilb, :] += Rtemp
+                Rout[:, ilb, :] += pls' * Rtemp  # [lcp, lt]
             end
         end
     end

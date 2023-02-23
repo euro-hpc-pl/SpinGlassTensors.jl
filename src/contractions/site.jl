@@ -12,8 +12,7 @@ p1 = get_projector!(lp, k1, device)
 p2 = get_projector!(lp, k2, device)
 p3 = get_projector!(lp, k3, device)
 
-total_memory = 2^33 # TODO add better handling for this; also depending on device
-
+total_memory = 2^32 # TODO add better handling for this; also depending on device
 batch_size = max(Int(floor(total_memory / (8 * (s1 * s2 + s2 * s3 + s3 * s4 + s4 * s1 + min(s1 * s3, s2 * s4))))), 1)
 batch_size = Int(2^floor(log2(batch_size) + 1e-6))
 out = typeof(loc_exp) <: CuArray ? CUDA.zeros(R, size(lp, kout), s1, s4) : zeros(R, size(lp, kout), s1, s4)
@@ -61,7 +60,7 @@ function update_reduced_env_right(
 
     p2, p3, p4 = (get_projector!(M.lp, x, device) for x in M.projs[2:4])
     k1 = M.projs[1]
-    total_memory = 2^33 # TODO add better handling for this; also depending on device
+    total_memory = 2^32 # TODO add better handling for this; also depending on device
 
     batch_size = max(Int(floor(total_memory / (8 * (s1 * s2 + s1 + s2 + 1)))), 1)
     batch_size = Int(2^floor(log2(batch_size) + 1e-6))

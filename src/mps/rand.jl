@@ -14,20 +14,24 @@ function Base.rand(::Type{QMps{T}}, loc_dims::Dict, Dmax::Int=1) where T <: Real
     QMps(id)
 end
 
-function Base.rand(::Type{QMpo{T}}, sites::Vector, D::Int, d::Int, sites_aux::Vector=[], d_aux::Int=0) where T <: Real
-    QMpo(
-        MpoTensorMap{T}(
-            1 => MpoTensor{T}(
-                     1 => rand(T, 1, d, d, D),
-                    (j => rand(T, d_aux, d_aux) for j ∈ sites_aux)...
-            ),
-            sites[end] => MpoTensor{T}(
-                    sites[end] => rand(T, D, d, d, 1),
-                    (j => rand(T, d_aux, d_aux) for j ∈ sites_aux)...,
-            ),
-            (i => MpoTensor{T}(
-                     i => rand(T, D, d, d, D),
-                    (j => rand(T, d_aux, d_aux) for j ∈ sites_aux)...) for i ∈ 2:length(sites)-1)...
-        )
-    )
+function Base.rand(
+    ::Type{CentralTensor{T}}, s::Vector{Int}
+) where T <: Real
+    CentralTensor(Real.(rand(s[1], s[5])), Real.(rand(s[2], s[6])), Real.(rand(s[3], s[7])), Real.(rand(s[4], s[8])))
+end
+
+function Base.rand(
+    ::Type{SiteTensor{T}}, lp::PoolOfProjectors, l::Int, D::NTuple
+) where T <: Real
+    loc_exp = rand(l)
+    # projs = (rand(collect(0:D[1]), l), rand(collect(0:D[2]), l), rand(collect(0:D[3]), l), rand(collect(0:D[4]), l))
+    projs = D
+
+    SiteTensor(lp, loc_exp, projs)
+end
+
+function Base.rand(
+    ::Type{QMpo{T}}, loc_dims::Dict; onGPU::Bool=false
+) where T <:Real
+    QMpo(MpoTensorMap{T}(loc_dims))
 end

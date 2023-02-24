@@ -21,6 +21,9 @@ function update_env_left(LE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <: 
         B2 = permutedims(B, (3, 1, 4, 2))  # [lcb, lb, rcb, rb]
         B2 = reshape(B2, (slcb * slb, srcb * srb))  # [(lcb, lb), (rcb, rb)]
         A2 = permutedims(A, (3, 4, 1, 2))  # [lt, rt, rct, lct]
+
+        Ltemp1 = typeof(LE) <: CuArray ? CuArray{R}(undef, (srct, src * srcb * srb)) : Array{R}(undef, (srct, src * srcb * srb))
+        Ltemp2 = typeof(LE) <: CuArray ? CuArray{R}(undef, (srcp, srb)) : Array{R}(undef, (srcp, srb))
         for ilt ∈ 1 : slt
             Lslc = LE[:, ilt, :]  # [lb, lcp]
             Lslc = pls * Lslc'  # [(lct, lc, lcb), lb]
@@ -32,9 +35,11 @@ function update_env_left(LE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <: 
             Lslc = permutedims(Lslc, (1, 3, 2))  # [lct, rc, (rcb, rb)]
             Lslc = reshape(Lslc, (slct, src * srcb * srb))  # [lct, (rc, rcb, rb)]
             for irt ∈ 1 : srt
-                Ltemp = (@view A2[:, :, ilt, irt])' * Lslc  # [rct, (rc, rcb, rb)]
-                Ltemp = reshape(Ltemp, (srct * src * srcb, srb))
-                Lout[:, :, irt] += prs' * Ltemp # [rcp, rb]
+                mul!(Ltemp1, (@view A2[:, :, ilt, irt])', Lslc)
+                mul!(Ltemp2, prs', reshape(Ltemp1, (srct * src * srcb, srb)))
+                # Ltemp1 = (@view A2[:, :, ilt, irt])' * Lslc  # [rct, (rc, rcb, rb)]  
+                # Ltemp2 = prs' * reshape(Ltemp1, (srct * src * srcb, srb))
+                Lout[:, :, irt] += Ltemp2 # [rcp, rb]
             end
         end
     else

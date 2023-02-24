@@ -20,15 +20,12 @@ out = typeof(loc_exp) <: CuArray ? CUDA.zeros(R, size(lp, kout), s1, s4) : zeros
 from = 1
 total_size = length(p1)
 
-println(batch_size, "  /   ", total_size)
-println( s1 * s3 < s2 * s4  )
-
 if s1 * s3 < s2 * s4 
     Xtemp = typeof(loc_exp) <: CuArray ? CuArray{R}(undef, (s2, s4, batch_size)) : Array{R}(undef, (s2, s4, batch_size))
 else
     Xtemp = typeof(loc_exp) <: CuArray ? CuArray{R}(undef, (s1, s3, batch_size)) : Array{R}(undef, (s1, s3, batch_size))
 end
-outp  = typeof(loc_exp) <: CuArray ? CuArray{R}(undef, (s1, s4, batch_size)) : Array{R}(undef, (s1, s4, batch_size))
+outp = typeof(loc_exp) <: CuArray ? CuArray{R}(undef, (s1, s4, batch_size)) : Array{R}(undef, (s1, s4, batch_size))
 X1p  = typeof(loc_exp) <: CuArray ? CuArray{R}(undef, (s1, s2, batch_size)) : Array{R}(undef, (s1, s2, batch_size))
 X2p  = typeof(loc_exp) <: CuArray ? CuArray{R}(undef, (s2, s3, batch_size)) : Array{R}(undef, (s2, s3, batch_size))
 X3p  = typeof(loc_exp) <: CuArray ? CuArray{R}(undef, (s3, s4, batch_size)) : Array{R}(undef, (s3, s4, batch_size))

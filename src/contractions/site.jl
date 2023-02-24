@@ -15,42 +15,49 @@ p3 = get_projector!(lp, k3, device)
 total_memory = 2^32 # TODO add better handling for this; also depending on device
 batch_size = max(Int(floor(total_memory / (8 * (s1 * s2 + s2 * s3 + s3 * s4 + s4 * s1 + min(s1 * s3, s2 * s4))))), 1)
 batch_size = Int(2^floor(log2(batch_size) + 1e-6))
-out = typeof(loc_exp) <: CuArray ? CUDA.zeros(R, size(lp, kout), s1, s4) : zeros(R, size(lp, kout), s1, s4)
+
+total_size = length(p1)
+batch_size = min(batch_size, total_size)
+
+onGPU = typeof(loc_exp) <: CuArray
+out = onGPU ? CUDA.zeros(R, size(lp, kout), s1, s4) : zeros(R, size(lp, kout), s1, s4)
+
+sXtmp = s1 * s3 < s2 * s4 ? (s2, s4, batch_size) : (s1, s3, batch_size)
+Xtmp = onGPU ? CuArray{R}(undef, sXtmp) : Array{R}(undef, sXtmp)
+outp = onGPU ? CuArray{R}(undef, (s1, s4, batch_size)) : Array{R}(undef, (s1, s4, batch_size))
+X1p  = onGPU ? CuArray{R}(undef, (s1, s2, batch_size)) : Array{R}(undef, (s1, s2, batch_size))
+X2p  = onGPU ? CuArray{R}(undef, (s2, s3, batch_size)) : Array{R}(undef, (s2, s3, batch_size))
+X3p  = onGPU ? CuArray{R}(undef, (s3, s4, batch_size)) : Array{R}(undef, (s3, s4, batch_size))
 
 from = 1
-total_size = length(p1)
-
-if s1 * s3 < s2 * s4 
-    Xtemp = typeof(loc_exp) <: CuArray ? CuArray{R}(undef, (s2, s4, batch_size)) : Array{R}(undef, (s2, s4, batch_size))
-else
-    Xtemp = typeof(loc_exp) <: CuArray ? CuArray{R}(undef, (s1, s3, batch_size)) : Array{R}(undef, (s1, s3, batch_size))
-end
-outp = typeof(loc_exp) <: CuArray ? CuArray{R}(undef, (s1, s4, batch_size)) : Array{R}(undef, (s1, s4, batch_size))
-X1p  = typeof(loc_exp) <: CuArray ? CuArray{R}(undef, (s1, s2, batch_size)) : Array{R}(undef, (s1, s2, batch_size))
-X2p  = typeof(loc_exp) <: CuArray ? CuArray{R}(undef, (s2, s3, batch_size)) : Array{R}(undef, (s2, s3, batch_size))
-X3p  = typeof(loc_exp) <: CuArray ? CuArray{R}(undef, (s3, s4, batch_size)) : Array{R}(undef, (s3, s4, batch_size))
-
 while from <= total_size
     to = min(total_size, from + batch_size - 1)
+    sto = to - from + 1
+
     vp1 = @view p1[from:to]
     vp2 = @view p2[from:to]
     vp3 = @view p3[from:to]
-
-    @inbounds X1p[:, :, :] .= X1[:, :, vp1]
-    @inbounds X2p[:, :, :] .= X2[:, :, vp2]
-    @inbounds X3p[:, :, :] .= X3[:, :, vp3]
+    X1p = X1[:, :, vp1]
+    X2p = X2[:, :, vp2]
+    X3p = X3[:, :, vp3]
 
     if s1 * s3 < s2 * s4 
-        batched_mul!(Xtemp, X1p, X2p)
-        batched_mul!(outp, Xtemp, X3p)
+        Xtmp = batched_mul(X1p, X2p)
+        outp = batched_mul(Xtmp, X3p)
+        # batched_mul!(Xtmp, X1p, X2p)
+        # batched_mul!(outp, Xtmp, X3p)
     else
-        batched_mul!(Xtemp, X2p, X3p)
-        batched_mul!(outp, X1p, Xtemp)
+        Xtmp = batched_mul(X2p, X3p)
+        outp = batched_mul(X1p, Xtmp)
+        # batched_mul!(Xtmp, X2p, X3p)
+        # batched_mul!(outp, X1p, Xtmp)
     end
+
     le = @view loc_exp[from:to]
     outp .*= reshape(le, 1, 1, :)
+    outpp = reshape(outp, s1 * s4, :)
     ipr, rf, rt = SparseCSC(R, lp, kout, device; from, to)
-    @inbounds out[rf:rt, :, :] .+= reshape(ipr * reshape(outp, s1 * s4, batch_size)', :, s1, s4)
+    @inbounds out[rf:rt, :, :] .+= reshape(ipr * outpp', :, s1, s4)
     from = to + 1
 end
 permutedims(out, (2, 3, 1))

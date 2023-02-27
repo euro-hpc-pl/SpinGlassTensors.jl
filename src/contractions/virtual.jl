@@ -48,6 +48,9 @@ function update_env_left(LE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <: 
         A2 = permutedims(A, (3, 1, 4, 2))  # [lct, lt, rct, rt]
         A2 = reshape(A2, (slct * slt, srct * srt))  # [(lct, lt), (rct, rt)]
         B2 = permutedims(B, (3, 4, 1, 2))  # [lcb, rcb, lb, rb]
+        
+        Ltemp1 = typeof(LE) <: CuArray ? CuArray{R}(undef, (srcb, src * srct * srt)) : Array{R}(undef, (srcb, src * srct * srt))
+        Ltemp2 = typeof(LE) <: CuArray ? CuArray{R}(undef, (srcp, srt)) : Array{R}(undef, (srcp, srt))
         for ilb ∈ 1 : slb
             Lslc = LE[ilb, :, :]  # [lt, lcp]
             Lslc = pls * Lslc'  # [(lcb, lc, lct), lt]
@@ -58,10 +61,13 @@ function update_env_left(LE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <: 
             Lslc = contract_tensor3_matrix(Lslc, M.con)  # [lcb, (rct, rt), rc]
             Lslc = permutedims(Lslc, (1, 3, 2))  # [lcb, rc, (rct, rt)]
             Lslc = reshape(Lslc, (slcb, src * srct * srt))  # [lcb, (rc, rct, rt)]
-            for irb ∈ 1 : srb
-                Ltemp = (@view B2[:, :, ilb, irb])' * Lslc  # [rcb, (rc, rct, rt)]
-                Ltemp = reshape(Ltemp, (srcb * src * srct, srt))
-                Lout[:, irb, :] += prs' * Ltemp  # [rcp, rt]
+            for irb ∈ 1 : srb      
+                mul!(Ltemp1, (@view B2[:, :, ilb, irb])', Lslc)
+                mul!(Ltemp2, prs', reshape(Ltemp1, (srcb * src * srct, srt)))
+                Lout[:, irb, :] += Ltemp2 # [rcp, rb]
+                # Ltemp = (@view B2[:, :, ilb, irb])' * Lslc  # [rcb, (rc, rct, rt)]
+                # Ltemp = reshape(Ltemp, (srcb * src * srct, srt))
+                # Lout[:, irb, :] += prs' * Ltemp  # [rcp, rt]
             end
         end
     end
@@ -148,6 +154,9 @@ function update_env_right(RE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <:
         B2 = permutedims(B, (3, 1, 4, 2))  # [lcb, lb, rcb, rb]
         B2 = reshape(B2, (slcb * slb, srcb * srb))  # [(lcb, lb), (rcb, rb)]
         A2 = permutedims(A, (3, 4, 1, 2))
+
+        Rtemp1 = typeof(RE) <: CuArray ? CuArray{R}(undef, (slct, slc * slcb * slb)) : Array{R}(undef, (slct, slc * slcb * slb))
+        Rtemp2 = typeof(RE) <: CuArray ? CuArray{R}(undef, (slcp, slb)) : Array{R}(undef, (slcp, slb))
         for irt ∈ 1 : srt
             Rslc = RE[:, irt, :]  # [rb, rc]
             Rslc = prs * Rslc'  # [(rct, rc, rcb), rb]
@@ -159,9 +168,12 @@ function update_env_right(RE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <:
             Rslc = permutedims(Rslc, (1, 3, 2))  # [rct, lc, (lcb, lb)]
             Rslc = reshape(Rslc, (srct, slc * slcb * slb))  # [rct, (lc, lcb, lb)]
             for ilt ∈ 1 : slt
-                Rtemp = (@view A2[:, :, ilt, irt]) * Rslc  # [lct, (lc, lcb, lb)]
-                Rtemp = reshape(Rtemp, (slct * slc * slcb, slb))
-                Rout[:, :, ilt] += pls' * Rtemp  # [lcp, lb]
+                mul!(Rtemp1, (@view A2[:, :, ilt, irt]), Rslc)
+                mul!(Rtemp2, pls', reshape(Rtemp1, (slct * slc * slcb, slb)))
+                Rout[:, :, ilt] += Rtemp2 # [rcp, rb]
+                # Rtemp = (@view A2[:, :, ilt, irt]) * Rslc  # [lct, (lc, lcb, lb)]
+                # Rtemp = reshape(Rtemp, (slct * slc * slcb, slb))
+                # Rout[:, :, ilt] += pls' * Rtemp  # [lcp, lb]
             end
         end
     else
@@ -170,6 +182,8 @@ function update_env_right(RE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <:
         A2 = permutedims(A, (3, 1, 4, 2))  # [lcb, lb, rcb, rb]
         A2 = reshape(A2, (slct * slt, srct * srt))  # [(lct, lt), (rct, rt)]
         B2 = permutedims(B, (3, 4, 1, 2))
+        Rtemp1 = typeof(RE) <: CuArray ? CuArray{R}(undef, (slcb, slc * slct * slt)) : Array{R}(undef, (slcb, slc * slct * slt))
+        Rtemp2 = typeof(RE) <: CuArray ? CuArray{R}(undef, (slcp, slt)) : Array{R}(undef, (slcp, slt))
         for irb ∈ 1 : srb
             Rslc = RE[irb, :, :]  # [rt, rc]
             Rslc = prs * Rslc'  # [(rcb, rc, rct), rt]
@@ -181,9 +195,12 @@ function update_env_right(RE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <:
             Rslc = permutedims(Rslc, (1, 3, 2))  # [rcb, lc, (lct, lt)]
             Rslc = reshape(Rslc, (srcb, slc * slct * slt))  # [rcb, (lc, lct, lt)]
             for ilb ∈ 1 : slb
-                Rtemp = (@view B2[:, :, ilb, irb]) * Rslc  # [lcb, (lc, lct, lt)]
-                Rtemp = reshape(Rtemp, (slcb * slc * slct, slt))
-                Rout[:, ilb, :] += pls' * Rtemp  # [lcp, lt]
+                mul!(Rtemp1, (@view B2[:, :, ilb, irb]), Rslc)
+                mul!(Rtemp2, pls', reshape(Rtemp1, (slcb * slc * slct, slt)))
+                Rout[:, ilb, :] += Rtemp2 # [lcp, lt]
+                # Rtemp = (@view B2[:, :, ilb, irb]) * Rslc  # [lcb, (lc, lct, lt)]
+                # Rtemp = reshape(Rtemp, (slcb * slc * slct, slt))
+                # Rout[:, ilb, :] += pls' * Rtemp  # [lcp, lt]
             end
         end
     end

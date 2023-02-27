@@ -5,7 +5,7 @@ authors = [
     "Konrad Jałowiecki <dexter2206@gmail.com>",
     "Bartłomiej Gardas <bartek.gardas@gmail.com>"
     ]
-version = "0.2.0"
+version = "0.3.0"
 
 [deps]
 DocStringExtensions = "ffbed154-4ef7-542d-bbb7-c09d3a79fcae"

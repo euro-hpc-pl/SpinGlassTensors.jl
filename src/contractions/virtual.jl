@@ -1,5 +1,64 @@
 # virtual.jl: contractions with VirtualTensor on CPU and CUDA
 
+# function update_env_left(LE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <: Tensor{R, 3}} where R <: Real
+#     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
+
+#     slb, srb = size(B, 1), size(B, 2)
+#     slt, srt = size(A, 1), size(A, 2)
+#     slcb, slc, slct = size(M.lp, p_lb), size(M.lp, p_l), size(M.lp, p_lt)
+#     srcb, src, srct = size(M.lp, p_rb), size(M.lp, p_r), size(M.lp, p_rt)
+#     srcp = length(M.lp, p_r)
+
+#     device = typeof(LE) <: CuArray ? :GPU : :CPU
+#     Lout = typeof(LE) <: CuArray ? CUDA.zeros(R, srcp, srb, srt) : zeros(R, srcp, srb, srt)
+#     println("Lout ", size(Lout))
+#     A = reshape(A, (slt, srt, slct, srct))
+#     B = reshape(B, (slb, srb, slcb, srcb))
+
+#     # if slcb * srct >= slct * srcb
+#         pls = SparseCSC(R, M.lp, p_lt, p_l, p_lb, device)
+#         prs = SparseCSC(R, M.lp, p_rt, p_r, p_rb, device)
+#         B2 = permutedims(B, (3, 4, 1, 2))  # [lcb, rcb, lb, rb]
+#         A2 = permutedims(A, (3, 4, 1, 2))  # [lct, rct, lt, rt]
+
+#         # Ltemp1 = typeof(LE) <: CuArray ? CuArray{R}(undef, (srct, src * srcb * srb)) : Array{R}(undef, (srct, src * srcb * srb))
+#         # Ltemp2 = typeof(LE) <: CuArray ? CuArray{R}(undef, (srcp, srb)) : Array{R}(undef, (srcp, srb))
+#         for ilt ∈ 1 : slt 
+#             LLL = typeof(LE) <: CuArray ? CuArray{R}(undef, (slct * slc, srcb, srb)) : Array{R}(undef, (slct * slc, srcb, srb))
+#             for ilb ∈ 1 : slb
+#                 Lslc = LE[ilb, ilt, :]  # [lcp]
+#                 Lslc = pls * Lslc  # [(lct, lc, lcb)]
+#                 Lslc = reshape(Lslc, (slct * slc, slcb))  # [(lct, lc), lcb)]
+#                 for irb ∈ 1 : srb
+#                     LL = Lslc * (@view B2[:, :, ilb, irb]) # [(lct, lc), rcb]
+#                     LLL[:, :, irb] += LL # [(lct, lc), rcb, rb]
+#                 end
+#             end
+#             LLL = reshape(LLL, (slct, slc, srb, srcb))
+#             LLL = permutedims(LLL, (1, 4, 3, 2)) #[lct, rcb, rb, lc]
+#             LLL = reshape(LLL, (slct,  srcb * srb, slc))
+#             LLL = contract_tensor3_matrix(LLL, M.con)  # [lct, (rcb, rb), rc]
+#             LLL = permutedims(LLL, (1, 3, 2))  # [lct, rc, (rcb, rb)]
+#             LLL = reshape(LLL, (slct,  src * srcb * srb))  # [lct, (rc, rcb, rb)]
+#             for irt ∈ 1 : srt
+#                 # mul!(Ltemp1, (@view A2[:, :, ilt, irt])', LLL)
+#                 # mul!(Ltemp2, prs', reshape(Ltemp1, (srct * src * srcb, srb)))
+#                 Ltemp1 = (@view A2[:, :, ilt, irt])' * LLL  # [rct, (rc, rcb, rb)]  
+#                 Ltemp2 = prs' * reshape(Ltemp1, (srct * src * srcb, srb))
+#                 Lout[:, :, irt] += Ltemp2 # [rcp, rb]
+#             end
+#         end
+#         # println(Lout)
+#     # end
+#     println("Lout1 ",size(Lout))
+
+#     Lout = permutedims(Lout, (2, 3, 1))
+#     println("Lout2 ",size(Lout))
+#     Lout ./ maximum(abs.(Lout))  # [rb, rt, rcp]
+# end
+
+
+
 function update_env_left(LE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <: Tensor{R, 3}} where R <: Real
     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
 

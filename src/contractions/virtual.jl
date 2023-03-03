@@ -1,5 +1,58 @@
 # virtual.jl: contractions with VirtualTensor on CPU and CUDA
 
+function update_env_left(LE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <: Tensor{R, 3}} where R <: Real
+    p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
+
+    slb, srb = size(B, 1), size(B, 2)
+    slt, srt = size(A, 1), size(A, 2)
+    slcb, slc, slct = size(M.lp, p_lb), size(M.lp, p_l), size(M.lp, p_lt)
+    srcb, src, srct = size(M.lp, p_rb), size(M.lp, p_r), size(M.lp, p_rt)
+    srcp = length(M.lp, p_r)
+
+    onGPU = typeof(LE) <: CuArray
+    device = onGPU ? :GPU : :CPU
+
+
+    Lout = onGPU ? CUDA.zeros(R, srb, srt, srcp) : zeros(R, srb, srt, srcp)
+    A = reshape(A, (slt, srt, slct, srct))
+    B = reshape(B, (slb, srb, slcb, srcb))
+    B2 = permutedims(B, (3, 4, 1, 2))  # [lcb, rcb, lb, rb]
+    A2 = permutedims(A, (3, 4, 1, 2))  # [lct, rct, lt, rt]
+
+    pls = SparseCSC(R, M.lp, p_lb, p_lt, p_l, device)
+    prs = SparseCSC(R, M.lp, p_rb, p_r, p_rt, device)
+    if slcb * srct >= slct * srcb
+        Ltemp1 = onGPU ? CuArray{R}(undef, (srcb, src * slct)) : Array{R}(undef, (srcb, src * slct))
+        Ltemp2 = onGPU ? CuArray{R}(undef, (srcb * src, srct)) : Array{R}(undef, (srcb * src, srct))
+    else
+        Ltemp1 = onGPU ? CuArray{R}(undef, (slcb * src, srct)) : Array{R}(undef, (slcb * src, srct))
+        Ltemp2 = onGPU ? CuArray{R}(undef, (srcb, src * srct)) : Array{R}(undef, (srcb, src * srct))
+    end
+    Ltemp3 = onGPU ? CuArray{R}(undef, srcp, 1) : Array{R}(undef, srcp, 1)
+    for ilt ∈ 1 : slt, ilb ∈ 1 : slb
+        Lslc = LE[ilb, ilt, :]  # [lcp]
+        Lslc = pls * Lslc  # [(lcb, lct, lc)]
+        Lslc = reshape(Lslc, (slcb, slct, slc))  # [lcb, lct, lc]
+        Lslc = contract_tensor3_matrix(Lslc, M.con)  # [lcb, lct, rc]
+        Lslc = permutedims(Lslc, (1, 3, 2))  # [lcb, rc, lct]
+        for irt ∈ 1 : srt, irb ∈ 1 : srb
+            if slcb * srct >= slct * srcb
+                mul!(Ltemp1, (@view B2[:, :, ilb, irb])', reshape(Lslc, (slcb, src * slct)))  # [rcb, (rc, lct)]
+                mul!(Ltemp2, reshape(Ltemp1, (srcb * src, slct)), (@view A2[:, :, ilt, irt]))  # [(rcb, rc), rct]
+            else
+                mul!(Ltemp1, reshape(Lslc, (slcb * src, slct)), (@view A2[:, :, ilt, irt]))  # [(lcb, rc), rct]
+                mul!(Ltemp2, (@view B2[:, :, ilb, irb])', reshape(Ltemp1, (slcb, src * srct)))  # [rcb, (rc, rct)]
+            end
+            mul!(Ltemp3, prs', reshape(Ltemp2, (srcb * src * srct, 1)))
+            Lout[irb, irt, :] += reshape(Ltemp3, srcp)  # [rcp]
+        end
+    end
+
+    Lout ./ maximum(abs.(Lout))  # [rb, rt, rcp]
+end
+
+
+
 # function update_env_left(LE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <: Tensor{R, 3}} where R <: Real
 #     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
 
@@ -11,128 +64,69 @@
 
 #     device = typeof(LE) <: CuArray ? :GPU : :CPU
 #     Lout = typeof(LE) <: CuArray ? CUDA.zeros(R, srcp, srb, srt) : zeros(R, srcp, srb, srt)
-#     println("Lout ", size(Lout))
+
 #     A = reshape(A, (slt, srt, slct, srct))
 #     B = reshape(B, (slb, srb, slcb, srcb))
 
-#     # if slcb * srct >= slct * srcb
+#     if slcb * srct >= slct * srcb
 #         pls = SparseCSC(R, M.lp, p_lt, p_l, p_lb, device)
 #         prs = SparseCSC(R, M.lp, p_rt, p_r, p_rb, device)
-#         B2 = permutedims(B, (3, 4, 1, 2))  # [lcb, rcb, lb, rb]
-#         A2 = permutedims(A, (3, 4, 1, 2))  # [lct, rct, lt, rt]
+#         B2 = permutedims(B, (3, 1, 4, 2))  # [lcb, lb, rcb, rb]
+#         B2 = reshape(B2, (slcb * slb, srcb * srb))  # [(lcb, lb), (rcb, rb)]
+#         A2 = permutedims(A, (3, 4, 1, 2))  # [lt, rt, rct, lct]
 
-#         # Ltemp1 = typeof(LE) <: CuArray ? CuArray{R}(undef, (srct, src * srcb * srb)) : Array{R}(undef, (srct, src * srcb * srb))
-#         # Ltemp2 = typeof(LE) <: CuArray ? CuArray{R}(undef, (srcp, srb)) : Array{R}(undef, (srcp, srb))
-#         for ilt ∈ 1 : slt 
-#             LLL = typeof(LE) <: CuArray ? CuArray{R}(undef, (slct * slc, srcb, srb)) : Array{R}(undef, (slct * slc, srcb, srb))
-#             for ilb ∈ 1 : slb
-#                 Lslc = LE[ilb, ilt, :]  # [lcp]
-#                 Lslc = pls * Lslc  # [(lct, lc, lcb)]
-#                 Lslc = reshape(Lslc, (slct * slc, slcb))  # [(lct, lc), lcb)]
-#                 for irb ∈ 1 : srb
-#                     LL = Lslc * (@view B2[:, :, ilb, irb]) # [(lct, lc), rcb]
-#                     LLL[:, :, irb] += LL # [(lct, lc), rcb, rb]
-#                 end
-#             end
-#             LLL = reshape(LLL, (slct, slc, srb, srcb))
-#             LLL = permutedims(LLL, (1, 4, 3, 2)) #[lct, rcb, rb, lc]
-#             LLL = reshape(LLL, (slct,  srcb * srb, slc))
-#             LLL = contract_tensor3_matrix(LLL, M.con)  # [lct, (rcb, rb), rc]
-#             LLL = permutedims(LLL, (1, 3, 2))  # [lct, rc, (rcb, rb)]
-#             LLL = reshape(LLL, (slct,  src * srcb * srb))  # [lct, (rc, rcb, rb)]
+#         Ltemp1 = typeof(LE) <: CuArray ? CuArray{R}(undef, (srct, src * srcb * srb)) : Array{R}(undef, (srct, src * srcb * srb))
+#         Ltemp2 = typeof(LE) <: CuArray ? CuArray{R}(undef, (srcp, srb)) : Array{R}(undef, (srcp, srb))
+#         for ilt ∈ 1 : slt
+#             Lslc = LE[:, ilt, :]  # [lb, lcp]
+#             Lslc = pls * Lslc'  # [(lct, lc, lcb), lb]
+#             Lslc = reshape(Lslc, (slct * slc, slcb * slb))  # [(lct, lc), (lcb, lb)]
+#             Lslc = Lslc * B2  # [(lct, lc), (lcb, lb)] * [(lcb, lb), (rcb, rb)]
+#             Lslc = reshape(Lslc, (slct, slc, srcb * srb))  # [lct, lc, (rcb, rb)]
+#             Lslc = permutedims(Lslc, (1, 3, 2))  # [lct, (rcb, rb), lc]
+#             Lslc = contract_tensor3_matrix(Lslc, M.con)  # [lct, (rcb, rb), rc]
+#             Lslc = permutedims(Lslc, (1, 3, 2))  # [lct, rc, (rcb, rb)]
+#             Lslc = reshape(Lslc, (slct, src * srcb * srb))  # [lct, (rc, rcb, rb)]
 #             for irt ∈ 1 : srt
-#                 # mul!(Ltemp1, (@view A2[:, :, ilt, irt])', LLL)
-#                 # mul!(Ltemp2, prs', reshape(Ltemp1, (srct * src * srcb, srb)))
-#                 Ltemp1 = (@view A2[:, :, ilt, irt])' * LLL  # [rct, (rc, rcb, rb)]  
-#                 Ltemp2 = prs' * reshape(Ltemp1, (srct * src * srcb, srb))
+#                 mul!(Ltemp1, (@view A2[:, :, ilt, irt])', Lslc)
+#                 mul!(Ltemp2, prs', reshape(Ltemp1, (srct * src * srcb, srb)))
+#                 # Ltemp1 = (@view A2[:, :, ilt, irt])' * Lslc  # [rct, (rc, rcb, rb)]  
+#                 # Ltemp2 = prs' * reshape(Ltemp1, (srct * src * srcb, srb))
 #                 Lout[:, :, irt] += Ltemp2 # [rcp, rb]
 #             end
 #         end
-#         # println(Lout)
-#     # end
-#     println("Lout1 ",size(Lout))
-
+#     else
+#         pls = SparseCSC(R, M.lp, p_lb, p_l, p_lt, device)
+#         prs = SparseCSC(R, M.lp, p_rb, p_r, p_rt, device)
+#         A2 = permutedims(A, (3, 1, 4, 2))  # [lct, lt, rct, rt]
+#         A2 = reshape(A2, (slct * slt, srct * srt))  # [(lct, lt), (rct, rt)]
+#         B2 = permutedims(B, (3, 4, 1, 2))  # [lcb, rcb, lb, rb]
+        
+#         Ltemp1 = typeof(LE) <: CuArray ? CuArray{R}(undef, (srcb, src * srct * srt)) : Array{R}(undef, (srcb, src * srct * srt))
+#         Ltemp2 = typeof(LE) <: CuArray ? CuArray{R}(undef, (srcp, srt)) : Array{R}(undef, (srcp, srt))
+#         for ilb ∈ 1 : slb
+#             Lslc = LE[ilb, :, :]  # [lt, lcp]
+#             Lslc = pls * Lslc'  # [(lcb, lc, lct), lt]
+#             Lslc = reshape(Lslc, (slcb * slc, slct * slt))  # [(lcb, lc), (lct, lt)]
+#             Lslc = Lslc * A2  # [(lcb, lc), (lct, lt)] * [(lct, lt), (rct, rt)]
+#             Lslc = reshape(Lslc, (slcb, slc, srct * srt))  # [lcb, lc, (rct, rt)]
+#             Lslc = permutedims(Lslc, (1, 3, 2))  # [lcb, (rct, rt), lc]
+#             Lslc = contract_tensor3_matrix(Lslc, M.con)  # [lcb, (rct, rt), rc]
+#             Lslc = permutedims(Lslc, (1, 3, 2))  # [lcb, rc, (rct, rt)]
+#             Lslc = reshape(Lslc, (slcb, src * srct * srt))  # [lcb, (rc, rct, rt)]
+#             for irb ∈ 1 : srb      
+#                 mul!(Ltemp1, (@view B2[:, :, ilb, irb])', Lslc)
+#                 mul!(Ltemp2, prs', reshape(Ltemp1, (srcb * src * srct, srt)))
+#                 Lout[:, irb, :] += Ltemp2 # [rcp, rb]
+#                 # Ltemp = (@view B2[:, :, ilb, irb])' * Lslc  # [rcb, (rc, rct, rt)]
+#                 # Ltemp = reshape(Ltemp, (srcb * src * srct, srt))
+#                 # Lout[:, irb, :] += prs' * Ltemp  # [rcp, rt]
+#             end
+#         end
+#     end
 #     Lout = permutedims(Lout, (2, 3, 1))
-#     println("Lout2 ",size(Lout))
 #     Lout ./ maximum(abs.(Lout))  # [rb, rt, rcp]
 # end
-
-
-
-function update_env_left(LE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <: Tensor{R, 3}} where R <: Real
-    p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
-
-    slb, srb = size(B, 1), size(B, 2)
-    slt, srt = size(A, 1), size(A, 2)
-    slcb, slc, slct = size(M.lp, p_lb), size(M.lp, p_l), size(M.lp, p_lt)
-    srcb, src, srct = size(M.lp, p_rb), size(M.lp, p_r), size(M.lp, p_rt)
-    srcp = length(M.lp, p_r)
-
-    device = typeof(LE) <: CuArray ? :GPU : :CPU
-    Lout = typeof(LE) <: CuArray ? CUDA.zeros(R, srcp, srb, srt) : zeros(R, srcp, srb, srt)
-
-    A = reshape(A, (slt, srt, slct, srct))
-    B = reshape(B, (slb, srb, slcb, srcb))
-
-    if slcb * srct >= slct * srcb
-        pls = SparseCSC(R, M.lp, p_lt, p_l, p_lb, device)
-        prs = SparseCSC(R, M.lp, p_rt, p_r, p_rb, device)
-        B2 = permutedims(B, (3, 1, 4, 2))  # [lcb, lb, rcb, rb]
-        B2 = reshape(B2, (slcb * slb, srcb * srb))  # [(lcb, lb), (rcb, rb)]
-        A2 = permutedims(A, (3, 4, 1, 2))  # [lt, rt, rct, lct]
-
-        Ltemp1 = typeof(LE) <: CuArray ? CuArray{R}(undef, (srct, src * srcb * srb)) : Array{R}(undef, (srct, src * srcb * srb))
-        Ltemp2 = typeof(LE) <: CuArray ? CuArray{R}(undef, (srcp, srb)) : Array{R}(undef, (srcp, srb))
-        for ilt ∈ 1 : slt
-            Lslc = LE[:, ilt, :]  # [lb, lcp]
-            Lslc = pls * Lslc'  # [(lct, lc, lcb), lb]
-            Lslc = reshape(Lslc, (slct * slc, slcb * slb))  # [(lct, lc), (lcb, lb)]
-            Lslc = Lslc * B2  # [(lct, lc), (lcb, lb)] * [(lcb, lb), (rcb, rb)]
-            Lslc = reshape(Lslc, (slct, slc, srcb * srb))  # [lct, lc, (rcb, rb)]
-            Lslc = permutedims(Lslc, (1, 3, 2))  # [lct, (rcb, rb), lc]
-            Lslc = contract_tensor3_matrix(Lslc, M.con)  # [lct, (rcb, rb), rc]
-            Lslc = permutedims(Lslc, (1, 3, 2))  # [lct, rc, (rcb, rb)]
-            Lslc = reshape(Lslc, (slct, src * srcb * srb))  # [lct, (rc, rcb, rb)]
-            for irt ∈ 1 : srt
-                mul!(Ltemp1, (@view A2[:, :, ilt, irt])', Lslc)
-                mul!(Ltemp2, prs', reshape(Ltemp1, (srct * src * srcb, srb)))
-                # Ltemp1 = (@view A2[:, :, ilt, irt])' * Lslc  # [rct, (rc, rcb, rb)]  
-                # Ltemp2 = prs' * reshape(Ltemp1, (srct * src * srcb, srb))
-                Lout[:, :, irt] += Ltemp2 # [rcp, rb]
-            end
-        end
-    else
-        pls = SparseCSC(R, M.lp, p_lb, p_l, p_lt, device)
-        prs = SparseCSC(R, M.lp, p_rb, p_r, p_rt, device)
-        A2 = permutedims(A, (3, 1, 4, 2))  # [lct, lt, rct, rt]
-        A2 = reshape(A2, (slct * slt, srct * srt))  # [(lct, lt), (rct, rt)]
-        B2 = permutedims(B, (3, 4, 1, 2))  # [lcb, rcb, lb, rb]
-        
-        Ltemp1 = typeof(LE) <: CuArray ? CuArray{R}(undef, (srcb, src * srct * srt)) : Array{R}(undef, (srcb, src * srct * srt))
-        Ltemp2 = typeof(LE) <: CuArray ? CuArray{R}(undef, (srcp, srt)) : Array{R}(undef, (srcp, srt))
-        for ilb ∈ 1 : slb
-            Lslc = LE[ilb, :, :]  # [lt, lcp]
-            Lslc = pls * Lslc'  # [(lcb, lc, lct), lt]
-            Lslc = reshape(Lslc, (slcb * slc, slct * slt))  # [(lcb, lc), (lct, lt)]
-            Lslc = Lslc * A2  # [(lcb, lc), (lct, lt)] * [(lct, lt), (rct, rt)]
-            Lslc = reshape(Lslc, (slcb, slc, srct * srt))  # [lcb, lc, (rct, rt)]
-            Lslc = permutedims(Lslc, (1, 3, 2))  # [lcb, (rct, rt), lc]
-            Lslc = contract_tensor3_matrix(Lslc, M.con)  # [lcb, (rct, rt), rc]
-            Lslc = permutedims(Lslc, (1, 3, 2))  # [lcb, rc, (rct, rt)]
-            Lslc = reshape(Lslc, (slcb, src * srct * srt))  # [lcb, (rc, rct, rt)]
-            for irb ∈ 1 : srb      
-                mul!(Ltemp1, (@view B2[:, :, ilb, irb])', Lslc)
-                mul!(Ltemp2, prs', reshape(Ltemp1, (srcb * src * srct, srt)))
-                Lout[:, irb, :] += Ltemp2 # [rcp, rb]
-                # Ltemp = (@view B2[:, :, ilb, irb])' * Lslc  # [rcb, (rc, rct, rt)]
-                # Ltemp = reshape(Ltemp, (srcb * src * srct, srt))
-                # Lout[:, irb, :] += prs' * Ltemp  # [rcp, rt]
-            end
-        end
-    end
-    Lout = permutedims(Lout, (2, 3, 1))
-    Lout ./ maximum(abs.(Lout))  # [rb, rt, rcp]
-end
 
 
 function project_ket_on_bra(LE::S, B::S, M::VirtualTensor{R, 4}, RE::S) where {S <: Tensor{R, 3}} where R <: Real

@@ -2,10 +2,8 @@
 
 
 # @memoize Dict 
-function temp_alloc(R, onGPU, shape)
-    onGPU ? CuArray{R}(undef, shape) : Array{R}(undef, shape)
-end
-
+alloc_undef(R, onGPU, shape) = onGPU ? CuArray{R}(undef, shape) : Array{R}(undef, shape)
+alloc_zeros(R, onGPU, shape) = onGPU ? CUDA.zeros(R, shape) : zeros(R, shape)
 
 function update_env_left(LE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <: Tensor{R, 3}} where R <: Real
     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
@@ -18,7 +16,7 @@ function update_env_left(LE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <: 
 
     onGPU = typeof(LE) <: CuArray
     device = onGPU ? :GPU : :CPU
-    Lout = onGPU ? CUDA.zeros(R, srcp, srb, srt) : zeros(R, srcp, srb, srt)
+    Lout = alloc_zeros(R, onGPU, (srcp, srb, srt))
 
     A = reshape(A, (slt, srt, slct, srct))
     B = reshape(B, (slb, srb, slcb, srcb))
@@ -30,12 +28,12 @@ function update_env_left(LE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <: 
         B2 = reshape(B2, (slcb * slb, srcb * srb))  # [(lcb, lb), (rcb, rb)]
         A2 = permutedims(A, (3, 4, 1, 2))  # [lt, rt, rct, lct]
 
-        tmp1 = temp_alloc(R, onGPU, (slct * slc * slcb, slb)) 
-        tmp2 = temp_alloc(R, onGPU, (slct * slc, srcb * srb)) 
-        tmp3 = temp_alloc(R, onGPU, (slct, srcb * srb, slc)) 
-        tmp5 = temp_alloc(R, onGPU, (slct, src, srcb * srb)) 
-        tmp7 = temp_alloc(R, onGPU, (srct, src * srcb * srb))
-        tmp8 = temp_alloc(R, onGPU, (srcp, srb))
+        tmp1 = alloc_undef(R, onGPU, (slct * slc * slcb, slb)) 
+        tmp2 = alloc_undef(R, onGPU, (slct * slc, srcb * srb)) 
+        tmp3 = alloc_undef(R, onGPU, (slct, srcb * srb, slc)) 
+        tmp5 = alloc_undef(R, onGPU, (slct, src, srcb * srb)) 
+        tmp7 = alloc_undef(R, onGPU, (srct, src * srcb * srb))
+        tmp8 = alloc_undef(R, onGPU, (srcp, srb))
         for ilt ∈ 1 : slt
             Lslc = LE[:, ilt, :]  # [lb, lcp]
             mul!(tmp1, pls, Lslc')  # [(lct, lc, lcb), lb]
@@ -57,12 +55,12 @@ function update_env_left(LE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <: 
         A2 = reshape(A2, (slct * slt, srct * srt))  # [(lct, lt), (rct, rt)]
         B2 = permutedims(B, (3, 4, 1, 2))  # [lcb, rcb, lb, rb]
 
-        tmp1 = temp_alloc(R, onGPU, (slcb * slc * slct, slt))
-        tmp2 = temp_alloc(R, onGPU, (slcb * slc, srct * srt))
-        tmp3 = temp_alloc(R, onGPU, (slcb, srct * srt, slc))
-        tmp5 = temp_alloc(R, onGPU, (slcb, src, srct * srt))
-        tmp7 = temp_alloc(R, onGPU, (srcb, src * srct * srt))
-        tmp8 = temp_alloc(R, onGPU, (srcp, srt))
+        tmp1 = alloc_undef(R, onGPU, (slcb * slc * slct, slt))
+        tmp2 = alloc_undef(R, onGPU, (slcb * slc, srct * srt))
+        tmp3 = alloc_undef(R, onGPU, (slcb, srct * srt, slc))
+        tmp5 = alloc_undef(R, onGPU, (slcb, src, srct * srt))
+        tmp7 = alloc_undef(R, onGPU, (srcb, src * srct * srt))
+        tmp8 = alloc_undef(R, onGPU, (srcp, srt))
         for ilb ∈ 1 : slb
             Lslc = LE[ilb, :, :]  # [lt, lcp]
             mul!(tmp1, pls, Lslc')  # [(lcb, lc, lct), lt]
@@ -83,6 +81,16 @@ function update_env_left(LE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <: 
 end
 
 
+function proj_out(lp, k1, k2, k3, device)
+    p1 = get_projector!(lp, k1, device)
+    p2 = get_projector!(lp, k2, device)
+    p3 = get_projector!(lp, k3, device)
+    @assert length(p1) == length(p2) == length(p3)
+    s1, s2 = size(lp, k1), size(lp, k2)
+    p1 .+ s1 * (p2 .- 1) .+ s1 * s2 * (p3 .- 1)
+end
+
+
 function project_ket_on_bra(LE::S, B::S, M::VirtualTensor{R, 4}, RE::S) where {S <: Tensor{R, 3}} where R <: Real
     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
 
@@ -95,59 +103,121 @@ function project_ket_on_bra(LE::S, B::S, M::VirtualTensor{R, 4}, RE::S) where {S
     device = onGPU ? :GPU : :CPU
     LR = onGPU ? CUDA.zeros(R, slt, srt, slct, srct) : zeros(R, slt, srt, slct, srct)
 
-    pls = SparseCSC(R, M.lp, p_lt, p_l, p_lb, device)
-    prs = SparseCSC(R, M.lp, p_rt, p_r, p_rb, device)
-
     B = reshape(B, (slb, srb, slcb, srcb))
-    B2 = permutedims(B, (3, 1, 4, 2))  # [lcb, lb, rcb, rb]
-    B2 = reshape(B2, (slcb * slb, srcb * srb))  # [(lcb, lb), (rcb, rb)]
+    B2 = permutedims(B, (1, 3, 2, 4))  # [lb, lcb, rb, rcb]
+    B2 = reshape(B2, (slb * slcb, srb * srcb))  # [(lb, lcb), (rb, rcb)]
 
-    RE = permutedims(RE, (1, 3, 2))
-    LE = permutedims(LE, (1, 3, 2))
     if slcb >= srcb
-
-        tmp1 = temp_alloc(R, onGPU, (slct * slc * slcb, slb))
-        tmp2 = temp_alloc(R, onGPU, (slct * slc, srcb * srb))
-        tmp3 = temp_alloc(R, onGPU, (slct, srcb * srb, slc))
-        tmp5 = temp_alloc(R, onGPU, (slct, src, srcb * srb))
-        tmp7 = temp_alloc(R, onGPU, (srct * src * srcb, srb))
-        tmp8 = temp_alloc(R, onGPU, (slct, srct))
+        pls = proj_out(M.lp, p_lb, p_lt, p_l, device)
+        prs = proj_out(M.lp, p_rb, p_r, p_rt, device)
+        tmp1 = alloc_zeros(R, onGPU, (slb, slcb * slct * slc))
+        tmp2 = alloc_undef(R, onGPU, (srb * srcb, slct * slc))
+        tmp5 = alloc_undef(R, onGPU, (srcb * srb, src, slct))
+        tmp7 = alloc_zeros(R, onGPU, (srb, srcb * src * srct))
+        tmp8 = alloc_undef(R, onGPU, (slct, srct))
         for ilt ∈ 1 : slt
-            mul!(tmp1, pls, (@view LE[:, :, ilt])')  # [(lct, lc, lcb), lb]
-            mul!(tmp2, reshape(tmp1, (slct * slc, slcb * slb)),  B2)  # [(lct, lc), (lcb, lb)] * [(lcb, lb), (rcb, rb)]
-            permutedims!(tmp3, reshape(tmp2, (slct, slc, srcb * srb)), (1, 3, 2))  # [lct, (rcb, rb), lc]
-            tmp4 = contract_tensor3_matrix(tmp3, M.con)  # [lct, (rcb, rb), rc]
-            permutedims!(tmp5, tmp4, (1, 3, 2))  # [lct, rc, (rcb, rb)]
-            tmp6 = reshape(tmp5, (slct, src * srcb * srb))  # [lct, (rc, rcb, rb)]
+            tmp1[:, pls] = (@view LE[:, ilt, :])  # [lb, (lcb, lct, lc)]
+            mul!(tmp2, B2', reshape(tmp1, (slb * slcb, slct * slc)))  # [(lb, lcb), (rb, rcb)]' * [(lb, lcb), (lct, lc)]
+            tmp3 = reshape(tmp2, (srb * srcb, slct, slc))  # [(rb, rcb), lct, lc]
+            tmp4 = contract_tensor3_matrix(tmp3, M.con)  # [(rb, rcb), lct, rc]
+            permutedims!(tmp5, tmp4, (1, 3, 2))  # [(rb, rcb), rc, lct]
+            tmp6 = reshape(tmp5, (srb * srcb * src, slct))  # [(rb, rcb, rc), lct]
             for irt ∈ 1 : srt
-                mul!(tmp7, prs, (@view RE[:, :, irt])')  # [(rct, rc, rcb), rb]
-                mul!(tmp8, tmp6, reshape(tmp7, (srct, src * srcb * srb))')
-                LR[ilt, irt, :, :] .= tmp8  # [lct, rct]
+                tmp7[:, prs] = (@view RE[:, irt, :])  # [rb, (rcb, rc, rct)]
+                mul!(tmp8, tmp6', reshape(tmp7, (srb * srcb * src, srct)))
+                @inbounds LR[ilt, irt, :, :] = tmp8  # [lct, rct]
             end
         end
     else
-        tmp1 = temp_alloc(R, onGPU, (srct * src * srcb, srb))
-        tmp2 = temp_alloc(R, onGPU, (srct * src, slcb * slb))
-        tmp3 = temp_alloc(R, onGPU, (srct, slcb * slb, src))
-        tmp5 = temp_alloc(R, onGPU, (srct, slc, slcb * slb))
-        tmp7 = temp_alloc(R, onGPU, (slct * slc * slcb, slb))
-        tmp8 = temp_alloc(R, onGPU, (slct, srct))
+        pls = proj_out(M.lp, p_lb, p_l, p_lt, device)
+        prs = proj_out(M.lp, p_rb, p_rt, p_r, device)
+        tmp1 = alloc_zeros(R, onGPU, (srb, srcb * srct * src))
+        tmp2 = alloc_undef(R, onGPU, (slb * slcb, srct * src))
+        tmp5 = alloc_undef(R, onGPU, (slb * slcb, slc, srct))
+        tmp7 = alloc_zeros(R, onGPU, (slb, slcb * slc * slct))
+        tmp8 = alloc_undef(R, onGPU, (slct, srct))
         for irt ∈ 1 : srt
-            mul!(tmp1, prs, (@view RE[:, :, irt])')  # [(rct, rc, rcb), rb]
-            mul!(tmp2, reshape(tmp1, (srct * src, srcb * srb)), B2')  # [(rct, rc), (rcb, rb)] * [(lcb, lb), (rcb, rb)]'
-            permutedims!(tmp3, reshape(tmp2, (srct, src, slcb * slb)) , (1, 3, 2))  # [rct, (lcb, lb), rc]
-            tmp4 = contract_matrix_tensor3(M.con, tmp3)  # [rct, (lcb, lb), lc]
-            permutedims!(tmp5, tmp4, (1, 3, 2))  # [rct, lc, (lcb, lb)]
-            tmp6 = reshape(tmp5, (srct, slc * slcb * slb))'  # [(lc, lcb, lb), rct]
+            tmp1[:, prs] = (@view RE[:, irt, :])  # [rb, (rcb, rct, rc)]
+            mul!(tmp2, B2, reshape(tmp1, (srb * srcb, srct * src)))  # [(lb, lcb), (rb, rcb)] * [(rb, rcb), (rct, rc)]
+            tmp3 = reshape(tmp2, (slb * slcb, srct, src))  # [(lb, lcb), rct, rc]
+            tmp4 = contract_matrix_tensor3(M.con, tmp3)  # [(lb, lcb), rct, lc]
+            permutedims!(tmp5, tmp4, (1, 3, 2))  # [(lb, lcb), lc, rct]
+            tmp6 = reshape(tmp5, (slb * slcb * slc, srct))  # [(lb, lcb, lc), rct]
             for ilt ∈ 1 : slt
-                mul!(tmp7, pls, (@view LE[:, :, ilt])')  # [(lct, lc, lcb), lb]
-                mul!(tmp8, reshape(tmp7, (slct, slc * slcb * slb)), tmp6)
-                LR[ilt, irt, :, :] .= tmp8  # [lct, rct]
+                tmp7[:, pls] = (@view LE[:, ilt, :])  # [lb, (lcb, lc, lct)]
+                mul!(tmp8, reshape(tmp7, (slb * slcb * slc, slct))', tmp6)
+                @inbounds LR[ilt, irt, :, :] = tmp8  # [lct, rct]
             end
         end
     end
     reshape(LR, (slt, srt, slct * srct)) ./ maximum(abs.(LR))
 end
+
+# function project_ket_on_bra(LE::S, B::S, M::VirtualTensor{R, 4}, RE::S) where {S <: Tensor{R, 3}} where R <: Real
+#     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
+
+#     slb, slt = size(LE, 1), size(LE, 2)
+#     srb, srt = size(RE, 1), size(RE, 2)
+#     slcb, slc, slct = size(M.lp, p_lb), size(M.lp, p_l), size(M.lp, p_lt)
+#     srcb, src, srct = size(M.lp, p_rb), size(M.lp, p_r), size(M.lp, p_rt)
+
+#     onGPU = typeof(LE) <: CuArray
+#     device = onGPU ? :GPU : :CPU
+#     LR = onGPU ? CUDA.zeros(R, slt, srt, slct, srct) : zeros(R, slt, srt, slct, srct)
+
+#     pls = SparseCSC(R, M.lp, p_lt, p_l, p_lb, device)
+#     prs = SparseCSC(R, M.lp, p_rt, p_r, p_rb, device)
+
+#     B = reshape(B, (slb, srb, slcb, srcb))
+#     B2 = permutedims(B, (3, 1, 4, 2))  # [lcb, lb, rcb, rb]
+#     B2 = reshape(B2, (slcb * slb, srcb * srb))  # [(lcb, lb), (rcb, rb)]
+
+#     RE = permutedims(RE, (1, 3, 2))
+#     LE = permutedims(LE, (1, 3, 2))
+#     if slcb >= srcb
+
+#         tmp1 = alloc_undef(R, onGPU, (slct * slc * slcb, slb))
+#         tmp2 = alloc_undef(R, onGPU, (slct * slc, srcb * srb))
+#         tmp3 = alloc_undef(R, onGPU, (slct, srcb * srb, slc))
+#         tmp5 = alloc_undef(R, onGPU, (slct, src, srcb * srb))
+#         tmp7 = alloc_undef(R, onGPU, (srct * src * srcb, srb))
+#         tmp8 = alloc_undef(R, onGPU, (slct, srct))
+#         for ilt ∈ 1 : slt
+#             mul!(tmp1, pls, (@view LE[:, :, ilt])')  # [(lct, lc, lcb), lb]
+#             mul!(tmp2, reshape(tmp1, (slct * slc, slcb * slb)),  B2)  # [(lct, lc), (lcb, lb)] * [(lcb, lb), (rcb, rb)]
+#             permutedims!(tmp3, reshape(tmp2, (slct, slc, srcb * srb)), (1, 3, 2))  # [lct, (rcb, rb), lc]
+#             tmp4 = contract_tensor3_matrix(tmp3, M.con)  # [lct, (rcb, rb), rc]
+#             permutedims!(tmp5, tmp4, (1, 3, 2))  # [lct, rc, (rcb, rb)]
+#             tmp6 = reshape(tmp5, (slct, src * srcb * srb))  # [lct, (rc, rcb, rb)]
+#             for irt ∈ 1 : srt
+#                 mul!(tmp7, prs, (@view RE[:, :, irt])')  # [(rct, rc, rcb), rb]
+#                 mul!(tmp8, tmp6, reshape(tmp7, (srct, src * srcb * srb))')
+#                 LR[ilt, irt, :, :] .= tmp8  # [lct, rct]
+#             end
+#         end
+#     else
+#         tmp1 = alloc_undef(R, onGPU, (srct * src * srcb, srb))
+#         tmp2 = alloc_undef(R, onGPU, (srct * src, slcb * slb))
+#         tmp3 = alloc_undef(R, onGPU, (srct, slcb * slb, src))
+#         tmp5 = alloc_undef(R, onGPU, (srct, slc, slcb * slb))
+#         tmp7 = alloc_undef(R, onGPU, (slct * slc * slcb, slb))
+#         tmp8 = alloc_undef(R, onGPU, (slct, srct))
+#         for irt ∈ 1 : srt
+#             mul!(tmp1, prs, (@view RE[:, :, irt])')  # [(rct, rc, rcb), rb]
+#             mul!(tmp2, reshape(tmp1, (srct * src, srcb * srb)), B2')  # [(rct, rc), (rcb, rb)] * [(lcb, lb), (rcb, rb)]'
+#             permutedims!(tmp3, reshape(tmp2, (srct, src, slcb * slb)) , (1, 3, 2))  # [rct, (lcb, lb), rc]
+#             tmp4 = contract_matrix_tensor3(M.con, tmp3)  # [rct, (lcb, lb), lc]
+#             permutedims!(tmp5, tmp4, (1, 3, 2))  # [rct, lc, (lcb, lb)]
+#             tmp6 = reshape(tmp5, (srct, slc * slcb * slb))'  # [(lc, lcb, lb), rct]
+#             for ilt ∈ 1 : slt
+#                 mul!(tmp7, pls, (@view LE[:, :, ilt])')  # [(lct, lc, lcb), lb]
+#                 mul!(tmp8, reshape(tmp7, (slct, slc * slcb * slb)), tmp6)
+#                 LR[ilt, irt, :, :] .= tmp8  # [lct, rct]
+#             end
+#         end
+#     end
+#     reshape(LR, (slt, srt, slct * srct)) ./ maximum(abs.(LR))
+# end
 
 
 function update_env_right(RE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <: Tensor{R, 3}} where R <: Real
@@ -173,12 +243,12 @@ function update_env_right(RE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <:
         B2 = reshape(B2, (slcb * slb, srcb * srb))  # [(lcb, lb), (rcb, rb)]
         A2 = permutedims(A, (3, 4, 1, 2))
 
-        tmp1 = temp_alloc(R, onGPU, (srct * src * srcb, srb))
-        tmp2 = temp_alloc(R, onGPU, (srct * src, slcb * slb))
-        tmp3 = temp_alloc(R, onGPU, (srct, slcb * slb, src))
-        tmp5 = temp_alloc(R, onGPU, (srct, slc, slcb * slb))
-        tmp7 = temp_alloc(R, onGPU, (slct, slc * slcb * slb))
-        tmp8 = temp_alloc(R, onGPU, (slcp, slb))
+        tmp1 = alloc_undef(R, onGPU, (srct * src * srcb, srb))
+        tmp2 = alloc_undef(R, onGPU, (srct * src, slcb * slb))
+        tmp3 = alloc_undef(R, onGPU, (srct, slcb * slb, src))
+        tmp5 = alloc_undef(R, onGPU, (srct, slc, slcb * slb))
+        tmp7 = alloc_undef(R, onGPU, (slct, slc * slcb * slb))
+        tmp8 = alloc_undef(R, onGPU, (slcp, slb))
         for irt ∈ 1 : srt
             mul!(tmp1, prs, RE[:, irt, :]')  # [(rct, rc, rcb), rb]
             mul!(tmp2, reshape(tmp1, (srct * src, srcb * srb)), B2')  # [(rct, rc), (rcb, rb)] * [(lcb, lb), (rcb, rb)]'
@@ -199,12 +269,12 @@ function update_env_right(RE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <:
         A2 = reshape(A2, (slct * slt, srct * srt))  # [(lct, lt), (rct, rt)]
         B2 = permutedims(B, (3, 4, 1, 2))
 
-        tmp1 = temp_alloc(R, onGPU, (srcb * src * srct, srt))
-        tmp2 = temp_alloc(R, onGPU, (srcb * src, slct * slt))
-        tmp3 = temp_alloc(R, onGPU, (srcb, slct * slt, src))
-        tmp5 = temp_alloc(R, onGPU, (srcb, slc, slct * slt))
-        tmp7 = temp_alloc(R, onGPU, (slcb, slc * slct * slt))
-        tmp8 = temp_alloc(R, onGPU, (slcp, slt))
+        tmp1 = alloc_undef(R, onGPU, (srcb * src * srct, srt))
+        tmp2 = alloc_undef(R, onGPU, (srcb * src, slct * slt))
+        tmp3 = alloc_undef(R, onGPU, (srcb, slct * slt, src))
+        tmp5 = alloc_undef(R, onGPU, (srcb, slc, slct * slt))
+        tmp7 = alloc_undef(R, onGPU, (slcb, slc * slct * slt))
+        tmp8 = alloc_undef(R, onGPU, (slcp, slt))
         for irb ∈ 1 : srb
             mul!(tmp1, prs, RE[irb, :, :]')  # [(rcb, rc, rct), rt]
             mul!(tmp2, reshape(tmp1, (srcb * src, srct * srt)), A2')  # [(rcb, rc), (rct, rt)] * [(lct, lt), (rct, rt)]'

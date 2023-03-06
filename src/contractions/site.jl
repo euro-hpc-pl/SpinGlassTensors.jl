@@ -37,20 +37,20 @@ while from <= total_size
     vp1 = @view p1[from:to]
     vp2 = @view p2[from:to]
     vp3 = @view p3[from:to]
-    X1p = X1[:, :, vp1]
-    X2p = X2[:, :, vp2]
-    X3p = X3[:, :, vp3]
+    X1p[:, :, :] .= X1[:, :, vp1]
+    X2p[:, :, :] .= X2[:, :, vp2]
+    X3p[:, :, :] .= X3[:, :, vp3]
 
     if s1 * s3 < s2 * s4 
-        Xtmp = batched_mul(X1p, X2p)
-        outp = batched_mul(Xtmp, X3p)
-        # batched_mul!(Xtmp, X1p, X2p)
-        # batched_mul!(outp, Xtmp, X3p)
+        # Xtmp = batched_mul(X1p, X2p)
+        # outp = batched_mul(Xtmp, X3p)
+        batched_mul!(Xtmp, X1p, X2p)
+        batched_mul!(outp, Xtmp, X3p)
     else
-        Xtmp = batched_mul(X2p, X3p)
-        outp = batched_mul(X1p, Xtmp)
-        # batched_mul!(Xtmp, X2p, X3p)
-        # batched_mul!(outp, X1p, Xtmp)
+        # Xtmp = batched_mul(X2p, X3p)
+        # outp = batched_mul(X1p, Xtmp)
+        batched_mul!(Xtmp, X2p, X3p)
+        batched_mul!(outp, X1p, Xtmp)
     end
 
     le = @view loc_exp[from:to]

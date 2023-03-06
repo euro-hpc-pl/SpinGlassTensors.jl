@@ -28,7 +28,6 @@ function update_env_left(LE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <: 
     A = reshape(A, (slt, srt, slct, srct))
     B = reshape(B, (slb, srb, slcb, srcb))
     Lout = alloc_zeros(R, onGPU, (srb, srt, srcp))
-
     if slcb * srct >= slct * srcb
         pls = proj_out(M.lp, p_lb, p_lt, p_l, device)
         prs = proj_out(M.lp, p_rb, p_r, p_rt, device)
@@ -38,6 +37,7 @@ function update_env_left(LE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <: 
         tmp2 = alloc_undef(R, onGPU, (srb * srcb, slct * slc))
         tmp5 = alloc_undef(R, onGPU, (srb * srcb, src, slct))
         tmp7 = alloc_undef(R, onGPU, (srb * srcb * src, srct))
+        tmp8 = alloc_undef(R, onGPU, (srcp, srb))
         for ilt ∈ 1 : slt
             tmp1[:, pls] = (@view LE[:, ilt, :])  # [lb, (lcb, lct, lc)]
             mul!(tmp2, B2', reshape(tmp1, (slb * slcb, slct * slc)))  # [(lb, lcb), (rb, rcb)]' * [(lb, lcb), (lct, lc)]
@@ -48,7 +48,7 @@ function update_env_left(LE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <: 
             for irt ∈ 1 : srt
                 mul!(tmp7, tmp6, (@view A[ilt, irt, :, :]))
                 tmp8 = reshape(tmp7, (srb, srcb * src * srct))
-                Lout[:, irt, :] += tmp8[:, prs]  # [rb, rcp]
+                Lout[:, irt, :] .+= tmp8[:, prs]  # [rb, rcp]
             end
         end
     else
@@ -71,7 +71,7 @@ function update_env_left(LE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <: 
             for irb ∈ 1 : srb
                 mul!(tmp7, tmp6, (@view B[ilb, irb, :, :]))
                 tmp8 = reshape(tmp7, (srt, srct * src * srcb))
-                Lout[irb, :, :] += tmp8[:, prs]  # [rt, rcp]
+                Lout[irb, :, :] .+= tmp8[:, prs]  # [rt, rcp]
             end
         end
     end
@@ -172,11 +172,11 @@ function update_env_right(RE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <:
             tmp4 = contract_matrix_tensor3(M.con, tmp3)  # [(lb, lcb), rct, lc]
             permutedims!(tmp5, tmp4, (1, 3, 2))  # [(lb, lcb), lc, rct]
             tmp6 = reshape(tmp5, (slb * slcb * slc, srct))  # [(lb, lcb, lc), rct]
-            for ilt ∈ 1 : slt
+            @time begin for ilt ∈ 1 : slt
                 mul!(tmp7, tmp6, (@view A[ilt, irt, :, :])')
                 tmp8 = reshape(tmp7, (slb, slcb * slc * slct))
-                Rout[:, ilt, :] += tmp8[:, pls]
-            end
+                Rout[:, ilt, :] .+= tmp8[:, pls]
+            end end
         end
     else
         pls = proj_out(M.lp, p_lt, p_l, p_lb, device)
@@ -198,12 +198,60 @@ function update_env_right(RE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <:
             for ilb ∈ 1 : slb
                 mul!(tmp7, tmp6, (@view B[ilb, irb, :, :])')
                 tmp8 = reshape(tmp7, (slt, slct * slc * slcb))
-                Rout[ilb, :, :] += tmp8[:, pls]
+                Rout[ilb, :, :] .+= tmp8[:, pls]
             end
         end
     end
     Rout ./ maximum(abs.(Rout))
 end
+
+
+
+
+# function update_reduced_env_right(
+#     K::Tensor{R, 1}, RE::Tensor{R, 2}, M::VirtualTensor{R, 4}, B::Tensor{R, 3}
+# ) where R <: Real
+#     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
+
+#     slb, srb = size(B, 1), size(B, 2)
+#     slcb, slc, slct = size(M.lp, p_lb), size(M.lp, p_l), size(M.lp, p_lt)
+#     srcb, src, srct = size(M.lp, p_rb), size(M.lp, p_r), size(M.lp, p_rt)
+
+#     onGPU = typeof(RE) <: CuArray
+#     device = onGPU ? :GPU : :CPU
+
+#     K = reshape(K, (slct, srct))  # [lct, rct]
+#     B = reshape(B, (slb, srb, slcb, srcb))  # [lb, rb, lcb, rcb]
+#     B2 = permutedims(B, (3, 1, 4, 2))  # [lcb, lb, rcb, rb]
+#     B2 = reshape(B2, (slcb * slb, srcb * srb))  # [(lcb, lb), (rcb, rb)]
+
+#     pls = SparseCSC(R, M.lp, p_lt, p_l, p_lb, device)
+#     prs = SparseCSC(R, M.lp, p_rt, p_r, p_rb, device)
+#     Rtemp = prs * RE'  # [(rct, rc, rcb), rb]
+#     if srcb * slct >= srct * slcb
+#         Rtemp = reshape(Rtemp, (srct * src, srcb * srb))  # [(rct, rc), (rcb, rb)]
+#         Rtemp = Rtemp * B2'  # [(rct, rc), (rcb, rb)] * [(lcb, lb), (rcb, rb)]'
+#         Rtemp = reshape(Rtemp, (srct, src, slcb * slb))  # [rct, rc, (lcb, lb)]
+#         Rtemp = permutedims(Rtemp, (1, 3, 2))  # [rct, (lcb, lb), rc]
+#         Rtemp = contract_matrix_tensor3(M.con, Rtemp)  # [rct, (lcb, lb), lc]
+#         Rtemp = permutedims(Rtemp, (1, 3, 2))  # [rct, lc, (lcb, lb)]
+#         Rtemp = reshape(Rtemp, (srct, slc * slcb * slb))  # [rct, (lc, lcb, lb)]
+#         Rtemp = K * Rtemp  # [lct, (lc, lcb, lb)]
+#     else
+#         Rtemp = reshape(Rtemp, (srct, src * srcb * srb))  # [rct, (rc, rcb, rb)]
+#         Rtemp = K * Rtemp  # [lct, (rc, rcb, rb)]
+#         Rtemp = reshape(Rtemp, (slct, src, srcb * srb))  # [lct, rc, (rcb, rb)]
+#         Rtemp = permutedims(Rtemp, (1, 3, 2))  # [lct, (rcb, rb), rc]
+#         Rtemp = contract_matrix_tensor3(M.con, Rtemp)  # [lct, (rcb, rb), lc]
+#         Rtemp = permutedims(Rtemp, (1, 3, 2))  # [lct, lc, (rcb, rb)]
+#         Rtemp = reshape(Rtemp, (slct * slc, srcb * srb))  # [(lct, lc), (rcb, rb)]
+#         Rtemp = Rtemp * B2'  # [(lct, lc), (lcb, lb)]
+#     end
+#     Rtemp = reshape(Rtemp, (slct * slc * slcb, slb))
+#     Rtemp = pls' * Rtemp  # [lcp, lb]
+#     Rtemp = permutedims(Rtemp, (2, 1))  # [lb, lcp]
+#     Rtemp ./ maximum(abs.(Rtemp))
+# end
 
 
 function update_reduced_env_right(
@@ -220,34 +268,39 @@ function update_reduced_env_right(
 
     K = reshape(K, (slct, srct))  # [lct, rct]
     B = reshape(B, (slb, srb, slcb, srcb))  # [lb, rb, lcb, rcb]
-    B2 = permutedims(B, (3, 1, 4, 2))  # [lcb, lb, rcb, rb]
-    B2 = reshape(B2, (slcb * slb, srcb * srb))  # [(lcb, lb), (rcb, rb)]
+    B2 = permutedims(B, (1, 3, 2, 4))  # [lb, lcb, rb, rcb]
+    B2 = reshape(B2, (slb * slcb, srb * srcb))  # [(lb, lcb), (rb, rcb)]
 
-    pls = SparseCSC(R, M.lp, p_lt, p_l, p_lb, device)
-    prs = SparseCSC(R, M.lp, p_rt, p_r, p_rb, device)
-    Rtemp = prs * RE'  # [(rct, rc, rcb), rb]
+
     if srcb * slct >= srct * slcb
-        Rtemp = reshape(Rtemp, (srct * src, srcb * srb))  # [(rct, rc), (rcb, rb)]
-        Rtemp = Rtemp * B2'  # [(rct, rc), (rcb, rb)] * [(lcb, lb), (rcb, rb)]'
-        Rtemp = reshape(Rtemp, (srct, src, slcb * slb))  # [rct, rc, (lcb, lb)]
-        Rtemp = permutedims(Rtemp, (1, 3, 2))  # [rct, (lcb, lb), rc]
-        Rtemp = contract_matrix_tensor3(M.con, Rtemp)  # [rct, (lcb, lb), lc]
-        Rtemp = permutedims(Rtemp, (1, 3, 2))  # [rct, lc, (lcb, lb)]
-        Rtemp = reshape(Rtemp, (srct, slc * slcb * slb))  # [rct, (lc, lcb, lb)]
-        Rtemp = K * Rtemp  # [lct, (lc, lcb, lb)]
+        prs = proj_out(M.lp, p_rb, p_rt, p_r, device)
+        pls = proj_out(M.lp, p_lb, p_l, p_lt, device)
+        Rtemp = alloc_zeros(R, onGPU, (srb, srcb * srct * src))
+        Rtemp[:, prs] = RE  # [rb, (rcb, rct, rc)]
+        Rtemp = reshape(Rtemp, (srb * srcb, srct * src))  # [(rb, rcb), (rct, rc)]
+        Rtemp = B2 * Rtemp
+        Rtemp = reshape(Rtemp, (slb * slcb, srct, src))  # [(lb, lcb), rct, rc]
+        Rtemp = contract_matrix_tensor3(M.con, Rtemp)  # [(lb, lcb), rct, lc]
+        Rtemp = permutedims(Rtemp, (1, 3, 2))  # [(lb, lcb), lc, rct]
+        Rtemp = reshape(Rtemp, (slb * slcb * slc, srct))  # [(lb, lcb, lc), rct]
+        Rtemp = Rtemp * K' # [(lb, lcb, lc), lct]
+        Rtemp = reshape(Rtemp, (slb, slcb * slc * slct))
+        Rtemp = Rtemp[:, pls]
     else
-        Rtemp = reshape(Rtemp, (srct, src * srcb * srb))  # [rct, (rc, rcb, rb)]
-        Rtemp = K * Rtemp  # [lct, (rc, rcb, rb)]
-        Rtemp = reshape(Rtemp, (slct, src, srcb * srb))  # [lct, rc, (rcb, rb)]
-        Rtemp = permutedims(Rtemp, (1, 3, 2))  # [lct, (rcb, rb), rc]
-        Rtemp = contract_matrix_tensor3(M.con, Rtemp)  # [lct, (rcb, rb), lc]
-        Rtemp = permutedims(Rtemp, (1, 3, 2))  # [lct, lc, (rcb, rb)]
-        Rtemp = reshape(Rtemp, (slct * slc, srcb * srb))  # [(lct, lc), (rcb, rb)]
-        Rtemp = Rtemp * B2'  # [(lct, lc), (lcb, lb)]
+        prs = proj_out(M.lp, p_rb, p_r, p_rt, device)
+        pls = proj_out(M.lp, p_lb, p_lt, p_l, device)
+        Rtemp = alloc_zeros(R, onGPU, (srb, srcb * src * srct))
+        Rtemp[:, prs] = RE  # [rb, (rcb, rct, rc)]
+        Rtemp = reshape(Rtemp, (srb * srcb * src, srct))  # [(rb, rcb, rc), rct]
+        Rtemp = Rtemp * K' # [(rb, rcb, rc), lct]
+        Rtemp = reshape(Rtemp, (srb * srcb, src, slct))  # [(rb, rcb), rc, lct]
+        Rtemp = permutedims(Rtemp, (1, 3, 2))  # [(rb, rcb), lct, rc]
+        Rtemp = contract_matrix_tensor3(M.con, Rtemp)  # [(rb, rcb), lct, lc]
+        Rtemp = reshape(Rtemp, (srb * srcb, slct * slc))  # [(rb, rcb), (lct, lc)]
+        Rtemp = B2 * Rtemp  # [(lb, lcb), (lct, lc)]
+        Rtemp = reshape(Rtemp, (slb, slcb * slct * slc))
+        Rtemp = Rtemp[:, pls]
     end
-    Rtemp = reshape(Rtemp, (slct * slc * slcb, slb))
-    Rtemp = pls' * Rtemp  # [lcp, lb]
-    Rtemp = permutedims(Rtemp, (2, 1))  # [lb, lcp]
     Rtemp ./ maximum(abs.(Rtemp))
 end
 

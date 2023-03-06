@@ -1,3 +1,6 @@
+using Random
+
+
 ψ = randn(MPS{Float64}, 4, 3, 2)
 O = randn(MPO{Float64}, 4, 3, 2)
 
@@ -29,7 +32,7 @@ end
 
     @testset "the multiplication drops the correct dims" begin
         for i ∈ eachindex(O)
-            @test ϕ[i] == dropdims(sum(O[i], dims=4), dims=4)
+            @test ϕ[i] == dropdims(sum(O[i], dims = 4), dims = 4)
         end
     end
 end
@@ -58,4 +61,20 @@ end
         @test ndims(B) == 4
         @test norm(B) == 1
     end
+end
+
+@testset "IdentityMPS is only equal to itself" begin
+    @test IdentityMPS() == IdentityMPS()
+
+    true_identity = IdentityMPS()
+    tensors = [true_identity[i] for i = 1:4]
+
+    @test IdentityMPS() != MPS(tensors)
+    @test MPS(tensors) != IdentityMPS()
+
+    Random.seed!(123)
+    another_mps = randn(MPS{Float64}, 5, 3, 4)
+
+    @test IdentityMPS() != another_mps
+    @test another_mps != IdentityMPS()
 end

@@ -19,6 +19,8 @@ function LinearAlgebra.dot(ϕ::AbstractMPS, ψ::AbstractMPS)
 end
 
 """
+    left_env(ϕ::AbstractMPS, ψ::AbstractMPS)
+
 Creates left environment (ϕ - bra, ψ - ket)
 """
 function left_env(ϕ::AbstractMPS, ψ::AbstractMPS)
@@ -50,6 +52,8 @@ end
 end
 
 """
+    right_env(ϕ::AbstractMPS, ψ::AbstractMPS)
+    
 Creates right environment (ϕ - bra, ψ - ket)
 """
 function right_env(ϕ::AbstractMPS, ψ::AbstractMPS)

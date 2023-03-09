@@ -44,19 +44,25 @@ end
 @inline Base.eachindex(a::AbstractTensorNetwork) = eachindex(a.tensors)
 
 """
-$(TYPEDSIGNATURES)
+    LinearAlgebra.rank(ψ::AbstractMPS)
 
 Returns rank of MPS tensors.
 """
 @inline LinearAlgebra.rank(ψ::AbstractMPS) = Tuple(size(A, 2) for A ∈ ψ)
 
 """
-$(TYPEDSIGNATURES)
+    physical_dim(ψ::AbstractMPS, i::Int)
 
-Returns physical dimension of MPS tensors at given site.
+Returns physical dimension of MPS tensors at given site i.
 """
 @inline physical_dim(ψ::AbstractMPS, i::Int) = size(ψ[i], 2)
 
+
+"""
+    MPS(A::AbstractArray)
+
+Con
+"""
 @inline MPS(A::AbstractArray) = MPS(A, :right)
 
 @inline function MPS(A::AbstractArray, s::Symbol, Dcut::Int = typemax(Int))
@@ -110,7 +116,7 @@ function Base.randn(::Type{MPO{T}}, D::Int, rank::Union{Vector,NTuple}) where {T
 end
 
 """
-$(TYPEDSIGNATURES)
+    is_left_normalized(ψ::MPS)
 
 Check whether MPS is left normalized.
 """
@@ -120,7 +126,7 @@ is_left_normalized(ψ::MPS) = all(
 )
 
 """
-$(TYPEDSIGNATURES)
+    is_right_normalized(ϕ::MPS)
 
 Check whether MPS is right normalized.
 """
@@ -135,7 +141,7 @@ function _verify_square(ψ::AbstractMPS)
 end
 
 """
-$(TYPEDSIGNATURES)
+    verify_physical_dims(ψ::AbstractMPS, dims::NTuple)
 
 Check whether MPS has correct physical dimension at given site.
 """
@@ -146,7 +152,7 @@ function verify_physical_dims(ψ::AbstractMPS, dims::NTuple)
 end
 
 """
-$(TYPEDSIGNATURES)
+    verify_bonds(ψ::AbstractMPS)
 
 Check whether MPS has correct sizes.
 """

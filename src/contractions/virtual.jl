@@ -75,7 +75,7 @@ function update_env_left(LE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <: 
             end
         end
     end
-    Lout ./ maximum(abs.(Lout))  # [rb, rt, rcp]
+    Lout  # [rb, rt, rcp]
 end
 
 
@@ -137,7 +137,7 @@ function project_ket_on_bra(LE::S, B::S, M::VirtualTensor{R, 4}, RE::S) where {S
             end
         end
     end
-    reshape(LR, (slt, srt, slct * srct)) ./ maximum(abs.(LR))
+    reshape(LR, (slt, srt, slct * srct))
 end
 
 
@@ -172,11 +172,11 @@ function update_env_right(RE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <:
             tmp4 = contract_matrix_tensor3(M.con, tmp3)  # [(lb, lcb), rct, lc]
             permutedims!(tmp5, tmp4, (1, 3, 2))  # [(lb, lcb), lc, rct]
             tmp6 = reshape(tmp5, (slb * slcb * slc, srct))  # [(lb, lcb, lc), rct]
-            @time begin for ilt ∈ 1 : slt
+            for ilt ∈ 1 : slt
                 mul!(tmp7, tmp6, (@view A[ilt, irt, :, :])')
                 tmp8 = reshape(tmp7, (slb, slcb * slc * slct))
                 Rout[:, ilt, :] .+= tmp8[:, pls]
-            end end
+            end
         end
     else
         pls = proj_out(M.lp, p_lt, p_l, p_lb, device)
@@ -202,7 +202,7 @@ function update_env_right(RE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <:
             end
         end
     end
-    Rout ./ maximum(abs.(Rout))
+    Rout
 end
 
 
@@ -250,7 +250,7 @@ end
 #     Rtemp = reshape(Rtemp, (slct * slc * slcb, slb))
 #     Rtemp = pls' * Rtemp  # [lcp, lb]
 #     Rtemp = permutedims(Rtemp, (2, 1))  # [lb, lcp]
-#     Rtemp ./ maximum(abs.(Rtemp))
+#     Rtemp
 # end
 
 
@@ -301,7 +301,7 @@ function update_reduced_env_right(
         Rtemp = reshape(Rtemp, (slb, slcb * slct * slc))
         Rtemp = Rtemp[:, pls]
     end
-    Rtemp ./ maximum(abs.(Rtemp))
+    Rtemp
 end
 
 

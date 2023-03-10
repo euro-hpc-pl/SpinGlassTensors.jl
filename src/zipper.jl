@@ -25,10 +25,10 @@ end
 
 """
 input ϕ (results) should be canonized :left (:right)
-"""
+# """
 function zipper(ψ::QMpo{R}, ϕ::QMps{R}; method::Symbol=:svd, Dcut::Int=typemax(Int), tol=eps(), kwargs...) where R <: Real
     onGPU = ψ.onGPU && ϕ.onGPU
-    @assert is_left_normalized(ϕ)
+    # @assert is_left_normalized(ϕ)
     D = TensorMap{R}()
     C = onGPU ? CUDA.ones(R, 1, 1, 1) : ones(R, 1, 1, 1)
     mpo_li = last(ψ.sites)
@@ -43,7 +43,9 @@ function zipper(ψ::QMpo{R}, ϕ::QMps{R}; method::Symbol=:svd, Dcut::Int=typemax
 
         CM = CornerTensor(C, ψ[i], ϕ[i])
         U, Σ, V = svd_corner_matrix(CM, method, Dcut, tol; toGPU=onGPU, kwargs...)
-        Σ ./= sqrt(sum(Σ .^ 2))
+        nΣ = sqrt(sum(Σ .^ 2))
+        println("site = ", i, "  nΣ = ", nΣ)
+        Σ ./= nΣ
         C = U * Diagonal(Σ)
 
         V = permutedims(V, (2, 1))
@@ -56,6 +58,64 @@ function zipper(ψ::QMpo{R}, ϕ::QMps{R}; method::Symbol=:svd, Dcut::Int=typemax
     end
     QMps(D; onGPU = onGPU)
 end
+
+
+
+# function zipper(ψ::QMpo{R}, ϕ::QMps{R}; method::Symbol=:svd, Dcut::Int=typemax(Int), tol=eps(), kwargs...) where R <: Real
+#     onGPU = ψ.onGPU && ϕ.onGPU
+#     # @assert is_left_normalized(ϕ)
+#     D = TensorMap{R}()
+#     C = onGPU ? CUDA.ones(R, 1, 1, 1) : ones(R, 1, 1, 1)
+#     mpo_li = last(ψ.sites)
+
+#     for i ∈ reverse(ϕ.sites)
+#         while mpo_li > i
+#             C = contract_matrix_tensor3(ψ[mpo_li], C)
+#             mpo_li = left_nbrs_site(mpo_li, ψ.sites)
+#         end
+#         @assert mpo_li == i "Mismatch between QMpo and QMps sites."
+#         mpo_li = left_nbrs_site(mpo_li, ψ.sites)
+
+#         if i > ϕ.sites[1]
+#             CM = CornerTensor(C, ψ[i], ϕ[i])
+#             U, Σ, V = svd_corner_matrix(CM, method, Dcut, tol; toGPU=onGPU, kwargs...)
+#             nΣ = sqrt(sum(Σ .^ 2))
+#             println("site = ", i, "  nΣ = ", nΣ)
+#             s1, s2 = size(ψ[i])
+#             V = permutedims(V, (2, 1))
+#             @cast V[x, y, z] := V[x, (y, z)] (z ∈ 1:s2)
+
+#             for k = 1:2
+#                 Cnew = update_env_right(C, ϕ[i], ψ[i], V)
+#                 Cnew = permutedims(Cnew, (3, 1, 2))
+#                 sσ = size(Cnew, 1)
+#                 @cast Cnew[(σ, x), y] := Cnew[σ, x, y]
+#                 Q, _ = qr_fact(Cnew, Dcut, 0.0; toGPU = ψ.onGPU, kwargs...)
+#                 @cast Cnew[σ, x, y] := Q[(σ, x), y] (σ ∈ 1:sσ)
+#                 Cnew = permutedims(Cnew, (2, 3, 1))
+#                 V = project_ket_on_bra(Cnew, ϕ[i], ψ[i], C)
+#                 sσ = size(V, 3)
+#                 @cast V[x, (y, σ)] := V[x, y, σ]
+#                 _, Q = rq_fact(V, Dcut, 0.0; toGPU = ψ.onGPU, kwargs...)
+#                 @cast V[x, y, σ] := V[x, (y, σ)] (σ ∈ 1:sσ)
+#             end
+#             Cnew = update_env_right(C, ϕ[i], ψ[i], V)
+#             C = Cnew ./ norm(Cnew)
+#             push!(D, i => V)
+#         #     Σ ./= nΣ
+#         #     C = U * Diagonal(Σ)
+#         #     @cast C[x, y, z] := C[(x, y), z] (y ∈ 1:s1)
+#         #     C = permutedims(C, (1, 3, 2))
+#         else
+#             L = onGPU ? CUDA.ones(R, 1, 1, 1) : ones(R, 1, 1, 1)
+#             V = project_ket_on_bra(L, ϕ[i], ψ[i], C)
+#             V ./= norm(V)
+#             push!(D, i => V)
+#         end
+#     end
+#     QMps(D; onGPU = onGPU)
+# end
+
 
 function Base.Array(CM::CornerTensor)
     B, M, C = CM.B, CM.M, CM.C
@@ -73,9 +133,23 @@ function svd_corner_matrix(CM, method::Symbol, Dcut::Int, tol::Real; toGPU::Bool
     if method == :svd
         U, Σ, V = svd_fact(Array(CM), Dcut, tol; kwargs...)
     elseif method == :psvd
-        U, Σ, V = psvd(Array(CM), rank=Dcut; kwargs...)
+        U, Σ, V, nΣ = 0., 0., 0., 0.
+        for i = 1:3
+            tU, tΣ, tV = psvd(Array(Array(CM)), rank=Dcut; kwargs...)
+            ntΣ = sqrt(sum(tΣ .^ 2))
+            if ntΣ > nΣ
+                U, Σ, V, nΣ = tU, tΣ, tV, ntΣ
+            end
+        end
     elseif method == :psvd_sparse
-        U, Σ, V = psvd(CM, rank=Dcut; kwargs...)
+        U, Σ, V, nΣ = 0., 0., 0., 0.
+        for i = 1:3
+            tU, tΣ, tV = psvd(CM, rank=Dcut; kwargs...)
+            ntΣ = sqrt(sum(tΣ .^ 2))
+            if ntΣ > nΣ
+                U, Σ, V, nΣ = tU, tΣ, tV, ntΣ
+            end
+        end
     elseif method == :tsvd
         U, Σ, V = tsvd(Array(CM), Dcut; kwargs...)
     elseif method == :tsvd_sparse

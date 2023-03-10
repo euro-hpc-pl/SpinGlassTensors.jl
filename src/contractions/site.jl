@@ -143,6 +143,6 @@ function corner_matrix(C::S, M::T, B::S) where {S <: Tensor{R, 3}, T <: SiteTens
     sm1 = maximum(projs[1])
     @inbounds p12 = projs[1] .+ (projs[2] .- 1) .* sm1
     ip12 = SparseCSC(R, p12)
-    out = reshape(ip12 * outp', sm1, maximum(M.projs[2]), size(B, 1), size(C, 2))
+    out = reshape(ip12 * outp', sm1, maximum(projs[2]), size(B, 1), size(C, 2))
     permutedims(out, (3, 1, 4, 2))
 end

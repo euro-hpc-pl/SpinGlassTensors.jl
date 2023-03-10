@@ -117,7 +117,7 @@ end
 # end
 
 
-function Base.Array(CM::CornerTensor)
+function Base.Array(CM::CornerTensor)  # change name, or be happy with "psvd(Array(Array(CM))"
     B, M, C = CM.B, CM.M, CM.C
     for v ∈ reverse(M.bot) B = contract_matrix_tensor3(v, B) end
     Cnew = corner_matrix(C, M.ctr, B)
@@ -131,25 +131,11 @@ Base.Array(CM::Adjoint{T, CornerTensor{T}}) where T = adjoint(Array(CM.ten))
 # TODO rethink this function
 function svd_corner_matrix(CM, method::Symbol, Dcut::Int, tol::Real; toGPU::Bool=true, kwargs...)
     if method == :svd
-        U, Σ, V = svd_fact(Array(CM), Dcut, tol; kwargs...)
+        U, Σ, V = svd_fact(Array(Array(CM)), Dcut, tol; kwargs...)
     elseif method == :psvd
-        U, Σ, V, nΣ = 0., 0., 0., 0.
-        for i = 1:3
-            tU, tΣ, tV = psvd(Array(Array(CM)), rank=Dcut; kwargs...)
-            ntΣ = sqrt(sum(tΣ .^ 2))
-            if ntΣ > nΣ
-                U, Σ, V, nΣ = tU, tΣ, tV, ntΣ
-            end
-        end
+        U, Σ, V = psvd(Array(Array(CM)), rank=Dcut; kwargs...)
     elseif method == :psvd_sparse
-        U, Σ, V, nΣ = 0., 0., 0., 0.
-        for i = 1:3
-            tU, tΣ, tV = psvd(CM, rank=Dcut; kwargs...)
-            ntΣ = sqrt(sum(tΣ .^ 2))
-            if ntΣ > nΣ
-                U, Σ, V, nΣ = tU, tΣ, tV, ntΣ
-            end
-        end
+        U, Σ, V = psvd(CM, rank=Dcut; kwargs...)
     elseif method == :tsvd
         U, Σ, V = tsvd(Array(CM), Dcut; kwargs...)
     elseif method == :tsvd_sparse

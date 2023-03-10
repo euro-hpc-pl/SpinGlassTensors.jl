@@ -1,7 +1,7 @@
 
 # ./mps/rand.jl: This file provides methods to generate random MPS / MPO
 
-function Base.rand(::Type{QMps{T}}, loc_dims::Dict, Dmax::Int=1) where T <: Real
+function Base.rand(::Type{QMps{T}}, loc_dims::Dict, Dmax::Int=1; onGPU=false) where T <: Real
     id = TensorMap{T}(keys(loc_dims) .=> rand.(T, Dmax, Dmax, values(loc_dims)))
     site_min, ld_min = minimum(loc_dims)
     site_max, ld_max = maximum(loc_dims)
@@ -11,7 +11,7 @@ function Base.rand(::Type{QMps{T}}, loc_dims::Dict, Dmax::Int=1) where T <: Real
         id[site_min] = rand(T, 1, Dmax, ld_min)
         id[site_max] = rand(T, Dmax, 1, ld_max)
     end
-    QMps(id)
+    onGPU ? move_to_CUDA!(QMps(id)) : QMps(id)
 end
 
 function Base.rand(

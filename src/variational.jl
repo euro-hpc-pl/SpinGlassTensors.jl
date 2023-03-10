@@ -12,14 +12,20 @@ function variational_compress!(bra::QMps{T}, mpo::QMpo{T}, ket::QMps{T}, tol=1E-
     @assert is_left_normalized(ket)
     env = Environment(bra, mpo, ket)
     overlap = Inf
-    overlap_0 = measure_env(env, last(env.bra.sites))
+    overlap_0, negative = measure_env(env, last(env.bra.sites))
+    if negative
+        env.bra[last(env.bra.sites)] .*= -1
+    end
     println(" sweep = 0 overlap = ", overlap_0)
 
     for sweep ∈ 1:max_sweeps
         _left_sweep_var!(env; kwargs...)
         _right_sweep_var!(env; kwargs...)
-        overlap = measure_env(env, last(env.bra.sites))
-        Δ = abs((overlap_0 - overlap) / overlap)
+        overlap, negative = measure_env(env, last(env.bra.sites))
+        if negative
+            env.bra[last(env.bra.sites)] .*= -1
+        end
+        Δ = abs(overlap_0 - overlap)
         @info "Convergence" Δ
         if Δ < tol
             @info "Finished in $sweep sweeps of $(max_sweeps)."

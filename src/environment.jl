@@ -128,5 +128,7 @@ function measure_env(env::Environment, site::Site)
     L = update_env_left(env.env[(site, :left)], env.bra[site], env.mpo[site], env.ket[site])
     R = env.env[(site, :right)]
     overlap = @tensor L[b, t, c] * R[b, t, c]
-    log(overlap) + env.log_norms[(site, :left)] + env.log_norms[(site, :right)]
+    negative = overlap < 0
+    overlap *= sign(overlap)
+    (log(overlap) + env.log_norms[(site, :left)] + env.log_norms[(site, :right)], negative)
 end

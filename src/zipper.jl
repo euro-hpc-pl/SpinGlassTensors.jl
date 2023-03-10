@@ -25,7 +25,7 @@ end
 
 """
 input ϕ (results) should be canonized :left (:right)
-# """
+# # """
 function zipper(ψ::QMpo{R}, ϕ::QMps{R}; method::Symbol=:svd, Dcut::Int=typemax(Int), tol=eps(), kwargs...) where R <: Real
     onGPU = ψ.onGPU && ϕ.onGPU
     # @assert is_left_normalized(ϕ)
@@ -78,14 +78,13 @@ end
 
 #         if i > ϕ.sites[1]
 #             CM = CornerTensor(C, ψ[i], ϕ[i])
-#             U, Σ, V = svd_corner_matrix(CM, method, Dcut, tol; toGPU=onGPU, kwargs...)
+#             _, Σ, V = svd_corner_matrix(CM, method, Dcut, tol; toGPU=onGPU, kwargs...)
 #             nΣ = sqrt(sum(Σ .^ 2))
 #             println("site = ", i, "  nΣ = ", nΣ)
 #             s1, s2 = size(ψ[i])
 #             V = permutedims(V, (2, 1))
 #             @cast V[x, y, z] := V[x, (y, z)] (z ∈ 1:s2)
 
-#             for k = 1:2
 #                 Cnew = update_env_right(C, ϕ[i], ψ[i], V)
 #                 Cnew = permutedims(Cnew, (3, 1, 2))
 #                 sσ = size(Cnew, 1)
@@ -98,10 +97,12 @@ end
 #                 @cast V[x, (y, σ)] := V[x, y, σ]
 #                 _, Q = rq_fact(V, Dcut, 0.0; toGPU = ψ.onGPU, kwargs...)
 #                 @cast V[x, y, σ] := V[x, (y, σ)] (σ ∈ 1:sσ)
-#             end
+
 #             Cnew = update_env_right(C, ϕ[i], ψ[i], V)
+#             println("site = ", i, "  nΣ = ", norm(Cnew))
 #             C = Cnew ./ norm(Cnew)
 #             push!(D, i => V)
+
 #         #     Σ ./= nΣ
 #         #     C = U * Diagonal(Σ)
 #         #     @cast C[x, y, z] := C[(x, y), z] (y ∈ 1:s1)
@@ -133,9 +134,9 @@ function svd_corner_matrix(CM, method::Symbol, Dcut::Int, tol::Real; toGPU::Bool
     if method == :svd
         U, Σ, V = svd_fact(Array(Array(CM)), Dcut, tol; kwargs...)
     elseif method == :psvd
-        U, Σ, V = psvd(Array(Array(CM)), rank=Dcut; kwargs...)
+        U, Σ, V = psvd(Array(Array(CM)), rank=Dcut)
     elseif method == :psvd_sparse
-        U, Σ, V = psvd(CM, rank=Dcut; kwargs...)
+        U, Σ, V = psvd(CM, rank=Dcut)
     elseif method == :tsvd
         U, Σ, V = tsvd(Array(CM), Dcut; kwargs...)
     elseif method == :tsvd_sparse

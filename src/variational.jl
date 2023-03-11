@@ -16,7 +16,7 @@ function variational_compress!(bra::QMps{T}, mpo::QMpo{T}, ket::QMps{T}, tol=1E-
     if negative
         env.bra[last(env.bra.sites)] .*= -1
     end
-    println(" sweep = 0 overlap = ", overlap_0)
+    # println(" sweep = 0 overlap = ", overlap_0)
 
     for sweep ∈ 1:max_sweeps
         _left_sweep_var!(env; kwargs...)
@@ -28,14 +28,15 @@ function variational_compress!(bra::QMps{T}, mpo::QMpo{T}, ket::QMps{T}, tol=1E-
         Δ = abs(overlap_0 - overlap)
         @info "Convergence" Δ
         if Δ < tol
-            @info "Finished in $sweep sweeps of $(max_sweeps)."
+            # println(" sweep = ", sweep , " overlap = ", overlap, " Delta = ", Δ)
+            # println("Finished in $sweep sweeps of $(max_sweeps).")
             return overlap, env
         else
             overlap_0 = overlap
         end
-        println(" sweep = ", sweep , " overlap = ", overlap, " Delta = ", Δ)
+        # println(" sweep = ", sweep , " overlap = ", overlap, " Delta = ", Δ)
     end
-    println("Memory bra = ", format_bytes.(measure_memory(bra)), " mpo = ", format_bytes.(measure_memory(mpo)), " env = ", format_bytes.(measure_memory(env)))
+    # println("Memory bra = ", format_bytes.(measure_memory(bra)), " mpo = ", format_bytes.(measure_memory(mpo)), " env = ", format_bytes.(measure_memory(env)))
     overlap, env
 end
 

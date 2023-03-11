@@ -31,6 +31,7 @@ function update_env_left(LE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <: 
     if slcb * srct >= slct * srcb
         pls = proj_out(M.lp, p_lb, p_lt, p_l, device)
         prs = proj_out(M.lp, p_rb, p_r, p_rt, device)
+        # prs = SparseCSC(R, M.lp, p_rb, p_r, p_rt, device)
         B2 = permutedims(B, (1, 3, 2, 4))  # [lb, lcb, rb, rcb]
         B2 = reshape(B2, (slb * slcb, srb * srcb))  # [(lb, lcb), (rb, rcb)]
         tmp1 = alloc_zeros(R, onGPU, (slb, slcb * slct * slc))
@@ -47,12 +48,15 @@ function update_env_left(LE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <: 
             tmp6 = reshape(tmp5, (srb * srcb * src, slct))  # [(rb, rcb, rc), lct]
             for irt ∈ 1 : srt
                 mul!(tmp7, tmp6, (@view A[ilt, irt, :, :]))
+                # mul!(tmp8, prs', reshape(tmp7, (srb, srcb * src * srct))')
+                # Lout[:, irt, :] .+= tmp8'  # [rb, rcp]
                 tmp8 = reshape(tmp7, (srb, srcb * src * srct))
                 Lout[:, irt, :] .+= tmp8[:, prs]  # [rb, rcp]
             end
         end
     else
         pls = proj_out(M.lp, p_lt, p_lb, p_l, device)
+        # prs = SparseCSC(R, M.lp, p_rt, p_r, p_rb, device)
         prs = proj_out(M.lp, p_rt, p_r, p_rb, device)
         A2 = permutedims(A, (1, 3, 2, 4))  # [lt, lct, rt, rct]
         A2 = reshape(A2, (slt * slct, srt * srct))  # [(lt, lct), (rt, rct)]
@@ -70,6 +74,8 @@ function update_env_left(LE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <: 
             tmp6 = reshape(tmp5, (srt * srct * src, slcb))  # [(rt, rct, rc), lcb]
             for irb ∈ 1 : srb
                 mul!(tmp7, tmp6, (@view B[ilb, irb, :, :]))
+                # mul!(tmp8, prs', reshape(tmp7, (srt, srct * src * srcb))')
+                # Lout[irb, :, :] .+= tmp8'  # [rt, rcp]
                 tmp8 = reshape(tmp7, (srt, srct * src * srcb))
                 Lout[irb, :, :] .+= tmp8[:, prs]  # [rt, rcp]
             end
@@ -158,6 +164,7 @@ function update_env_right(RE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <:
 
     if srcb * slct >= srct * slcb
         pls = proj_out(M.lp, p_lb, p_l, p_lt, device)
+        #pls = SparseCSC(R, M.lp, p_lb, p_l, p_lt, device)
         prs = proj_out(M.lp, p_rb, p_rt, p_r, device)
         B2 = permutedims(B, (1, 3, 2, 4))  # [lb, lcb, rb, rcb]
         B2 = reshape(B2, (slb * slcb, srb * srcb))  # [(lb, lcb), (rb, rcb)]
@@ -165,6 +172,7 @@ function update_env_right(RE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <:
         tmp2 = alloc_undef(R, onGPU, (slb * slcb, srct * src))
         tmp5 = alloc_undef(R, onGPU, (slb * slcb, slc, srct))
         tmp7 = alloc_undef(R, onGPU, (slb * slcb * slc, slct))
+        tmp8 = alloc_undef(R, onGPU, (slcp, slb))
         for irt ∈ 1 : srt
             tmp1[:, prs] = (@view RE[:, irt, :])  # [rb, (rcb, rct, rc)]
             mul!(tmp2, B2, reshape(tmp1, (srb * srcb, srct * src)))  # [(lb, lcb), (rb, rcb)] * [(rb, rcb), (rct, rc)]
@@ -174,12 +182,15 @@ function update_env_right(RE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <:
             tmp6 = reshape(tmp5, (slb * slcb * slc, srct))  # [(lb, lcb, lc), rct]
             for ilt ∈ 1 : slt
                 mul!(tmp7, tmp6, (@view A[ilt, irt, :, :])')
+                # mul!(tmp8, pls', reshape(tmp7, (slb, slcb * slc * slct))')
+                # Rout[:, ilt, :] .+= tmp8'
                 tmp8 = reshape(tmp7, (slb, slcb * slc * slct))
                 Rout[:, ilt, :] .+= tmp8[:, pls]
             end
         end
     else
         pls = proj_out(M.lp, p_lt, p_l, p_lb, device)
+        #pls = SparseCSC(R, M.lp, p_lt, p_l, p_lb, device)
         prs = proj_out(M.lp, p_rt, p_rb, p_r, device)
         A2 = permutedims(A, (1, 3, 2, 4))  # [lt, lct, rt, rct]
         A2 = reshape(A2, (slt * slct, srt * srct))  # [(lt, lct), (rt, rct)]
@@ -197,6 +208,8 @@ function update_env_right(RE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <:
             tmp6 = reshape(tmp5, (slt * slct * slc, srcb))  # [(lt, lct, lc), rcb]
             for ilb ∈ 1 : slb
                 mul!(tmp7, tmp6, (@view B[ilb, irb, :, :])')
+                # mul!(tmp8, pls', reshape(tmp7, (slt, slct * slc * slcb))')
+                # Rout[ilb, :, :] .+= tmp8'
                 tmp8 = reshape(tmp7, (slt, slct * slc * slcb))
                 Rout[ilb, :, :] .+= tmp8[:, pls]
             end

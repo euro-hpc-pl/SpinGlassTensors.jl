@@ -81,7 +81,9 @@ function zipper(ψ::QMpo{R}, ϕ::QMps{R}; method::Symbol=:svd, Dcut::Int=typemax
 
         if i > ϕ.sites[1]
             CM = CornerTensor(C, ψ[i], ϕ[i])
-            _, _, Vr = svd_corner_matrix(CM, method, Dtemp, tol; toGPU=onGPU, kwargs...)
+            _, S, Vr = svd_corner_matrix(CM, method, Dtemp, tol; toGPU=onGPU, kwargs...)
+
+            # println(" Norm S start= ", sqrt(sum(S .* S)))
 
             for kk = 1:max_it
                 # CM * Vr
@@ -97,6 +99,7 @@ function zipper(ψ::QMpo{R}, ϕ::QMps{R}; method::Symbol=:svd, Dcut::Int=typemax
                 x = permutedims(x, (1, 3, 2))
                 yp = project_ket_on_bra(x, CM.B, CM.M, CM.C)
                 CCC = reshape(permutedims(yp, (2, 3, 1)), size(CM.C, 2) * size(CM.M, 2), :)
+                # println(" Norm S = ", norm(CCC))
 
                 Vr, _ = qr_fact(CCC, Dtemp, 0.0; toGPU = ψ.onGPU, kwargs...)
             end
@@ -105,9 +108,11 @@ function zipper(ψ::QMpo{R}, ϕ::QMps{R}; method::Symbol=:svd, Dcut::Int=typemax
             x = permutedims(x, (3, 1, 2))
             x = update_env_right(CM.C, x, CM.M, CM.B)
             CCC = reshape(permutedims(x, (1, 3, 2)), size(CM.B, 1) * size(CM.M, 1), :)
+            # println(" Norm S = ", norm(CCC))
             CCC ./= norm(CCC)
 
             V, CCC = qr_fact(CCC', Dcut, tol; toGPU = ψ.onGPU, kwargs...)
+            # println(" Norm S = ", norm(CCC))
             V = V' * Vr'
             s1, s2 = size(ψ[i])
             @cast CCC[z, x, y] := CCC[z, (x, y)] (y ∈ 1:s1)

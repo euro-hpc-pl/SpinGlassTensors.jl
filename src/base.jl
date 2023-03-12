@@ -58,13 +58,44 @@ Returns physical dimension of MPS tensors at given site i.
 @inline physical_dim(ψ::AbstractMPS, i::Int) = size(ψ[i], 2)
 
 
-"""
-    MPS(A::AbstractArray)
 
-Con
-"""
 @inline MPS(A::AbstractArray) = MPS(A, :right)
 
+
+
+"""
+    MPS(A::AbstractArray, s::Symbol, Dcut::Int = typemax(Int))
+
+Construct a matrix product state (MPS) using the provided tensor array `A`.
+
+## Arguments
+
+- `A::AbstractArray`: The tensor array that defines the MPS.
+- `s::Symbol`: The direction to canonically transform the MPS. Must be either `:left` or `:right`.
+- `Dcut::Int`: The maximum bond dimension allowed during the truncation step.
+
+## Returns
+
+- `ψ::AbstractMPS`: The constructed MPS.
+
+## Details
+
+This function constructs a matrix product state (MPS) using the provided tensor array `A`, 
+and then canonically transforms it in the direction specified by the `s` argument. If `s` is `:right`, 
+the MPS is right-canonized, while if `s` is `:left`, the MPS is left-canonized. 
+The `Dcut` argument determines the maximum bond dimension allowed during the truncation step. 
+If neither `Dcut` nor `s` is specified, it will construct right-canonized MPS with default Dcut value.
+
+## Example
+
+```@repl
+A = rand(2, 3, 2)
+ψ = MPS(A, :left, 2);
+typeof(ψ)
+length(ψ)
+bond_dimension(ψ)
+```
+"""
 @inline function MPS(A::AbstractArray, s::Symbol, Dcut::Int = typemax(Int))
     @assert s ∈ (:left, :right)
     if s == :right
@@ -79,6 +110,12 @@ end
 
 @inline dropindices(ψ::AbstractMPS, i::Int = 2) = (dropdims(A, dims = i) for A ∈ ψ)
 
+
+"""
+    MPS(states::Vector{Vector{T}}) where {T<:Number}
+
+Create a matrix product state (MPS) object from a vector of states.
+"""
 function MPS(states::Vector{Vector{T}}) where {T<:Number}
     state_arrays = [reshape(copy(v), (1, length(v), 1)) for v ∈ states]
     MPS(state_arrays)
@@ -93,6 +130,10 @@ function (::Type{T})(O::AbstractMPO) where {T<:AbstractMPS}
     T([@cast A[x, (σ, η), y] := W[x, σ, y, η] for W in O])
 end
 
+"""
+Create random MPS.The argument `D` specifies the physical dimension of the MPS 
+(i.e. the dimension of the vectors at each site), `rank` specifies rank of each site.
+"""
 function Base.randn(::Type{MPS{T}}, D::Int, rank::Union{Vector,NTuple}) where {T}
     MPS([
         randn(T, 1, first(rank), D),

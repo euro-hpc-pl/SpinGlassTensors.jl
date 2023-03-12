@@ -14,7 +14,25 @@ function compress(
     ψ
 end
 
+"""
+    compress!(
+        ϕ::AbstractMPS,
+        Dcut::Int,
+        tol::Number = 1E-8,
+        max_sweeps::Int = 4,
+        args...,
+    )
 
+# Arguments
+
+- `ϕ::AbstractMPS`: the input MPS to be compressed
+- `Dcut::Int`: the maximum bond dimension of the compressed MPS
+- `tol::Number = 1E-8`: the tolerance threshold for convergence of the iterative compression process (default value: 1E-8)
+- `max_sweeps::Int = 4`: the maximum number of iterations allowed for the compression process (default value: 4)
+
+# Output
+- `overlap`: The overlap of the compressed MPS with the original input MPS.
+"""
 function compress!(
     ϕ::AbstractMPS,
     Dcut::Int,
@@ -55,7 +73,21 @@ function compress!(
     overlap
 end
 
+"""
+    truncate!(ψ::AbstractMPS, s::Symbol, Dcut::Int = typemax(Int), args...)
 
+Truncate the bond dimension of a matrix product state (MPS) in either 
+the left or right canonical form, depending on the value of the `s` input argument.
+
+# Arguments
+
+- `ψ::AbstractMPS`: the input MPS to be truncated
+- `s::Symbol`: determines whether to truncate the MPS in the left or right canonical form. Must be one of the following values:
+    - `:left`: truncate in left canonical form
+    - `:right`: truncate in right canonical form
+- `Dcut::Int`: the maximum bond dimension to which the MPS should be truncated. 
+
+"""
 function truncate!(ψ::AbstractMPS, s::Symbol, Dcut::Int = typemax(Int), args...)
     @assert s ∈ (:left, :right)
     if s == :right
@@ -67,8 +99,17 @@ function truncate!(ψ::AbstractMPS, s::Symbol, Dcut::Int = typemax(Int), args...
     end
 end
 
+"""
+    canonise!(ψ::AbstractMPS, s::Symbol)
 
+canonizes a matrix product state (MPS) in either the left or right canonical form, 
+depending on the value of the `s` input argument. Must be one of the following values:
+- `:left`: canonize in left canonical form
+- `:right`: canonize in right canonical form
+
+"""
 canonise!(ψ::AbstractMPS, s::Symbol) = canonise!(ψ, Val(s))
+
 canonise!(ψ::AbstractMPS, ::Val{:right}) = _left_sweep!(ψ, typemax(Int))
 canonise!(ψ::AbstractMPS, ::Val{:left}) = _right_sweep!(ψ, typemax(Int))
 

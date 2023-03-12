@@ -19,6 +19,8 @@ function LinearAlgebra.dot(ϕ::AbstractMPS, ψ::AbstractMPS)
 end
 
 """
+    left_env(ϕ::AbstractMPS, ψ::AbstractMPS)
+
 Creates left environment (ϕ - bra, ψ - ket)
 """
 function left_env(ϕ::AbstractMPS, ψ::AbstractMPS)
@@ -50,6 +52,8 @@ end
 end
 
 """
+    right_env(ϕ::AbstractMPS, ψ::AbstractMPS)
+    
 Creates right environment (ϕ - bra, ψ - ket)
 """
 function right_env(ϕ::AbstractMPS, ψ::AbstractMPS)
@@ -90,14 +94,12 @@ end
     R
 end
 
-
 """
 $(TYPEDSIGNATURES)
 
 Calculates the norm of an MPS \$\\ket{\\phi}\$
 """
 LinearAlgebra.norm(ψ::AbstractMPS) = sqrt(abs(dot(ψ, ψ)))
-
 
 """
 $(TYPEDSIGNATURES)
@@ -122,7 +124,6 @@ function LinearAlgebra.dot(ϕ::AbstractMPS, O::Union{Vector,NTuple}, ψ::Abstrac
     end
     tr(C)
 end
-
 
 function LinearAlgebra.dot(O::AbstractMPO, ψ::AbstractMPS)
     S = promote_type(eltype(ψ), eltype(O))

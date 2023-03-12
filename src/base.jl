@@ -131,6 +131,8 @@ function (::Type{T})(O::AbstractMPO) where {T<:AbstractMPS}
 end
 
 """
+    Base.randn(::Type{MPS{T}}, D::Int, rank::Union{Vector,NTuple}) where {T}
+
 Create random MPS.The argument `D` specifies the physical dimension of the MPS 
 (i.e. the dimension of the vectors at each site), `rank` specifies rank of each site.
 """
@@ -145,6 +147,7 @@ end
 function Base.randn(::Type{MPS{T}}, L::Int, D::Int, d::Int) where {T}
     MPS([randn(T, 1, d, D), (randn(T, D, d, D) for _ = 2:L-1)..., randn(T, D, d, 1)])
 end
+
 
 Base.randn(::Type{MPS}, args...) = randn(MPS{Float64}, args...)
 

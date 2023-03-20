@@ -68,7 +68,7 @@ end
       -- B --
 """
 function update_env_right(RE::T, A::S, B::S) where {T <: Tensor{R, 2}, S <: Tensor{R, 3}} where R <: Real
-    @tensor RR[nb, nt] := RE[ob, ot] * A[nt, ot, α] * B[nb, ob, α] order = (ot, α, ob)
+    @tensor RE[nb, nt] := RE[ob, ot] * A[nt, ot, α] * B[nb, ob, α] order = (ot, α, ob)
 end
 
 """
@@ -78,7 +78,7 @@ end
               |
       
 """
-function update_env_right(RE::T, A::S) where {T <: Tensor{R, 2}, S <: Tensor{R, 3}} where R <: Real
+function update_env_right(RE::S, A::S) where {S <: Tensor{R, 3}} where R <: Real
     @tensor RR[nb, nt] := RE[nb, ot, oc] * A[nt, ot, oc] order = (ot, oc)
 end
 

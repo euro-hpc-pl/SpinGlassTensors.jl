@@ -28,6 +28,28 @@ function update_env_left(LE::S, A::S, M::T, B::S) where {S <: Tensor{R, 3}, T <:
 end
 
 """
+        -- A --
+      |    |
+ L = LE    |
+      |    |
+        -- B --
+"""
+function update_env_left(LE::R, A::S, B::S) where {S <: Tensor{R, 3}, T <: Tensor{R, 2}} where R <: Real
+    @tensor LE[nb, nt] := LE[ob, ot] * A[ot, nt, α] * B[ob, nb, α] order = (ot, α, ob)
+end
+
+"""
+        -- A --
+      |    |
+ L = LE    
+      |    
+        
+"""
+function update_env_left(LE::R, A::S) where {S <: Tensor{R, 3}, T <: Tensor{R, 2}} where R <: Real
+    @tensor A[nb, nt, nc] := LE[nb, ot] * A[ot, nt, nc] 
+end
+
+"""
       -- A --
          |    |
  R =  -- M -- RE
@@ -39,6 +61,28 @@ function update_env_right(RE::S, A::S, M::T, B::S) where {T <: Tensor{R, 4}, S <
 end
 
 """
+      -- A --
+         |    |
+ R =     |    RE
+         |    |
+      -- B --
+"""
+function update_env_right(RE::R, A::S, B::S) where {T <: Tensor{R, 2}, S <: Tensor{R, 3}} where R <: Real
+    @tensor RR[nb, nt] := RE[ob, ot] * A[nt, ot, α] * B[nb, ob, α] order = (ot, α, ob)
+end
+
+"""
+      -- A --
+         |    |
+ R =      --- RE
+              |
+      
+"""
+function update_env_right(RE::R, A::S) where {T <: Tensor{R, 2}, S <: Tensor{R, 3}} where R <: Real
+    @tensor RR[nb, nt] := RE[nb, ot, oc] * A[nt, ot, oc] order = (ot, oc)
+end
+
+"""
    |    |    |
   LE -- M -- RE
    |    |    |
@@ -46,6 +90,23 @@ end
 """
 function project_ket_on_bra(LE::S, B::S, M::T, RE::S) where {T <: Tensor{R, 4}, S <: Tensor{R, 3}} where R <: Real
     @tensor A[nl, nr, nc] := LE[ol, nl, lc] * B[ol, or, oc] * M[lc, nc, rc, oc] * RE[or, nr, rc] order = (ol, lc, oc, or, rc)
+end
+
+"""
+  LE -     - RE
+   |    |    |
+     -- B --
+"""
+function project_ket_on_bra(LE::T, B::S, RE::T) where {T <: Tensor{R, 2}, S <: Tensor{R, 3}} where R <: Real
+    @tensor A[nl, nr, nc] := LE[ol, nl] * B[ol, or, nc] * RE[or, nr] order = (ol, or)
+end
+
+"""
+   |      |
+  LE ---- RE --
+"""
+function project_ket_on_bra(LE::T, RE::S) where {T <: Tensor{R, 2}, S <: Tensor{R, 3}} where R <: Real
+    @tensor A[nl, nr, nc] := LE[ol, nl] * RE[ol, nr, nc]
 end
 
 """

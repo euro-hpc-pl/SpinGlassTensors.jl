@@ -68,6 +68,30 @@ function _right_sweep_var!(env::Environment; kwargs...)
     end
 end
 
+function _left_sweep_var_site!(env::Environment, site::Site; kwargs...)
+    toGPU = env.ket.onGPU && env.mpo.onGPU && env.bra.onGPU
+    update_env_right!(env, site)
+    A = project_ket_on_bra(env, site)
+    @cast B[l, (r, t)] := A[l, r, t]
+    _, Q = rq_fact(B; toGPU = toGPU, kwargs...)
+    @cast C[l, r, t] := Q[l, (r, t)] (t ∈ 1:size(A, 3))
+    env.bra[site] = C
+    clear_env_containing_site!(env, site)
+end
+
+function _right_sweep_var_site!(env::Environment, site::Site; kwargs...)
+    toGPU = env.ket.onGPU && env.mpo.onGPU && env.bra.onGPU
+    update_env_left!(env, site)
+    A = project_ket_on_bra(env, site)
+    B = permutedims(A, (1, 3, 2))  # [l, t, r]
+    @cast B[(l, t), r] := B[l, t, r]
+    Q, _ = qr_fact(B; toGPU = toGPU, kwargs...)
+    @cast C[l, t, r] := Q[(l, t), r] (t ∈ 1:size(A, 3))
+    C = permutedims(C, (1, 3, 2))  # [l, r, t]
+    env.bra[site] = C
+    clear_env_containing_site!(env, site)
+end
+
 # TODO those 2 functions are to be removed eventually
 function variational_sweep!(bra::QMps{T}, mpo::QMpo{T}, ket::QMps{T}, ::Val{:left}; kwargs...) where T <: Real
     _right_sweep_var!(Environment(bra, mpo, ket); kwargs...)

@@ -9,7 +9,6 @@ export
 
 function variational_compress!(bra::QMps{T}, mpo::QMpo{T}, ket::QMps{T}, tol=1E-10, max_sweeps::Int=4, kwargs...) where T <: Real
     @assert is_left_normalized(bra)
-    @assert is_left_normalized(ket)
     env = Environment(bra, mpo, ket)
     overlap = Inf
     overlap_0, negative = measure_env(env, last(env.bra.sites))
@@ -41,30 +40,8 @@ function variational_compress!(bra::QMps{T}, mpo::QMpo{T}, ket::QMps{T}, tol=1E-
 end
 
 function _left_sweep_var!(env::Environment; kwargs...)
-    toGPU = env.ket.onGPU && env.mpo.onGPU && env.bra.onGPU
     for site ∈ reverse(env.bra.sites)
-        update_env_right!(env, site)
-        A = project_ket_on_bra(env, site)
-        @cast B[l, (r, t)] := A[l, r, t]
-        _, Q = rq_fact(B; toGPU = toGPU, kwargs...)
-        @cast C[l, r, t] := Q[l, (r, t)] (t ∈ 1:size(A, 3))
-        env.bra[site] = C
-        clear_env_containing_site!(env, site)
-    end
-end
-
-function _right_sweep_var!(env::Environment; kwargs...)
-    toGPU = env.ket.onGPU && env.mpo.onGPU && env.bra.onGPU
-    for site ∈ env.bra.sites
-        update_env_left!(env, site)
-        A = project_ket_on_bra(env, site)
-        B = permutedims(A, (1, 3, 2))  # [l, t, r]
-        @cast B[(l, t), r] := B[l, t, r]
-        Q, _ = qr_fact(B; toGPU = toGPU, kwargs...)
-        @cast C[l, t, r] := Q[(l, t), r] (t ∈ 1:size(A, 3))
-        C = permutedims(C, (1, 3, 2))  # [l, r, t]
-        env.bra[site] = C
-        clear_env_containing_site!(env, site)
+        _left_sweep_var_site!(env, site; kwargs...)
     end
 end
 
@@ -77,6 +54,12 @@ function _left_sweep_var_site!(env::Environment, site::Site; kwargs...)
     @cast C[l, r, t] := Q[l, (r, t)] (t ∈ 1:size(A, 3))
     env.bra[site] = C
     clear_env_containing_site!(env, site)
+end
+
+function _right_sweep_var!(env::Environment; kwargs...)
+    for site ∈ env.bra.sites
+        _right_sweep_var_site!(env, site; kwargs...)
+    end
 end
 
 function _right_sweep_var_site!(env::Environment, site::Site; kwargs...)

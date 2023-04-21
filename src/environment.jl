@@ -1,9 +1,32 @@
 export
     Environment,
+    Environment_mixed,
     left_nbrs_site,
     right_nbrs_site
 
 abstract type AbstractEnvironment end
+
+
+mutable struct Environment_mixed{T <: Real} <: AbstractEnvironment
+    bra::QMps{T}  # mps that is to be optimized
+    mpo::QMpo{T}
+    ket::QMps{T}
+    C::Tensor{T, 3}
+    site
+    env::Dict
+
+    function Environment_mixed(bra::QMps{T}, C::Tensor{T, 3}, mpo::QMpo{T}, ket::QMps{T};) where T <: Real
+        onGPU = bra.onGPU && mpo.onGPU && ket.onGPU
+        @assert bra.sites == ket.sites && issubset(bra.sites, mpo.sites)
+        id3 = onGPU ? CUDA.ones(T, 1, 1, 1) : ones(T, 1, 1, 1)
+        id2 = onGPU ? CUDA.ones(T, 1, 1) : ones(T, 1, 1)
+        env0 = Dict((:left, -Inf) => id2, (:right, Inf) => id3)  # here convention is that :left environment containing site -Inf [i.e., left boundary]
+        env = new{T}(bra, mpo, ket, C, Inf, env0)
+        update_env_left!.(Ref(env), env.bra.sites)
+        env
+    end
+end
+
 
 mutable struct Environment{T <: Real} <: AbstractEnvironment
     bra::QMps{T}  # mps that is to be optimized
@@ -76,6 +99,32 @@ function update_env_left!(env::Environment, site::Site)
     push!(env.log_norms, (site, :left) => nLL)
 end
 
+function update_env_left!(env::Environment_mixed, site)
+    if site == :central
+        ls = left_nbrs_site(env.site, env.bra.sites)
+        LL = update_env_left(env.env[(:left, ls)], env.C)
+        LL ./= maximum(abs.(LL))
+        push!(env.env, (:leftcentral, 0) => LL)
+    elseif site >= env.site
+        ls = left_nbrs_site(site, env.bra.sites)
+        LLL = site == env.site ? env.env[(:leftcentral, 0)] : env.env[(:left, ls)]
+        LL = update_env_left(LLL, env.bra[site], env.mpo[site], env.ket[site])
+        rs = right_nbrs_site(site, env.mpo.sites)
+        while rs < right_nbrs_site(site, env.bra.sites)
+            LL = contract_tensor3_matrix(LL, env.mpo[rs])
+            rs = right_nbrs_site(rs, env.mpo.sites)
+        end
+        LL ./= maximum(abs.(LL))
+        push!(env.env, (:left, site) => LL)
+    else
+        ls = left_nbrs_site(site, env.bra.sites)
+        LL = update_env_left(env.env[(:left, ls)], env.bra[site], env.ket[site])
+        LL ./= maximum(abs.(LL))
+        push!(env.env, (:left, site) => LL)
+    end
+end
+
+
 """
       -- A --
          |    |
@@ -107,6 +156,37 @@ function update_env_right!(env::Environment, site::Site)
     push!(env.log_norms, (site, :right) => nRR)
 end
 
+
+function update_env_right!(env::Environment_mixed, site)
+    if site == :central
+        RR = update_env_right(env.env[(:right, env.site)], env.C)
+        RR ./= maximum(abs.(RR))
+        push!(env.env, (:rightcentral, 0) => RR)
+    elseif site > env.site
+        rs = right_nbrs_site(site, env.bra.sites)
+        RR = update_env_right(env.env[(:right, rs)], env.bra[site], env.mpo[site], env.ket[site])
+        ls = left_nbrs_site(site, env.mpo.sites)
+        while ls > left_nbrs_site(site, env.bra.sites)
+            RR = contract_matrix_tensor3(env.mpo[ls], RR)
+            ls = left_nbrs_site(ls, env.mpo.sites)
+        end
+        RR ./= maximum(abs.(RR))
+        push!(env.env, (:right, site) => RR)
+    elseif site == env.site
+        rs = right_nbrs_site(site, env.bra.sites)
+        RR = update_env_right(env.env[(:right, rs)], env.bra[site], env.mpo[site], env.ket[site])
+        RR ./= maximum(abs.(RR))
+        push!(env.env, (:right, site) => RR)
+    else
+        rs = right_nbrs_site(site, env.bra.sites)
+        RRR = rs == env.site ? env.env[(:rightcentral, 0)] : env.env[(:right, rs)]
+        RR = update_env_right(RRR, env.bra[site], env.ket[site])
+        RR ./= maximum(abs.(RR))
+        push!(env.env, (:right, site) => RR)
+    end
+end
+
+
 """
    |    |    |
   LE -- M -- RE
@@ -123,6 +203,17 @@ end
 project_ket_on_bra(env::Environment, site::Site) = project_ket_on_bra(
     env.env[(site, :left)], env.ket[site], env.mpo[site], env.env[(site, :right)]
 )
+
+
+function project_ket_on_bra(env::Environment_mixed, site)
+    if site == :central
+        ls = left_nbrs_site(env.site, env.bra.sites)
+        B = project_ket_on_bra(env.env[(:left, ls)], env.env[(:right, env.site)])
+    else
+        # TODO: project_ket_on_bra(env.env[(site, :left)], env.ket[site], env.mpo[site], env.env[(site, :right)])
+    end
+    B
+end
 
 function measure_env(env::Environment, site::Site)
     L = update_env_left(env.env[(site, :left)], env.bra[site], env.mpo[site], env.ket[site])

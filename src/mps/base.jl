@@ -74,3 +74,4 @@ const QMpsOrMpo{T} = Union{QMpo{T}, QMps{T}}
 @inline Base.getindex(ψ::QMpsOrMpo, i) = getindex(ψ.tensors, i)
 @inline Base.setindex!(ψ::QMpsOrMpo, A, i::Site) = ψ.tensors[i] = A
 @inline Base.eltype(ψ::QMpsOrMpo{T}) where T = T
+@inline Base.copy(ψ::QMps) = QMps(copy(ψ.tensors), onGPU=ψ.onGPU)

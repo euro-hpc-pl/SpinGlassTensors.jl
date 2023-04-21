@@ -78,8 +78,8 @@ end
               |
       
 """
-function update_env_right(RE::S, A::S) where {S <: Tensor{R, 3}} where R <: Real
-    @tensor RR[nb, nt] := RE[nb, ot, oc] * A[nt, ot, oc] order = (ot, oc)
+function update_env_right(RE::S, C::S) where {S <: Tensor{R, 3}} where R <: Real
+    @tensor RR[nb, nt] := RE[nb, ot, oc] * C[nt, ot, oc] order = (ot, oc)
 end
 
 """

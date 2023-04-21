@@ -61,15 +61,89 @@ end
 
 
 
+# function zipper(ψ::QMpo{R}, ϕ::QMps{R}; method::Symbol=:svd, Dcut::Int=typemax(Int), tol=eps(), kwargs...) where R <: Real
+#     onGPU = ψ.onGPU && ϕ.onGPU
+#     @assert is_left_normalized(ϕ)
+#     D = TensorMap{R}()
+#     C = onGPU ? CUDA.ones(R, 1, 1, 1) : ones(R, 1, 1, 1)
+#     mpo_li = last(ψ.sites)
+
+#     max_it = 1
+#     Dtemp = 2 * Dcut
+
+#     for i ∈ reverse(ϕ.sites)
+#         while mpo_li > i
+#             C = contract_matrix_tensor3(ψ[mpo_li], C)
+#             mpo_li = left_nbrs_site(mpo_li, ψ.sites)
+#         end
+#         @assert mpo_li == i "Mismatch between QMpo and QMps sites."
+#         mpo_li = left_nbrs_site(mpo_li, ψ.sites)
+
+#         if i > ϕ.sites[1]
+#             CM = CornerTensor(C, ψ[i], ϕ[i])
+#             _, S, Vr = svd_corner_matrix(CM, method, Dtemp, tol; toGPU=onGPU, kwargs...)
+
+#             # println(" Norm S start= ", sqrt(sum(S .* S)))
+
+#             for kk = 1:max_it
+#                 # CM * Vr
+#                 x = reshape(Vr, size(CM.C, 2), size(CM.M, 2), :)
+#                 x = permutedims(x, (3, 1, 2))
+#                 x = update_env_right(CM.C, x, CM.M, CM.B)
+#                 CCC = reshape(permutedims(x, (1, 3, 2)), size(CM.B, 1) * size(CM.M, 1), :)
+
+#                 Ut, _ = qr_fact(CCC, Dtemp, 0.0; toGPU = ψ.onGPU, kwargs...)
+
+#                 # mat' * Ut
+#                 x = reshape(Ut, size(CM.B, 1), size(CM.M, 1), :)
+#                 x = permutedims(x, (1, 3, 2))
+#                 yp = project_ket_on_bra(x, CM.B, CM.M, CM.C)
+#                 CCC = reshape(permutedims(yp, (2, 3, 1)), size(CM.C, 2) * size(CM.M, 2), :)
+#                 # println(" Norm S = ", norm(CCC))
+
+#                 Vr, _ = qr_fact(CCC, Dtemp, 0.0; toGPU = ψ.onGPU, kwargs...)
+#             end
+#             # CM * Vr
+#             x = reshape(Vr, size(CM.C, 2), size(CM.M, 2), :)
+#             x = permutedims(x, (3, 1, 2))
+#             x = update_env_right(CM.C, x, CM.M, CM.B)
+#             CCC = reshape(permutedims(x, (1, 3, 2)), size(CM.B, 1) * size(CM.M, 1), :)
+#             # println(" Norm S = ", norm(CCC))
+#             CCC ./= norm(CCC)
+
+#             V, CCC = qr_fact(CCC', Dcut, tol; toGPU = ψ.onGPU, kwargs...)
+#             # println(" Norm S = ", norm(CCC))
+#             V = V' * Vr'
+#             s1, s2 = size(ψ[i])
+#             @cast CCC[z, x, y] := CCC[z, (x, y)] (y ∈ 1:s1)
+#             C = permutedims(CCC, (2, 1, 3))
+#             @cast V[x, y, z] := V[x, (y, z)] (z ∈ 1:s2)
+#             push!(D, i => V)
+#         else
+#             L = onGPU ? CUDA.ones(R, 1, 1, 1) : ones(R, 1, 1, 1)
+#             V = project_ket_on_bra(L, ϕ[i], ψ[i], C)
+#             V ./= norm(V)
+#             push!(D, i => V)
+#         end
+#     end
+#     QMps(D; onGPU = onGPU)
+# end
+
+
+
+
 function zipper(ψ::QMpo{R}, ϕ::QMps{R}; method::Symbol=:svd, Dcut::Int=typemax(Int), tol=eps(), kwargs...) where R <: Real
     onGPU = ψ.onGPU && ϕ.onGPU
     @assert is_left_normalized(ϕ)
-    D = TensorMap{R}()
+
     C = onGPU ? CUDA.ones(R, 1, 1, 1) : ones(R, 1, 1, 1)
     mpo_li = last(ψ.sites)
 
     max_it = 1
     Dtemp = 2 * Dcut
+
+    out = copy(ϕ)
+    env = Environment_mixed(out, C, ψ, ϕ)
 
     for i ∈ reverse(ϕ.sites)
         while mpo_li > i
@@ -82,10 +156,7 @@ function zipper(ψ::QMpo{R}, ϕ::QMps{R}; method::Symbol=:svd, Dcut::Int=typemax
         if i > ϕ.sites[1]
             CM = CornerTensor(C, ψ[i], ϕ[i])
             _, S, Vr = svd_corner_matrix(CM, method, Dtemp, tol; toGPU=onGPU, kwargs...)
-
-            # println(" Norm S start= ", sqrt(sum(S .* S)))
-
-            for kk = 1:max_it
+            for kk = 1 : max_it
                 # CM * Vr
                 x = reshape(Vr, size(CM.C, 2), size(CM.M, 2), :)
                 x = permutedims(x, (3, 1, 2))
@@ -94,12 +165,11 @@ function zipper(ψ::QMpo{R}, ϕ::QMps{R}; method::Symbol=:svd, Dcut::Int=typemax
 
                 Ut, _ = qr_fact(CCC, Dtemp, 0.0; toGPU = ψ.onGPU, kwargs...)
 
-                # mat' * Ut
+                # CM' * Ut
                 x = reshape(Ut, size(CM.B, 1), size(CM.M, 1), :)
                 x = permutedims(x, (1, 3, 2))
                 yp = project_ket_on_bra(x, CM.B, CM.M, CM.C)
                 CCC = reshape(permutedims(yp, (2, 3, 1)), size(CM.C, 2) * size(CM.M, 2), :)
-                # println(" Norm S = ", norm(CCC))
 
                 Vr, _ = qr_fact(CCC, Dtemp, 0.0; toGPU = ψ.onGPU, kwargs...)
             end
@@ -108,25 +178,59 @@ function zipper(ψ::QMpo{R}, ϕ::QMps{R}; method::Symbol=:svd, Dcut::Int=typemax
             x = permutedims(x, (3, 1, 2))
             x = update_env_right(CM.C, x, CM.M, CM.B)
             CCC = reshape(permutedims(x, (1, 3, 2)), size(CM.B, 1) * size(CM.M, 1), :)
-            # println(" Norm S = ", norm(CCC))
             CCC ./= norm(CCC)
 
             V, CCC = qr_fact(CCC', Dcut, tol; toGPU = ψ.onGPU, kwargs...)
-            # println(" Norm S = ", norm(CCC))
             V = V' * Vr'
             s1, s2 = size(ψ[i])
             @cast CCC[z, x, y] := CCC[z, (x, y)] (y ∈ 1:s1)
             C = permutedims(CCC, (2, 1, 3))
             @cast V[x, y, z] := V[x, (y, z)] (z ∈ 1:s2)
-            push!(D, i => V)
+            out[i] = V
         else
             L = onGPU ? CUDA.ones(R, 1, 1, 1) : ones(R, 1, 1, 1)
             V = project_ket_on_bra(L, ϕ[i], ψ[i], C)
             V ./= norm(V)
-            push!(D, i => V)
+            out[i] = V
+            C = onGPU ? CUDA.ones(R, 1, 1, 1) : ones(R, 1, 1, 1)
         end
+
+        env.site = i
+        update_env_right!(env, i)
+        Cold = C
+        env.C = C
+        C = project_ket_on_bra(env, :central)
+        println("site i = ", i, " size old/new C = ", size(Cold), " ", size(C))
+
+        # update_env_right!(env, :central)
+        # lns = left_nbrs_site(i, ϕ.sites)
+        # if lns >= ϕ.sites[1]
+        #     update_env_right!(env, lns)
+        # end
+
+        # if lns >= ϕ.sites[1]
+        #     update_env_left!(env, lns)
+        # end
+        # update_env_left!(env, :central)
+        # update_env_left!(env, i)
+
+        # update C
+        # update_env_right(  ,site=i)
+        # for j = i : end
+        #    _right_var(site=i)
+        # end
+        # for j = end : i
+        #    _left_var(site=i)
+        # end
+        # update C
+        # for j = i=1 : 0
+        #    _left_var(bra, ket, site=i)
+        # end
+        # for j = i=1 : 0
+        #    _right_var(bra, ket, site=i)
+        # end
     end
-    QMps(D; onGPU = onGPU)
+    out
 end
 
 

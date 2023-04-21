@@ -12,7 +12,7 @@ mutable struct EnvironmentMixed{T <: Real} <: AbstractEnvironment
     mpo::QMpo{T}
     ket::QMps{T}
     C::Tensor{T, 3}
-    site  # position of C is at: site - epsilon
+    site  # position of C is at: site - epsilon  ::Union(Sites, :central)
     env::Dict
     onGPU::Bool
 
@@ -22,7 +22,7 @@ mutable struct EnvironmentMixed{T <: Real} <: AbstractEnvironment
         id3 = onGPU ? CUDA.ones(T, 1, 1, 1) : ones(T, 1, 1, 1)
         id2 = onGPU ? CUDA.ones(T, 1, 1) : ones(T, 1, 1)
         env0 = Dict{Any, Any}((bra.sites[1], :left) => id2, (bra.sites[end], :right) => id3)
-        env = new{T}(bra, mpo, ket, C, Inf, env0, onGPU)
+        env = new{T}(bra, mpo, ket, C, last(bra.sites) + 1, env0, onGPU)  #
         update_env_left!.(Ref(env), env.bra.sites)
         env
     end
@@ -100,7 +100,7 @@ function update_env_left!(env::Environment, site::Site)
     push!(env.log_norms, (site, :left) => nLL)
 end
 
-function update_env_left!(env::EnvironmentMixed{T}, site) where T
+function update_env_left!(env::EnvironmentMixed{T}, site) where T    # site::Union(Sites, :central)
     if site == first(env.bra.sites)
         if env.site == first(env.bra.sites)
             LL = env.onGPU ? CUDA.ones(T, 1, 1, 1) : ones(T, 1, 1, 1)
@@ -121,7 +121,7 @@ function update_env_left!(env::EnvironmentMixed{T}, site) where T
         LL ./= maximum(abs.(LL))
     elseif site == env.site
         ls = left_nbrs_site(site, env.bra.sites)
-        LL = update_env_left(env.env[(ls, :left)], env.C)
+        LL = update_env_left(env.env[(:central, :left)], env.C)
         LL ./= maximum(abs.(LL))
     else
         ls = left_nbrs_site(site, env.bra.sites)
@@ -169,7 +169,7 @@ function update_env_right!(env::Environment, site::Site)
 end
 
 
-function update_env_right!(env::EnvironmentMixed{T}, site) where T
+function update_env_right!(env::EnvironmentMixed{T}, site) where T   # site::Union(Sites, :central)
     if site == last(env.bra.sites)
         if env.site > last(env.bra.sites)
             RR = env.onGPU ? CUDA.ones(T, 1, 1) : ones(T, 1, 1)
@@ -220,8 +220,11 @@ project_ket_on_bra(env::Environment, site::Site) = project_ket_on_bra(
 
 function project_ket_on_bra(env::EnvironmentMixed, site)
     if site == :central
-        B = project_ket_on_bra(env.env[(:central, :left)], env.env[(:central, :right)])
-    else # TODO
+        B = project_ket_on_bra(env.env[(site, :left)], env.env[(site, :right)])
+    elseif site >= env.site
+        B = project_ket_on_bra(env.env[(site, :left)], env.ket[site], env.mpo[site], env.env[(site, :right)])
+    else
+        B = project_ket_on_bra(env.env[(site, :left)], env.ket[site], env.env[(site, :right)])
     end
     B
 end

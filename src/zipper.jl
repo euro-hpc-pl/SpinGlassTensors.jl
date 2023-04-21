@@ -197,40 +197,64 @@ function zipper(ψ::QMpo{R}, ϕ::QMps{R}; method::Symbol=:svd, Dcut::Int=typemax
 
         env.site = i
         update_env_right!(env, i)
-        update_env_right!(env, :central)
-        update_env_left!(env, :central)
         env.C = C
+        update_env_left!(env, :central)
+        _left_sweep_var_site!(env, :central; kwargs...)
+        for k in reverse(ϕ.sites)
+            if k < i
+                _left_sweep_var_site!(env, k; kwargs...)
+            end
+        end
+        for k in ϕ.sites
+            if k < i
+                _right_sweep_var_site!(env, k; kwargs...)
+            end
+        end
+        _right_sweep_var_site!(env, :central; kwargs...)
+        for k in ϕ.sites
+            if k >= i
+                _right_sweep_var_site!(env, k; kwargs...)
+            end
+        end
+        for k in reverse(ϕ.sites)
+            if k >= i
+                _left_sweep_var_site!(env, k; kwargs...)
+            end
+        end
+        update_env_right!(env, :central)
         C = project_ket_on_bra(env, :central)
-
-        # update_env_right!(env, :central)
-        # lns = left_nbrs_site(i, ϕ.sites)
-        # if lns >= ϕ.sites[1]
-        #     update_env_right!(env, lns)
-        # end
-
-        # if lns >= ϕ.sites[1]
-        #     update_env_left!(env, lns)
-        # end
-        # update_env_left!(env, :central)
-        # update_env_left!(env, i)
-
-        # update C
-        # update_env_right(  ,site=i)
-        # for j = i : end
-        #    _right_var(site=i)
-        # end
-        # for j = end : i
-        #    _left_var(site=i)
-        # end
-        # update C
-        # for j = i=1 : 0
-        #    _left_var(bra, ket, site=i)
-        # end
-        # for j = i=1 : 0
-        #    _right_var(bra, ket, site=i)
-        # end
     end
     out
+end
+
+function _left_sweep_var_site!(env::EnvironmentMixed, site; kwargs...)   # site: Union(Sites, :central)
+    update_env_right!(env, site)
+    A = project_ket_on_bra(env, site)
+    @cast B[l, (r, t)] := A[l, r, t]
+    _, Q = rq_fact(B; toGPU = env.onGPU, kwargs...)
+    @cast C[l, r, t] := Q[l, (r, t)] (t ∈ 1:size(A, 3))
+    if site == :central
+        env.C = C
+    else
+        env.bra[site] = C
+    end
+    # clear_env_containing_site!(env, site)
+end
+
+function _right_sweep_var_site!(env::EnvironmentMixed, site; kwargs...)
+    update_env_left!(env, site)
+    A = project_ket_on_bra(env, site)
+    B = permutedims(A, (1, 3, 2))  # [l, t, r]
+    @cast B[(l, t), r] := B[l, t, r]
+    Q, _ = qr_fact(B; toGPU = env.onGPU, kwargs...)
+    @cast C[l, t, r] := Q[(l, t), r] (t ∈ 1:size(A, 3))
+    C = permutedims(C, (1, 3, 2))  # [l, r, t]
+    if site == :central
+        env.C = C
+    else
+        env.bra[site] = C
+    end
+    # clear_env_containing_site!(env, site)
 end
 
 

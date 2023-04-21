@@ -238,7 +238,7 @@ function _left_sweep_var_site!(env::EnvironmentMixed, site; kwargs...)   # site:
     else
         env.bra[site] = C
     end
-    # clear_env_containing_site!(env, site)
+    clear_env_containing_site!(env, site)
 end
 
 function _right_sweep_var_site!(env::EnvironmentMixed, site; kwargs...)
@@ -254,7 +254,7 @@ function _right_sweep_var_site!(env::EnvironmentMixed, site; kwargs...)
     else
         env.bra[site] = C
     end
-    # clear_env_containing_site!(env, site)
+    clear_env_containing_site!(env, site)
 end
 
 

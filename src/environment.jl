@@ -28,6 +28,25 @@ mutable struct EnvironmentMixed{T <: Real} <: AbstractEnvironment
     end
 end
 
+function clear_env_containing_site!(env::EnvironmentMixed, site)
+    if site == :central
+        delete!(env.env, (env.site, :left))
+        delete!(env.env, (left_nbrs_site(env.site, env.ket.sites), :right))
+    else
+        if site == env.site
+            delete!(env.env, (:central, :right))
+        else
+            delete!(env.env, (left_nbrs_site(site, env.ket.sites), :right))
+        end
+        rs = right_nbrs_site(site, env.ket.sites)
+        if rs == env.site
+            delete!(env.env, (:central, :left))
+        else
+            delete!(env.env, (rs, :left))
+        end
+    end
+end
+
 
 mutable struct Environment{T <: Real} <: AbstractEnvironment
     bra::QMps{T}  # mps that is to be optimized

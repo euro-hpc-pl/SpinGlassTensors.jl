@@ -1,27 +1,28 @@
 export
     Environment,
-    Environment_mixed,
+    EnvironmentMixed,
     left_nbrs_site,
     right_nbrs_site
 
 abstract type AbstractEnvironment end
 
 
-mutable struct Environment_mixed{T <: Real} <: AbstractEnvironment
+mutable struct EnvironmentMixed{T <: Real} <: AbstractEnvironment
     bra::QMps{T}  # mps that is to be optimized
     mpo::QMpo{T}
     ket::QMps{T}
     C::Tensor{T, 3}
-    site
+    site  # position of C is at: site - epsilon
     env::Dict
+    onGPU::Bool
 
-    function Environment_mixed(bra::QMps{T}, C::Tensor{T, 3}, mpo::QMpo{T}, ket::QMps{T};) where T <: Real
+    function EnvironmentMixed(bra::QMps{T}, C::Tensor{T, 3}, mpo::QMpo{T}, ket::QMps{T};) where T <: Real
         onGPU = bra.onGPU && mpo.onGPU && ket.onGPU
         @assert bra.sites == ket.sites && issubset(bra.sites, mpo.sites)
         id3 = onGPU ? CUDA.ones(T, 1, 1, 1) : ones(T, 1, 1, 1)
         id2 = onGPU ? CUDA.ones(T, 1, 1) : ones(T, 1, 1)
-        env0 = Dict((:left, -Inf) => id2, (:right, Inf) => id3)  # here convention is that :left environment containing site -Inf [i.e., left boundary]
-        env = new{T}(bra, mpo, ket, C, Inf, env0)
+        env0 = Dict{Any, Any}((bra.sites[1], :left) => id2, (bra.sites[end], :right) => id3)
+        env = new{T}(bra, mpo, ket, C, Inf, env0, onGPU)
         update_env_left!.(Ref(env), env.bra.sites)
         env
     end
@@ -99,29 +100,40 @@ function update_env_left!(env::Environment, site::Site)
     push!(env.log_norms, (site, :left) => nLL)
 end
 
-function update_env_left!(env::Environment_mixed, site)
-    if site == :central
-        ls = left_nbrs_site(env.site, env.bra.sites)
-        LL = update_env_left(env.env[(:left, ls)], env.C)
-        LL ./= maximum(abs.(LL))
-        push!(env.env, (:leftcentral, 0) => LL)
-    elseif site >= env.site
+function update_env_left!(env::EnvironmentMixed{T}, site) where T
+    if site == first(env.bra.sites)
+        if env.site == first(env.bra.sites)
+            LL = env.onGPU ? CUDA.ones(T, 1, 1, 1) : ones(T, 1, 1, 1)
+        else
+            LL = env.onGPU ? CUDA.ones(T, 1, 1) : ones(T, 1, 1)
+        end
+    elseif site == :central
+        if env.site == first(env.bra.sites)
+            LL = env.onGPU ? CUDA.ones(T, 1, 1) : ones(T, 1, 1)
+        else
+            ls = left_nbrs_site(env.site, env.bra.sites)
+            LL = update_env_left(env.env[(ls, :left)], env.bra[ls], env.ket[ls])
+            LL ./= maximum(abs.(LL))
+        end
+    elseif site < env.site
         ls = left_nbrs_site(site, env.bra.sites)
-        LLL = site == env.site ? env.env[(:leftcentral, 0)] : env.env[(:left, ls)]
-        LL = update_env_left(LLL, env.bra[site], env.mpo[site], env.ket[site])
-        rs = right_nbrs_site(site, env.mpo.sites)
-        while rs < right_nbrs_site(site, env.bra.sites)
+        LL = update_env_left(env.env[(ls, :left)], env.bra[ls], env.ket[ls])
+        LL ./= maximum(abs.(LL))
+    elseif site == env.site
+        ls = left_nbrs_site(site, env.bra.sites)
+        LL = update_env_left(env.env[(ls, :left)], env.C)
+        LL ./= maximum(abs.(LL))
+    else
+        ls = left_nbrs_site(site, env.bra.sites)
+        LL = update_env_left(env.env[(ls, :left)], env.bra[ls], env.mpo[ls], env.ket[ls])
+        rs = right_nbrs_site(ls, env.mpo.sites)
+        while rs < site
             LL = contract_tensor3_matrix(LL, env.mpo[rs])
             rs = right_nbrs_site(rs, env.mpo.sites)
         end
         LL ./= maximum(abs.(LL))
-        push!(env.env, (:left, site) => LL)
-    else
-        ls = left_nbrs_site(site, env.bra.sites)
-        LL = update_env_left(env.env[(:left, ls)], env.bra[site], env.ket[site])
-        LL ./= maximum(abs.(LL))
-        push!(env.env, (:left, site) => LL)
     end
+    push!(env.env, (site, :left) => LL)
 end
 
 
@@ -157,33 +169,34 @@ function update_env_right!(env::Environment, site::Site)
 end
 
 
-function update_env_right!(env::Environment_mixed, site)
-    if site == :central
-        RR = update_env_right(env.env[(:right, env.site)], env.C)
-        RR ./= maximum(abs.(RR))
-        push!(env.env, (:rightcentral, 0) => RR)
-    elseif site > env.site
+function update_env_right!(env::EnvironmentMixed{T}, site) where T
+    if site == last(env.bra.sites)
+        if env.site > last(env.bra.sites)
+            RR = env.onGPU ? CUDA.ones(T, 1, 1) : ones(T, 1, 1)
+        else
+            RR = env.onGPU ? CUDA.ones(T, 1, 1, 1) : ones(T, 1, 1, 1)
+        end
+    elseif site == :central
+        rs = env.site
+        RR = update_env_right(env.env[(rs, :right)], env.bra[rs], env.mpo[rs], env.ket[rs])
+    elseif site >= env.site
         rs = right_nbrs_site(site, env.bra.sites)
-        RR = update_env_right(env.env[(:right, rs)], env.bra[site], env.mpo[site], env.ket[site])
-        ls = left_nbrs_site(site, env.mpo.sites)
-        while ls > left_nbrs_site(site, env.bra.sites)
+        RR = update_env_right(env.env[(rs, :right)], env.bra[rs], env.mpo[rs], env.ket[rs])
+        ls = left_nbrs_site(rs, env.mpo.sites)
+        while ls > site
             RR = contract_matrix_tensor3(env.mpo[ls], RR)
             ls = left_nbrs_site(ls, env.mpo.sites)
         end
-        RR ./= maximum(abs.(RR))
-        push!(env.env, (:right, site) => RR)
-    elseif site == env.site
-        rs = right_nbrs_site(site, env.bra.sites)
-        RR = update_env_right(env.env[(:right, rs)], env.bra[site], env.mpo[site], env.ket[site])
-        RR ./= maximum(abs.(RR))
-        push!(env.env, (:right, site) => RR)
     else
         rs = right_nbrs_site(site, env.bra.sites)
-        RRR = rs == env.site ? env.env[(:rightcentral, 0)] : env.env[(:right, rs)]
-        RR = update_env_right(RRR, env.bra[site], env.ket[site])
-        RR ./= maximum(abs.(RR))
-        push!(env.env, (:right, site) => RR)
+        if rs == env.site
+            RR = update_env_right(env.env[(:central, :right)], env.C)
+        else
+            RR = update_env_right(env.env[(rs, :right)], env.bra[rs], env.ket[rs])
+        end
     end
+    RR ./= maximum(abs.(RR))
+    push!(env.env, (site, :right) => RR)
 end
 
 
@@ -205,12 +218,10 @@ project_ket_on_bra(env::Environment, site::Site) = project_ket_on_bra(
 )
 
 
-function project_ket_on_bra(env::Environment_mixed, site)
+function project_ket_on_bra(env::EnvironmentMixed, site)
     if site == :central
-        ls = left_nbrs_site(env.site, env.bra.sites)
-        B = project_ket_on_bra(env.env[(:left, ls)], env.env[(:right, env.site)])
-    else
-        # TODO: project_ket_on_bra(env.env[(site, :left)], env.ket[site], env.mpo[site], env.env[(site, :right)])
+        B = project_ket_on_bra(env.env[(:central, :left)], env.env[(:central, :right)])
+    else # TODO
     end
     B
 end

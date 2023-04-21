@@ -143,7 +143,7 @@ function zipper(ψ::QMpo{R}, ϕ::QMps{R}; method::Symbol=:svd, Dcut::Int=typemax
     Dtemp = 2 * Dcut
 
     out = copy(ϕ)
-    env = Environment_mixed(out, C, ψ, ϕ)
+    env = EnvironmentMixed(out, C, ψ, ϕ)
 
     for i ∈ reverse(ϕ.sites)
         while mpo_li > i
@@ -197,10 +197,10 @@ function zipper(ψ::QMpo{R}, ϕ::QMps{R}; method::Symbol=:svd, Dcut::Int=typemax
 
         env.site = i
         update_env_right!(env, i)
-        Cold = C
+        update_env_right!(env, :central)
+        update_env_left!(env, :central)
         env.C = C
         C = project_ket_on_bra(env, :central)
-        println("site i = ", i, " size old/new C = ", size(Cold), " ", size(C))
 
         # update_env_right!(env, :central)
         # lns = left_nbrs_site(i, ϕ.sites)

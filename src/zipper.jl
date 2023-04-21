@@ -154,7 +154,7 @@ function zipper(ψ::QMpo{R}, ϕ::QMps{R}; method::Symbol=:svd, Dcut::Int=typemax
         mpo_li = left_nbrs_site(mpo_li, ψ.sites)
 
         if i > ϕ.sites[1]
-            CM = CornerTensor(C, ψ[i], ϕ[i])
+            CM = CornerTensor(C, ψ[i], out[i])
             _, S, Vr = svd_corner_matrix(CM, method, Dtemp, tol; toGPU=onGPU, kwargs...)
             for kk = 1 : max_it
                 # CM * Vr
@@ -189,7 +189,7 @@ function zipper(ψ::QMpo{R}, ϕ::QMps{R}; method::Symbol=:svd, Dcut::Int=typemax
             out[i] = V
         else
             L = onGPU ? CUDA.ones(R, 1, 1, 1) : ones(R, 1, 1, 1)
-            V = project_ket_on_bra(L, ϕ[i], ψ[i], C)
+            V = project_ket_on_bra(L, out[i], ψ[i], C)
             V ./= norm(V)
             out[i] = V
             C = onGPU ? CUDA.ones(R, 1, 1, 1) : ones(R, 1, 1, 1)
@@ -211,6 +211,7 @@ function zipper(ψ::QMpo{R}, ϕ::QMps{R}; method::Symbol=:svd, Dcut::Int=typemax
             end
         end
         _right_sweep_var_site!(env, :central; kwargs...)
+
         for k in ϕ.sites
             if k >= i
                 _right_sweep_var_site!(env, k; kwargs...)

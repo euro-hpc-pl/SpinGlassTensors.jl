@@ -132,16 +132,14 @@ end
 
 
 
-function zipper(ψ::QMpo{R}, ϕ::QMps{R}; method::Symbol=:svd, Dcut::Int=typemax(Int), tol=eps(), kwargs...) where R <: Real
+function zipper(ψ::QMpo{R}, ϕ::QMps{R}; method::Symbol=:svd, Dcut::Int=typemax(Int), tol=eps(), iters_svd=1, iters_var=1, kwargs...) where R <: Real
     onGPU = ψ.onGPU && ϕ.onGPU
     @assert is_left_normalized(ϕ)
 
     C = onGPU ? CUDA.ones(R, 1, 1, 1) : ones(R, 1, 1, 1)
     mpo_li = last(ψ.sites)
 
-    max_it = 1
     Dtemp = 2 * Dcut
-
     out = copy(ϕ)
     env = EnvironmentMixed(out, C, ψ, ϕ)
 
@@ -155,8 +153,8 @@ function zipper(ψ::QMpo{R}, ϕ::QMps{R}; method::Symbol=:svd, Dcut::Int=typemax
 
         if i > ϕ.sites[1]
             CM = CornerTensor(C, ψ[i], out[i])
-            _, S, Vr = svd_corner_matrix(CM, method, Dtemp, tol; toGPU=onGPU, kwargs...)
-            for kk = 1 : max_it
+            _, _, Vr = svd_corner_matrix(CM, method, Dtemp, tol; toGPU=onGPU, kwargs...)
+            for _ = 1 : iters_svd
                 # CM * Vr
                 x = reshape(Vr, size(CM.C, 2), size(CM.M, 2), :)
                 x = permutedims(x, (3, 1, 2))
@@ -195,35 +193,37 @@ function zipper(ψ::QMpo{R}, ϕ::QMps{R}; method::Symbol=:svd, Dcut::Int=typemax
             C = onGPU ? CUDA.ones(R, 1, 1, 1) : ones(R, 1, 1, 1)
         end
 
-        env.site = i
-        update_env_right!(env, i)
-        env.C = C
-        update_env_left!(env, :central)
-        _left_sweep_var_site!(env, :central; kwargs...)
-        for k in reverse(ϕ.sites)
-            if k < i
-                _left_sweep_var_site!(env, k; kwargs...)
+        for _ in 1:iters_var
+            env.site = i
+            update_env_right!(env, i)
+            env.C = C
+            update_env_left!(env, :central)
+            _left_sweep_var_site!(env, :central; kwargs...)
+            for k in reverse(ϕ.sites)
+                if k < i
+                    _left_sweep_var_site!(env, k; kwargs...)
+                end
             end
-        end
-        for k in ϕ.sites
-            if k < i
-                _right_sweep_var_site!(env, k; kwargs...)
+            for k in ϕ.sites
+                if k < i
+                    _right_sweep_var_site!(env, k; kwargs...)
+                end
             end
-        end
-        _right_sweep_var_site!(env, :central; kwargs...)
+            _right_sweep_var_site!(env, :central; kwargs...)
 
-        for k in ϕ.sites
-            if k >= i
-                _right_sweep_var_site!(env, k; kwargs...)
+            for k in ϕ.sites
+                if k >= i
+                    _right_sweep_var_site!(env, k; kwargs...)
+                end
             end
-        end
-        for k in reverse(ϕ.sites)
-            if k >= i
-                _left_sweep_var_site!(env, k; kwargs...)
+            for k in reverse(ϕ.sites)
+                if k >= i
+                    _left_sweep_var_site!(env, k; kwargs...)
+                end
             end
+            update_env_right!(env, :central)
+            C = project_ket_on_bra(env, :central)
         end
-        update_env_right!(env, :central)
-        C = project_ket_on_bra(env, :central)
     end
     out
 end

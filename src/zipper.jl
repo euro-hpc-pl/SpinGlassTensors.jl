@@ -132,14 +132,14 @@ end
 
 
 
-function zipper(ψ::QMpo{R}, ϕ::QMps{R}; method::Symbol=:svd, Dcut::Int=typemax(Int), tol=eps(), iters_svd=1, iters_var=1, kwargs...) where R <: Real
+function zipper(ψ::QMpo{R}, ϕ::QMps{R}; method::Symbol=:svd, Dcut::Int=typemax(Int), tol=eps(), iters_rand = 3, iters_svd=1, iters_var=1, Dtemp_multiplier=2, kwargs...) where R <: Real
     onGPU = ψ.onGPU && ϕ.onGPU
     @assert is_left_normalized(ϕ)
 
     C = onGPU ? CUDA.ones(R, 1, 1, 1) : ones(R, 1, 1, 1)
     mpo_li = last(ψ.sites)
 
-    Dtemp = 2 * Dcut
+    Dtemp = Dtemp_multiplier * Dcut
     out = copy(ϕ)
     env = EnvironmentMixed(out, C, ψ, ϕ)
 
@@ -153,7 +153,30 @@ function zipper(ψ::QMpo{R}, ϕ::QMps{R}; method::Symbol=:svd, Dcut::Int=typemax
 
         if i > ϕ.sites[1]
             CM = CornerTensor(C, ψ[i], out[i])
-            _, _, Vr = svd_corner_matrix(CM, method, Dtemp, tol; toGPU=onGPU, kwargs...)
+
+            Urs, Srs, Vrs = [], [], []
+            for i in 1:iters_rand
+               Utemp, Stemp, Vtemp = svd_corner_matrix(CM, method, Dtemp, tol; toGPU=false, kwargs...)
+               push!(Urs, Utemp)
+               push!(Srs, Stemp)
+               push!(Vrs, Vtemp)
+            end
+
+            Ur = hcat(Urs...)
+            Vr = hcat(Vrs...)
+            Sr = vcat(Srs...) ./ iters_rand
+            QU, RU = qr_fact(Ur, Dtemp * iters_rand, 0.0; toGPU=false, kwargs...)
+            QV, RV = qr_fact(Vr, Dtemp * iters_rand, 0.0; toGPU=false, kwargs...)
+            Ur, Sr, Vr = svd_fact(RU * Diagonal(Sr) * RV', Dtemp, tol; kwargs...)
+            # Ur = QU * Ur
+            Vr = QV * Vr
+
+            if onGPU
+                Vr = CuArray(Vr)
+            end
+
+            #_, _, Vr = svd_corner_matrix(CM, method, Dtemp, tol; toGPU=onGPU, kwargs...)
+
             for _ = 1 : iters_svd
                 # CM * Vr
                 x = reshape(Vr, size(CM.C, 2), size(CM.M, 2), :)

@@ -14,17 +14,21 @@ end
 =#
 
 # TODO shouldn't we have CSR format instead?
-function SparseCSC(::Type{R}, p::CuArray{Int64, 1}) where R <: Real
+function SparseCSC(::Type{R}, p::CuArray{Int64, 1}; mp=nothing) where R <: Real
     n = length(p)
-    mp = maximum(p)
+    if mp == nothing
+        mp = maximum(p)
+    end
     cn = CuArray(1:n+1)  # aux_cusparse(R, n)
     co = CUDA.ones(R, n)
     CuSparseMatrixCSC(cn, p, co, (mp, n))
 end
 
-function SparseCSC(::Type{R}, p::Vector{Int64}) where R <: Real
+function SparseCSC(::Type{R}, p::Vector{Int64}; mp=nothing) where R <: Real
     n = length(p)
-    mp = maximum(p)
+    if mp == nothing
+        mp = maximum(p)
+    end
     cn = collect(1:n)
     co = ones(R, n)
     sparse(p, cn, co, mp, n)
@@ -35,12 +39,12 @@ end
     p2 = get_projector!(lp, k2) #, device)
     p3 = get_projector!(lp, k3) #, device)
     @assert length(p1) == length(p2) == length(p3)
-    s1, s2 = size(lp, k1), size(lp, k2)
+    s1, s2, s3 = size(lp, k1), size(lp, k2), size(lp, k3)
     p = p1 .+ s1 * (p2 .- 1) .+ s1 * s2 * (p3 .- 1)
     if device == :GPU
         p = CuArray(p)
     end
-    SparseCSC(T, p)
+    SparseCSC(T, p; mp=s1 * s2 * s3)
 end
 
 @memoize Dict function SparseCSC(::Type{R}, lp::PoolOfProjectors, k::Int, device::Symbol; from::Int=1, to::Int=length(lp, k)) where R <: Real

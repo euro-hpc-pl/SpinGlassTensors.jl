@@ -4,7 +4,7 @@
 
 
 
-# @memoize Dict 
+# @memoize Dict
 # alloc_undef(R, onGPU, shape, ind) = onGPU ? CuArray{R}(undef, shape) : Array{R}(undef, shape)
 
 # function contract_sparse_with_three(
@@ -50,7 +50,7 @@
 #     @views copy!(X2p[:, :, 1:sto],  X2[:, :, vp2])
 #     @views copy!(X3p[:, :, 1:sto],  X3[:, :, vp3])
 
-#     if s1 * s3 < s2 * s4 
+#     if s1 * s3 < s2 * s4
 #         # Xtmp = batched_mul(X1p, X2p)
 #         # outp = batched_mul(Xtmp, X3p)
 #         batched_mul!(Xtmp, X1p, X2p)
@@ -107,7 +107,7 @@ while from <= total_size
     X2p = X2[:, :, vp2]
     X3p = X3[:, :, vp3]
 
-    if s1 * s3 < s2 * s4 
+    if s1 * s3 < s2 * s4
         Xtmp = batched_mul(X1p, X2p)
         outp = batched_mul(Xtmp, X3p)
     else
@@ -197,9 +197,9 @@ function corner_matrix(C::S, M::T, B::S) where {S <: Tensor{R, 3}, T <: SiteTens
     outp = Bp ⊠ Cp
     outp .*= reshape(M.loc_exp, 1, 1, :)
     @cast outp[(x, y), z] := outp[x, y, z]
-    sm1 = maximum(projs[1])
+    sm1, sm2 = maximum(projs[1]), maximum(projs[2])
     @inbounds p12 = projs[1] .+ (projs[2] .- 1) .* sm1
-    ip12 = SparseCSC(R, p12)
+    ip12 = SparseCSC(R, p12; mp=sm1 * sm2)
     out = reshape(ip12 * outp', sm1, maximum(projs[2]), size(B, 1), size(C, 2))
     permutedims(out, (3, 1, 4, 2))
 end

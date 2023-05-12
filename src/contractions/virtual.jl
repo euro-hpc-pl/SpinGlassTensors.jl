@@ -348,3 +348,13 @@ function contract_tensors43(M::VirtualTensor{R, 4}, B::Tensor{R, 3}) where R <: 
     MB = permutedims(MB, (1, 3, 4, 6, 2, 5))
     reshape(MB, (slb * slcp, srb * srcp, slct * srct))
 end
+
+function corner_matrix(C::S, M::T, B::S) where {S <: Tensor{R, 3}, T <: VirtualTensor{R, 4}} where R <: Real
+    slb, srb = size(B, 1), size(B, 2)
+    srcc, stc = size(C, 2), size(C, 3)
+    V = contract_tensors43(M, B)
+    vl, vr, vt = size(V, 1), size(V, 2), size(V, 3)
+    V = reshape(V, (vl, srb, stc, vt))
+    @tensor Cnew[vl, vt, vrr] := V[vl, srb, stc, vt] * C[srb, vrr, stc]
+    reshape(Cnew, (slb, :, srcc, vt))
+end

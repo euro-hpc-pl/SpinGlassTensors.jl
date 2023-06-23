@@ -103,6 +103,14 @@ function update_env_left(LE::S, A::S, M::T, B::S) where {S <: AbstractArray{R, 3
     update_env_left(LE, A, M.ctr, B)
 end
 
+
+function update_env_left2(LE::S, A::S, M::T, B::S) where {S <: AbstractArray{R, 3}, T <: MpoTensor{R, 4}} where R <: Real
+    for v ∈ M.top A = contract_tensor3_matrix(A, v) end
+    for v ∈ reverse(M.bot) B = contract_matrix_tensor3(v, B) end
+    update_env_left(LE, A, M.ctr, B)
+end
+
+
 function update_env_left!(env::Environment, site::Site)
     site <= first(env.bra.sites) && return
     ls = left_nbrs_site(site, env.bra.sites)

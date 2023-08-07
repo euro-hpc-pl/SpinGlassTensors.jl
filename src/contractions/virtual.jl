@@ -164,7 +164,6 @@ function update_env_left2(LE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <:
     (p_lt, p_l) = Tuple(Array(t) for t ∈ eachcol(transitions_matrix))
     scllt = maximum(p_llt)
 
-
     if onGPU
         p_llt = CuArray(p_llt)
         p_lt = CuArray(p_lt)
@@ -172,7 +171,6 @@ function update_env_left2(LE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <:
     end
     pls1 = p_lb .+ s_lb .* (p_llt .- 1)
     pls2 = p_lt .+ s_lt .* (p_l .- 1)
-
 
     s_rb = size(M.lp, p_rb)
     p_rt = get_projector!(M.lp, p_rt, device)
@@ -199,12 +197,12 @@ function update_env_left2(LE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <:
     @assert length(prs2) == length(Set(Array(prs2)))
 
     tmp1 = alloc_zeros(R, onGPU, (slb, slcb * scllt))
-    tmp3 = alloc_zeros(R, onGPU, (slb, slcb * slct * slc))
+    tmp3 = alloc_zeros(R, onGPU, (srb * srcb, slct * slc))
 
     for ilt ∈ 1 : slt
         tmp1[:, pls1] = (@view LE[:, ilt, :])  # [lb, (lcb, lct, lc)]
-        tmp2 = B2' * reshape(tmp1, (slb * slcb, scllt))  # [(lb, lcb), (rb, rcb)]' * [(lb, lcb), scllt]
-        tmp3[:, pls2] = tmp2  # [lb, (lcb, lct, lc)]
+        tmp2 = B2' * reshape(tmp1, (slb * slcb, scllt))  # [(lb, lcb), (rb, rcb)]' * [(lb, lcb), scllt] = [(rb, rcb), scllt]
+        tmp3[:, pls2] = tmp2  # [(rb, rcb), (lct, lc)]
         tmp4 = reshape(tmp3, (srb * srcb, slct, slc))  # [(rb, rcb), lct, lc]
         tmp5 = contract_tensor3_matrix(tmp4, M.con)  # [(rb, rcb), lct, rc]
         tmp6 = permutedims(tmp5, (1, 3, 2))  # [(rb, rcb), rc, lct]
@@ -212,8 +210,6 @@ function update_env_left2(LE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <:
         tmp8 = tmp7[:, prs2, :]  # [rb, crrb, lct]
         for irt ∈ 1 : srt
             tmp9 =  reshape(tmp8, (srb * scrrb, slct)) * (@view A[ilt, irt, :, :])
-            # mul!(tmp8, prs', reshape(tmp7, (srb, srcb * src * srct))')
-            # Lout[:, irt, :] .+= tmp8'  # [rb, rcp]
             tmp10 = reshape(tmp9, (srb, scrrb * srct))
             Lout[:, irt, :] .+= tmp10[:, prs1]  # [rb, rcp]
         end

@@ -14,6 +14,55 @@ function proj_out(lp, k1, k2, k3, device)
     p1 .+ s1 * (p2 .- 1) .+ s1 * s2 * (p3 .- 1)
 end
 
+function proj_2step_12(lp, (k1, k2), k3, device)
+    p1 = get_projector!(lp, k1, :CPU)
+    p2 = get_projector!(lp, k2, :CPU)
+    p3 = get_projector!(lp, k3, device)
+    @assert length(p1) == length(p2) == length(p3)
+    s1 = size(lp, k1)
+
+    p12, transitions_matrix = rank_reveal(hcat(p1, p2), :PE)
+    (p1, p2) = Tuple(Array(t) for t ∈ eachcol(transitions_matrix))
+
+    s12 = maximum(p12)
+
+    if device == :CPU
+        p12 = CuArray(p12)
+        p1  = CuArray(p1)
+        p2  = CuArray(p2)
+    end
+
+    pf1 = p12 .+ s12 .* (p3 .- 1)
+    pf2 = p1 .+ s1 .* (p2 .- 1)
+
+    pf1, pf2, s12
+end
+
+function proj_2step_23(lp, k1, (k2, k3), device)
+    p1 = get_projector!(lp, k1, device)
+    p2 = get_projector!(lp, k2, :CPU)
+    p3 = get_projector!(lp, k3, :CPU)
+    @assert length(p1) == length(p2) == length(p3)
+
+    s1, s2 = size(lp, k1), size(lp, k2)
+
+    p23, transitions_matrix = rank_reveal(hcat(p2, p3), :PE)
+    (p2, p3) = Tuple(Array(t) for t ∈ eachcol(transitions_matrix))
+
+    s23 = maximum(p23)
+
+    if device == :CPU
+        p23 = CuArray(p23)
+        p2  = CuArray(p2)
+        p3  = CuArray(p3)
+    end
+
+    pf1 = p1 .+ s1 .* (p23 .- 1)
+    pf2 = p2 .+ s2 .* (p3 .- 1)
+
+    pf1, pf2, s23
+end
+
 function update_env_left(LE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <: Tensor{R, 3}} where R <: Real
     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
     slb, srb = size(B, 1), size(B, 2)
@@ -90,6 +139,7 @@ end
 
 
 
+
 function update_env_left2(LE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <: Tensor{R, 3}} where R <: Real
     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
     slb, srb = size(B, 1), size(B, 2)
@@ -105,95 +155,69 @@ function update_env_left2(LE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <:
     B = reshape(B, (slb, srb, slcb, srcb))
     Lout = alloc_zeros(R, onGPU, (srb, srt, srcp))
 
-    s_lb = size(lp, p_lb)
-    s_lt = size(lp, p_lt)
-    s_l  = size(lp, p_l)
-
-    p_lb = get_projector!(lp, p_lb, device)
-    p_lt = get_projector!(lp, p_lt, :CPU)
-    p_l = get_projector!(lp, p_l, :CPU)
-
-    p_llt, (p_lt, p_l) = rank_reveal(hcat(p_lt, p_l), :PE)
+    s_lb = size(M.lp, p_lb)
+    s_lt = size(M.lp, p_lt)
+    p_lb = get_projector!(M.lp, p_lb, device)
+    p_lt = get_projector!(M.lp, p_lt, :CPU)
+    p_l = get_projector!(M.lp, p_l, :CPU)
+    p_llt, transitions_matrix = rank_reveal(hcat(p_lt, p_l), :PE)
+    (p_lt, p_l) = Tuple(Array(t) for t ∈ eachcol(transitions_matrix))
     scllt = maximum(p_llt)
 
-    # transitions = collect(eachcol(transitions_matrix))
-    # transitions = Tuple(Array(t) for t ∈ eachcol(transitions_matrix))
-    # fused, transitions
 
     if onGPU
         p_llt = CuArray(p_llt)
         p_lt = CuArray(p_lt)
         p_l = CuArray(p_l)
     end
-
     pls1 = p_lb .+ s_lb .* (p_llt .- 1)
     pls2 = p_lt .+ s_lt .* (p_l .- 1)
 
-    # pls = proj_out(M.lp, p_lb, p_lt, p_l, device)
 
-    prs = proj_out(M.lp, p_rb, p_r, p_rt, device)
-
-
-    s_rb = size(lp, p_rb)
-    s_r  = size(lp, p_r)
-    s_rt = size(lp, p_rt)
-
-    p_rt = get_projector!(lp, p_rt, :device)
-    p_rb = get_projector!(lp, p_rb, :CPU)
-    p_r = get_projector!(lp, p_r, :CPU)
-
-    p_rrb, (p_rb, p_r) = rank_reveal(hcat(p_rb, p_r), :PE)
+    s_rb = size(M.lp, p_rb)
+    p_rt = get_projector!(M.lp, p_rt, device)
+    p_rb = get_projector!(M.lp, p_rb, :CPU)
+    p_r = get_projector!(M.lp, p_r, :CPU)
+    p_rrb, transitions_matrix = rank_reveal(hcat(p_rb, p_r), :PE)
+    (p_rb, p_r) = Tuple(Array(t) for t ∈ eachcol(transitions_matrix))
     scrrb = maximum(p_rrb)
-
     if onGPU
         p_rrb = CuArray(p_rrb)
         p_rb = CuArray(p_rb)
         p_r = CuArray(p_r)
     end
-
     prs1 = p_rrb.+ scrrb .* (p_rt .- 1)
-
     prs2 = p_rb .+ s_rb .* (p_r .- 1)
-
     # prs = SparseCSC(R, M.lp, p_rb, p_r, p_rt, device)
+
     B2 = permutedims(B, (1, 3, 2, 4))  # [lb, lcb, rb, rcb]
     B2 = reshape(B2, (slb * slcb, srb * srcb))  # [(lb, lcb), (rb, rcb)]
 
-    tmp1 = alloc_zeros(R, onGPU, (slb, slcb * sllt))
-    tmp2 = alloc_undef(R, onGPU, (srb * srcb, sllt))
-
-    tmp2p = alloc_zeros(R, onGPU, (slb, slcb * slct * slc))
-
-    tmp5 = alloc_undef(R, onGPU, (srb * srcb, src, slct))
-    tmp7 = alloc_undef(R, onGPU, (srb * srcb * src, srct))
-    tmp8 = alloc_undef(R, onGPU, (srcp, srb))
     @assert length(pls1) == length(Set(Array(pls1)))
     @assert length(pls2) == length(Set(Array(pls2)))
-    @assert length(prs) == length(Set(Array(prs)))
+    @assert length(prs1) == length(Set(Array(prs1)))
+    @assert length(prs2) == length(Set(Array(prs2)))
+
+    tmp1 = alloc_zeros(R, onGPU, (slb, slcb * scllt))
+    tmp3 = alloc_zeros(R, onGPU, (slb, slcb * slct * slc))
+
     for ilt ∈ 1 : slt
         tmp1[:, pls1] = (@view LE[:, ilt, :])  # [lb, (lcb, lct, lc)]
-        mul!(tmp2, B2', reshape(tmp1, (slb * slcb, sllt)))  # [(lb, lcb), (rb, rcb)]' * [(lb, lcb), sllt]
-        tmp2p[:, pls2] = tmp2  # [lb, (lcb, lct, lc)]
-        tmp3 = reshape(tmp2, (srb * srcb, slct, slc))  # [(rb, rcb), lct, lc]
-        tmp4 = contract_tensor3_matrix(tmp3, M.con)  # [(rb, rcb), lct, rc]
-        permutedims!(tmp5, tmp4, (1, 3, 2))  # [(rb, rcb), rc, lct]
-        tmp6 = reshape(tmp5, (srb, srcb * src, slct))  # [rb, (rcb, rc), lct]
-        tmp6p = tmp6[:, prs2, :]  # [rb, crrb, lct]
-
+        tmp2 = B2' * reshape(tmp1, (slb * slcb, scllt))  # [(lb, lcb), (rb, rcb)]' * [(lb, lcb), scllt]
+        tmp3[:, pls2] = tmp2  # [lb, (lcb, lct, lc)]
+        tmp4 = reshape(tmp3, (srb * srcb, slct, slc))  # [(rb, rcb), lct, lc]
+        tmp5 = contract_tensor3_matrix(tmp4, M.con)  # [(rb, rcb), lct, rc]
+        tmp6 = permutedims(tmp5, (1, 3, 2))  # [(rb, rcb), rc, lct]
+        tmp7 = reshape(tmp6, (srb, srcb * src, slct))  # [rb, (rcb, rc), lct]
+        tmp8 = tmp7[:, prs2, :]  # [rb, crrb, lct]
         for irt ∈ 1 : srt
-            mul!(tmp7, tmp6p, (@view A[ilt, irt, :, :]))
+            tmp9 =  reshape(tmp8, (srb * scrrb, slct)) * (@view A[ilt, irt, :, :])
             # mul!(tmp8, prs', reshape(tmp7, (srb, srcb * src * srct))')
             # Lout[:, irt, :] .+= tmp8'  # [rb, rcp]
-            tmp8 = reshape(tmp7, (srb, scrrb * srct))
-            Lout[:, irt, :] .+= tmp8[:, prs1]  # [rb, rcp]
+            tmp10 = reshape(tmp9, (srb, scrrb * srct))
+            Lout[:, irt, :] .+= tmp10[:, prs1]  # [rb, rcp]
         end
     end
-
-    # fused, transitions_matrix = rank_reveal(hcat(projectors...), :PE)
-    # transitions = collect(eachcol(transitions_matrix))
-    # transitions = Tuple(Array(t) for t ∈ eachcol(transitions_matrix))
-    # fused, transitions
-
     Lout  # [rb, rt, rcp]
 end
 

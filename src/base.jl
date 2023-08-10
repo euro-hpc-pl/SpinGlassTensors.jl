@@ -52,6 +52,8 @@ mutable struct CentralTensor{T <: Real, N} <: AbstractSparseTensor{T, N}
     end
 end
 
+Base.adjoint(M::CentralTensor{R, 2}) where R <: Real = CentralTensor(M.e11', M.e21', M.e12', M.e22')
+
 mpo_transpose(ten::CentralTensor) = CentralTensor(permutedims.((ten.e11, ten.e21, ten.e12, ten.e22), Ref((2, 1)))...)
 
 const MatOrCentral{T, N} = Union{AbstractMatrix{T}, CentralTensor{T, N}}

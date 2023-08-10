@@ -176,60 +176,62 @@ function update_env_left(LE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <: 
     Lout = alloc_zeros(R, onGPU, (srb, srt, src))
 
     if slpb * srpt >= slpt * srpb
+        pl_b_ct, pl_c_t, slpct = merge_projectors_inter(M.lp, p_lb, p_lc, p_lt, onGPU; order="1_23")
+        pr_bc_t, pr_b_c, srpbc = merge_projectors_inter(M.lp, p_rt, p_rb, p_rc, onGPU; order="23_1")
+
         B2 = permutedims(B, (1, 3, 2, 4))  # [lb, lpb, rb, rpb]
         B2 = reshape(B2, (slb * slpb, srb * srpb))  # [(lb, lpb), (rb, rpb)]
 
-        pl_b_tc, pl_t_c, slptc = merge_projectors_inter(M.lp, p_lb, p_lt, p_lc, onGPU; order="1_23")
-        pr_bc_t, pr_b_c, srpbc = merge_projectors_inter(M.lp, p_rt, p_rb, p_rc, onGPU; order="23_1")
-
-        tmp1 = alloc_zeros(R, onGPU, (slb, slpb * slptc))
+        tmp1 = alloc_zeros(R, onGPU, (slb, slpb * slpct))
+        tmp2 = alloc_undef(R, onGPU, (srb * srpb, slpct))
         tmp3 = alloc_zeros(R, onGPU, (srb * srpb, slpt * slpc))
-        tmp9 = alloc_zeros(R, onGPU, (srb * srpbc, srpt))
+        tmp5 = alloc_undef(R, onGPU, (srb * srpb, srpc, slpt))
+        tmp8 = alloc_undef(R, onGPU, (srb * srpbc, srpt))
+
         for ilt ∈ 1 : slt
-            tmp1[:, pl_b_tc] = (@view LE[:, ilt, :])  # [lb, (lpb, lptc)]
-            tmp2 = B2' * reshape(tmp1, (slb * slpb, slptc))  # [(rb, rpb), lptc]
-            tmp3[:, pl_t_c] = tmp2  # [(rb, rpb), (lpt, lpc)]
-            tmp4 = reshape(tmp3, (srb * srpb, slpt, slpc))  # [(rb, rpb), lpt, lpc]
-            tmp5 = contract_tensor3_matrix(tmp4, M.con)  # [(rb, rpb), lpt, rpc]
-            tmp6 = permutedims(tmp5, (1, 3, 2))  # [(rb, rpb), rpc, lpt]
-            tmp7 = reshape(tmp6, (srb, srpb * srpc, slpt))  # [rb, (rpb, rpc), lpt]
-            tmp8 = reshape(tmp7[:, pr_b_c, :], (srb * srpbc, slpt))  # [(rb, rpbc), lpt]
+            tmp1[:, pl_b_ct] = (@view LE[:, ilt, :])  # [lb, (lpb, lpct)]
+            mul!(tmp2, B2', reshape(tmp1, (slb * slpb, slpct)))  # [(rb, rpb), lpct]
+            tmp3[:, pl_c_t] = tmp2  # [(rb, rpb), (lpc, lpt)]
+            tmp4 = reshape(tmp3, (srb * srpb, slpc, slpt))  # [(rb, rpb), lpc, lpt]
+            my_batched_mul!(tmp5, tmp4, M.con)
+            tmp6 = reshape(tmp5, (srb, srpb * srpc, slpt))  # [rb, (rpb, rpc), lpt]
+            tmp7 = reshape(tmp6[:, pr_b_c, :], (srb * srpbc, slpt))  # [(rb, rpbc), lpt]
             for irt ∈ 1 : srt
-                mul!(tmp9, tmp8, (@view A[ilt, irt, :, :]))
-                tmp10 = reshape(tmp9, (srb, srpbc * srpt))
-                Lout[:, irt, :] .+= tmp10[:, pr_bc_t]  # [rb, rc]
+                mul!(tmp8, tmp7, (@view A[ilt, irt, :, :]))
+                tmp9 = reshape(tmp8, (srb, srpbc * srpt))
+                Lout[:, irt, :] .+= tmp9[:, pr_bc_t]  # [rb, rc]
             end
         end
     else
+        pl_t_cb, pl_c_b, slpcb = merge_projectors_inter(M.lp, p_lt, p_lc, p_lb, onGPU; order="1_23")
+        pr_tc_b, pr_t_c, srptc = merge_projectors_inter(M.lp, p_rb, p_rt, p_rc, onGPU; order="23_1")
+
         A2 = permutedims(A, (1, 3, 2, 4))  # [lt, lpt, rt, rpt]
         A2 = reshape(A2, (slt * slpt, srt * srpt))  # [(lt, lpt), (rt, rpt)]
 
-        pl_t_bc, pl_b_c, slpbc = merge_projectors_inter(M.lp, p_lt, p_lb, p_lc, onGPU; order="1_23")
-        pr_tc_b, pr_t_c, srptc = merge_projectors_inter(M.lp, p_rb, p_rt, p_rc, onGPU; order="23_1")
-
-        tmp1 = alloc_zeros(R, onGPU, (slt, slpt * slpbc))
-        tmp3 = alloc_zeros(R, onGPU, (srt * srpt, slpb * slpc))
-        tmp9 = alloc_zeros(R, onGPU, (srt * srptc, srpb))
+        tmp1 = alloc_zeros(R, onGPU, (slt, slpt * slpcb))
+        tmp2 = alloc_undef(R, onGPU, (srt * srpt, slpcb))
+        tmp3 = alloc_zeros(R, onGPU, (srt * srpt, slpc * slpb))
+        tmp5 = alloc_undef(R, onGPU, (srt * srpt, srpc, slpb))
+        tmp8 = alloc_zeros(R, onGPU, (srt * srptc, srpb))
 
         for ilb ∈ 1 : slb
-            tmp1[:, pl_t_bc] = (@view LE[ilb, :, :])  # [lt, (lpt, lpbc)]
-            tmp2 = A2' * reshape(tmp1, (slt * slpt, slpbc))  # [(rt, rpt), lpbc]
-            tmp3[:, pl_b_c] = tmp2
-            tmp4 = reshape(tmp3, (srt * srpt, slpb, slpc))  # [(rt, rpt), lpb, lpc]
-            tmp5 = contract_tensor3_matrix(tmp4, M.con)  # [(rt, rpt), lpb, rpc]
-            tmp6 = permutedims(tmp5, (1, 3, 2))  # [(rt, rpt), rpc, lpb]
-            tmp7 = reshape(tmp6, (srt, srpt * srpc, slpb))  # [(rt, rpt * rpc), lcb]
-            tmp8 = reshape(tmp7[:, pr_t_c, :], (srt * srptc, slpb))  # [(rt, rptc), lpb]
+            tmp1[:, pl_t_cb] = (@view LE[ilb, :, :])  # [lt, (lpt, lpcb)]
+            mul!(tmp2, A2', reshape(tmp1, (slt * slpt, slpcb)))  # [(rt, rpt), lpcb]
+            tmp3[:, pl_c_b] = tmp2
+            tmp4 = reshape(tmp3, (srt * srpt, slpc, slpb))  # [(rt, rpt), lpc, lpb]
+            my_batched_mul!(tmp5, tmp4, M.con)  # [(rt, rpt), lpb, rpc]
+            tmp6 = reshape(tmp5, (srt, srpt * srpc, slpb))  # [(rt, rpt * rpc), lcb]
+            tmp7 = reshape(tmp6[:, pr_t_c, :], (srt * srptc, slpb))  # [(rt, rptc), lpb]
             for irb ∈ 1 : srb
-                mul!(tmp9, tmp8, (@view B[ilb, irb, :, :]))
-                tmp10 = reshape(tmp9, (srt, srptc * srpb))
-                Lout[irb, :, :] .+= tmp10[:, pr_tc_b]  # [rt, rc]
+                mul!(tmp8, tmp7, (@view B[ilb, irb, :, :]))
+                tmp9 = reshape(tmp8, (srt, srptc * srpb))
+                Lout[irb, :, :] .+= tmp9[:, pr_tc_b]  # [rt, rc]
             end
         end
     end
     Lout
 end
-
 
 function project_ket_on_bra2(LE::S, B::S, M::VirtualTensor{R, 4}, RE::S) where {S <: Tensor{R, 3}} where R <: Real
     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
@@ -454,51 +456,53 @@ function update_env_right(RE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <:
         B2 = permutedims(B, (1, 3, 2, 4))  # [lb, lpb, rb, rpb]
         B2 = reshape(B2, (slb * slpb, srb * srpb))  # [(lb, lpb), (rb, rpb)]
 
-        pr_b_tc, pr_t_c, srptc = merge_projectors_inter(M.lp, p_rb, p_rt, p_rc, onGPU; order="1_23")
+        pr_b_ct, pr_c_t, srpct = merge_projectors_inter(M.lp, p_rb, p_rc, p_rt, onGPU; order="1_23")
         pl_bc_t, pl_b_c, slpbc = merge_projectors_inter(M.lp, p_lt, p_lb, p_lc, onGPU; order="23_1")
 
-        tmp1 = alloc_zeros(R, onGPU, (srb, srpb * srptc))
-        tmp3 = alloc_zeros(R, onGPU, (slb * slpb, srpt * srpc))
-        tmp9 = alloc_zeros(R, onGPU, (slb * slpbc, slpt))
+        tmp1 = alloc_zeros(R, onGPU, (srb, srpb * srpct))
+        tmp2 = alloc_undef(R, onGPU, (slb * slpb, srpct))
+        tmp3 = alloc_zeros(R, onGPU, (slb * slpb, srpc, srpt))
+        tmp5 = alloc_undef(R, onGPU, (slb * slpb, slpc, srpt))
+        tmp8 = alloc_undef(R, onGPU, (slb * slpbc, slpt))
 
         for irt ∈ 1 : srt
-            tmp1[:, pr_b_tc] = (@view RE[:, irt, :])  # [rb, (rpb, rptc)]
-            tmp2 = B2 * reshape(tmp1, (srb * srpb, srptc))  # [(lb, lpb), rptc]
-            tmp3[:, pr_t_c] = tmp2  # [(lb, lpb), (rpt, rpc)]
-            tmp4 = reshape(tmp3, (slb * slpb, srpt, srpc))  # [(lb, lpb), rpt, rpc]
-            tmp5 = contract_matrix_tensor3(M.con, tmp4)  # [(lb, lpb), rpt, lpc]
-            tmp6 = permutedims(tmp5, (1, 3, 2))  # [(lb, lpb), lpc, rpt]
-            tmp7 = reshape(tmp6, (slb, slpb * slpc, srpt))  # [lb, (lpb, lpc), rpt]
-            tmp8 = reshape(tmp7[:, pl_b_c, :], (slb * slpbc, srpt))  # [(lb, lpbc), rpt]
+            tmp1[:, pr_b_ct] = (@view RE[:, irt, :])  # [rb, (rpb, rpct)]
+            mul!(tmp2, B2, reshape(tmp1, (srb * srpb, srpct)))  # [(lb, lpb), rpct]
+            tmp3[:, pr_c_t] = tmp2  # [(lb, lpb), (rpc, rpt)]
+            tmp4 = reshape(tmp3, (slb * slpb, srpc, srpt))  # [(lb, lpb), rpc, rpt]
+            my_batched_mul!(tmp5, tmp4, M.con')
+            tmp6 = reshape(tmp5, (slb, slpb * slpc, srpt))  # [lb, (lpb, lpc), rpt]
+            tmp7 = reshape(tmp6[:, pl_b_c, :], (slb * slpbc, srpt))  # [(lb, lpbc), rpt]
             for ilt ∈ 1 : slt
-                mul!(tmp9, tmp8, (@view A[ilt, irt, :, :])')
-                tmp10 = reshape(tmp9, (slb, slpbc * slpt))
-                Rout[:, ilt, :] .+= tmp10[:, pl_bc_t]
+                mul!(tmp8, tmp7, (@view A[ilt, irt, :, :])')
+                tmp9 = reshape(tmp8, (slb, slpbc * slpt))
+                Rout[:, ilt, :] .+= tmp9[:, pl_bc_t]
             end
         end
     else
         A2 = permutedims(A, (1, 3, 2, 4))  # [lt, lpt, rt, rpt]
         A2 = reshape(A2, (slt * slpt, srt * srpt))  # [(lt, lpt), (rt, rpt)]
 
-        pr_t_bc, pr_b_c, srpbc = merge_projectors_inter(M.lp, p_rt, p_rb, p_rc, onGPU; order="1_23")
+        pr_t_cb, pr_c_b, srpcb = merge_projectors_inter(M.lp, p_rt, p_rc, p_rb, onGPU; order="1_23")
         pl_tc_b, pl_t_c, slptc = merge_projectors_inter(M.lp, p_lb, p_lt, p_lc, onGPU; order="23_1")
 
-        tmp1 = alloc_zeros(R, onGPU, (srt, srpt * srpbc))
-        tmp3 = alloc_zeros(R, onGPU, (slt * slpt, srpb * srpc))
-        tmp9 = alloc_zeros(R, onGPU, (slt * slptc, slpb))
+        tmp1 = alloc_zeros(R, onGPU, (srt, srpt * srpcb))
+        tmp2 = alloc_undef(R, onGPU, (slt * slpt, srpcb))
+        tmp3 = alloc_zeros(R, onGPU, (slt * slpt, srpc * srpb))
+        tmp5 = alloc_undef(R, onGPU, (slt * slpt, slpc, srpb))
+        tmp8 = alloc_undef(R, onGPU, (slt * slptc, slpb))
         for irb ∈ 1 : srb
-            tmp1[:, pr_t_bc] = (@view RE[irb, :, :])  # [rt, (rpt, rpbc)]
-            tmp2 = A2 * reshape(tmp1, (srt * srpt, srpbc))  # [(lt, lpt), rpbc]
-            tmp3[:, pr_b_c] = tmp2  # [(lt, lpt), (rpb, rpc)]
-            tmp4 = reshape(tmp3, (slt * slpt, srpb, srpc))  # [(lt, lpt), rpb, rpc]
-            tmp5 = contract_matrix_tensor3(M.con, tmp4)  # [(lt, lpt), rpb, lpc]
-            tmp6 = permutedims(tmp5, (1, 3, 2))  # [(lt, lpt), lpc, rpb]
-            tmp7 = reshape(tmp6, (slt, slpt * slpc, srpb))  # [lt, (lpt, lpc), rpb]
-            tmp8 = reshape(tmp7[:, pl_t_c, :], (slt * slptc, srpb))  # [(lb, lptc), rpb]
+            tmp1[:, pr_t_cb] = (@view RE[irb, :, :])  # [rt, (rpt, rpcb)]
+            mul!(tmp2, A2, reshape(tmp1, (srt * srpt, srpcb)))  # [(lt, lpt), rpcb]
+            tmp3[:, pr_c_b] = tmp2  # [(lt, lpt), (rpc, rpb)]
+            tmp4 = reshape(tmp3, (slt * slpt, srpc, srpb))  # [(lt, lpt), rpc, rpb]
+            my_batched_mul!(tmp5, tmp4, M.con')  # [(lt, lpt), lpc, rpb]
+            tmp6 = reshape(tmp5, (slt, slpt * slpc, srpb))  # [lt, (lpt, lpc), rpb]
+            tmp7 = reshape(tmp6[:, pl_t_c, :], (slt * slptc, srpb))  # [(lb, lptc), rpb]
             for ilb ∈ 1 : slb
-                mul!(tmp9, tmp8, (@view B[ilb, irb, :, :])')
-                tmp10 = reshape(tmp9, (slt, slptc * slpb))
-                Rout[ilb, :, :] .+= tmp10[:, pl_tc_b]
+                mul!(tmp8, tmp7, (@view B[ilb, irb, :, :])')
+                tmp9 = reshape(tmp8, (slt, slptc * slpb))
+                Rout[ilb, :, :] .+= tmp9[:, pl_tc_b]
             end
         end
     end

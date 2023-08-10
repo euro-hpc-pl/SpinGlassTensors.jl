@@ -1,4 +1,6 @@
 # contractions of dense objects on CPU and CUDA
+# export
+#     update_reduced_env_right2
 
 const MatrixOrCuMatrix{R} = Union{
     CuMatrix{R}, Matrix{R}, Diagonal{R, CuArray{R, 1, Mem.DeviceBuffer}}, Diagonal{R, Vector{R}}
@@ -41,12 +43,12 @@ end
 """
         -- A --
       |    |
- L = LE    
-      |    
-        
+ L = LE
+      |
+
 """
 function update_env_left(LE::T, A::S) where {S <: Tensor{R, 3}, T <: Tensor{R, 2}} where R <: Real
-    @tensor A[nb, nt, nc] := LE[nb, ot] * A[ot, nt, nc] 
+    @tensor A[nb, nt, nc] := LE[nb, ot] * A[ot, nt, nc]
 end
 
 """
@@ -76,7 +78,7 @@ end
          |    |
  R =      --- RE
               |
-      
+
 """
 function update_env_right(RE::S, C::S) where {S <: Tensor{R, 3}} where R <: Real
     @tensor RR[nb, nt] := RE[nb, ot, oc] * C[nt, ot, oc] order = (ot, oc)
@@ -129,6 +131,21 @@ function update_reduced_env_right(RE::Tensor{R, 2}, m::Int, M::MpoTensor{R, 4}, 
     end
     update_reduced_env_right(K, RE, M.ctr, B)
 end
+
+
+# function update_reduced_env_right2(RE::Tensor{R, 2}, m::Int, M::MpoTensor{R, 4}, B::Tensor{R, 3}) where R <: Real
+#     K = zeros(R, size(M, 2))
+#     K[m] = one(R)
+#     if typeof(RE) <: CuArray K = CuArray(K) end
+#     K = reshape(K, 1, 1, size(K, 1))
+#     for v ∈ M.top K = contract_tensor3_matrix(K, v) end
+#     K = dropdims(K, dims=(1, 2))
+
+#     for v ∈ reverse(M.bot)
+#         B = contract_matrix_tensor3(v, B)   # TODO do we ever enter here? in mpo layers that we have now, we don't
+#     end
+#     update_reduced_env_right2(K, RE, M.ctr, B)
+# end
 
 function update_reduced_env_right(
     K::Tensor{R, 1}, RE::Tensor{R, 2}, M::Tensor{R, 4}, B::Tensor{R, 3}

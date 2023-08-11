@@ -138,26 +138,26 @@ end
 # end
 
 
-# function merge_projectors_inter(lp, p1, p2, p3, onGPU; order="1_23")
-#     s1 = size(lp, p1)
-#     s2 = size(lp, p2)
-#     device = onGPU ? :GPU : :CPU
-#     p1 = get_projector!(lp, p1, device)
-#     p2 = get_projector!(lp, p2, :CPU)
-#     p3 = get_projector!(lp, p3, :CPU)
+function merge_projectors_inter(lp, p1, p2, p3, onGPU; order="1_23")
+    s1 = size(lp, p1)
+    s2 = size(lp, p2)
+    device = onGPU ? :GPU : :CPU
+    p1 = get_projector!(lp, p1, device)
+    p2 = get_projector!(lp, p2, :CPU)
+    p3 = get_projector!(lp, p3, :CPU)
 
-#     p23, transitions_matrix = rank_reveal(hcat(p2, p3), :PE)
-#     s23 = maximum(p23)
-#     (p2, p3) = Tuple(Array(t) for t ∈ eachcol(transitions_matrix))
-#     if onGPU
-#         p23 = CuArray(p23)
-#         p2 = CuArray(p2)
-#         p3 = CuArray(p3)
-#     end
-#     p2_3 = p2 .+ s2 .* (p3 .- 1)
-#     p123 = order == "1_23" ? p1 .+ s1 .* (p23 .- 1) : p23 .+ s23 .* (p1 .- 1)  # else "23_1"
-#     p123, p2_3, s23
-# end
+    p23, transitions_matrix = rank_reveal(hcat(p2, p3), :PE)
+    s23 = maximum(p23)
+    (p2, p3) = Tuple(Array(t) for t ∈ eachcol(transitions_matrix))
+    if onGPU
+        p23 = CuArray(p23)
+        p2 = CuArray(p2)
+        p3 = CuArray(p3)
+    end
+    p2_3 = p2 .+ s2 .* (p3 .- 1)
+    p123 = order == "1_23" ? p1 .+ s1 .* (p23 .- 1) : p23 .+ s23 .* (p1 .- 1)  # else "23_1"
+    p123, p2_3, s23
+end
 
 
 function update_env_left(LE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <: Tensor{R, 3}} where R <: Real
@@ -193,7 +193,7 @@ function update_env_left(LE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <: 
             mul!(tmp2, B2', reshape(tmp1, (slb * slpb, slpct)))  # [(rb, rpb), lpct]
             tmp3[:, pl_c_t] = tmp2  # [(rb, rpb), (lpc, lpt)]
             tmp4 = reshape(tmp3, (srb * srpb, slpc, slpt))  # [(rb, rpb), lpc, lpt]
-            my_batched_mul!(tmp5, tmp4, M.con)
+            batched_mul!(tmp5, tmp4, M.con)
             tmp6 = reshape(tmp5, (srb, srpb * srpc, slpt))  # [rb, (rpb, rpc), lpt]
             tmp7 = reshape(tmp6[:, pr_b_c, :], (srb * srpbc, slpt))  # [(rb, rpbc), lpt]
             for irt ∈ 1 : srt
@@ -220,7 +220,7 @@ function update_env_left(LE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <: 
             mul!(tmp2, A2', reshape(tmp1, (slt * slpt, slpcb)))  # [(rt, rpt), lpcb]
             tmp3[:, pl_c_b] = tmp2
             tmp4 = reshape(tmp3, (srt * srpt, slpc, slpb))  # [(rt, rpt), lpc, lpb]
-            my_batched_mul!(tmp5, tmp4, M.con)  # [(rt, rpt), lpb, rpc]
+            batched_mul!(tmp5, tmp4, M.con)  # [(rt, rpt), lpb, rpc]
             tmp6 = reshape(tmp5, (srt, srpt * srpc, slpb))  # [(rt, rpt * rpc), lcb]
             tmp7 = reshape(tmp6[:, pr_t_c, :], (srt * srptc, slpb))  # [(rt, rptc), lpb]
             for irb ∈ 1 : srb
@@ -327,7 +327,7 @@ function project_ket_on_bra(LE::S, B::S, M::VirtualTensor{R, 4}, RE::S) where {S
             mul!(tmp2, B2', reshape(tmp1, (slb * slpb, slpct)))  # [(rb, rpb), lpct]
             tmp3[:, pl_c_t] = tmp2  # [(rb, rpb), (lpc, lpt)]
             tmp4 = reshape(tmp3, (srb * srpb, slpc, slpt))  # [(rb, rpb), lpc, lpt]
-            my_batched_mul!(tmp5, tmp4, M.con)  # [(rb, rpb), rpc, lpt]
+            batched_mul!(tmp5, tmp4, M.con)  # [(rb, rpb), rpc, lpt]
             tmp6 = reshape(tmp5, (srb, srpb * srpc, slpt))  # [rb, (rpb, rpc), lpt]
             tmp7 = reshape(tmp6[:, pr_b_c, :], (srb * srpbc, slpt))  # [(rb, rpbc), lpt]
             for irt ∈ 1 : srt
@@ -349,7 +349,7 @@ function project_ket_on_bra(LE::S, B::S, M::VirtualTensor{R, 4}, RE::S) where {S
             mul!(tmp2, B2, reshape(tmp1, (srb * srpb, srpct)))  # [(lb, lpb), rpct]
             tmp3[:, pr_c_t] = tmp2  # [(lb, lpb), (rpc, rpt)]
             tmp4 = reshape(tmp3, (slb * slpb, srpc, srpt))  # [(lb, lpb), rpc, rpt]
-            my_batched_mul!(tmp5, tmp4, M.con')  # [(lb, lpb), lpc, rpt]
+            batched_mul!(tmp5, tmp4, M.con')  # [(lb, lpb), lpc, rpt]
             tmp6 = reshape(tmp5, (slb, slpb * slpc, srpt))  # [lb, (lpb, lpc), rpt]
             tmp7 = reshape(tmp6[:, pl_b_c, :], (slb * slpbc, srpt))  # [(lb, lpbc), rpt]
             for ilt ∈ 1 : slt
@@ -472,7 +472,7 @@ function update_env_right(RE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <:
             mul!(tmp2, B2, reshape(tmp1, (srb * srpb, srpct)))  # [(lb, lpb), rpct]
             tmp3[:, pr_c_t] = tmp2  # [(lb, lpb), (rpc, rpt)]
             tmp4 = reshape(tmp3, (slb * slpb, srpc, srpt))  # [(lb, lpb), rpc, rpt]
-            my_batched_mul!(tmp5, tmp4, M.con')
+            batched_mul!(tmp5, tmp4, M.con')
             tmp6 = reshape(tmp5, (slb, slpb * slpc, srpt))  # [lb, (lpb, lpc), rpt]
             tmp7 = reshape(tmp6[:, pl_b_c, :], (slb * slpbc, srpt))  # [(lb, lpbc), rpt]
             for ilt ∈ 1 : slt
@@ -498,7 +498,7 @@ function update_env_right(RE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <:
             mul!(tmp2, A2, reshape(tmp1, (srt * srpt, srpcb)))  # [(lt, lpt), rpcb]
             tmp3[:, pr_c_b] = tmp2  # [(lt, lpt), (rpc, rpb)]
             tmp4 = reshape(tmp3, (slt * slpt, srpc, srpb))  # [(lt, lpt), rpc, rpb]
-            my_batched_mul!(tmp5, tmp4, M.con')  # [(lt, lpt), lpc, rpb]
+            batched_mul!(tmp5, tmp4, M.con')  # [(lt, lpt), lpc, rpb]
             tmp6 = reshape(tmp5, (slt, slpt * slpc, srpb))  # [lt, (lpt, lpc), rpb]
             tmp7 = reshape(tmp6[:, pl_t_c, :], (slt * slptc, srpb))  # [(lb, lptc), rpb]
             for ilb ∈ 1 : slb
@@ -641,7 +641,7 @@ function update_reduced_env_right(
         tmp3 = B2 * tmp2
         tmp4[:, pr_c_t] = tmp3
         tmp5 = reshape(tmp4, (slb * slpb, srpc, srpt))
-        my_batched_mul!(tmp6, tmp5, M.con')  # [(lb, lpb), lpc, rpt]
+        batched_mul!(tmp6, tmp5, M.con')  # [(lb, lpb), lpc, rpt]
         tmp7 = reshape(tmp6, (slb, slpb * slpc, srpt))
         tmp8 = tmp7[:, pl_b_c, :]
         tmp9 = reshape(tmp8, (slb * slpbc, srpt)) * K' # [lb, lpbc, lpt]
@@ -660,7 +660,7 @@ function update_reduced_env_right(
         tmp3 = reshape(tmp2 * K', (srb, srpbc, slpt)) # [rb, rpbc, lpt]
         tmp4[:, pr_b_c, :] = tmp3
         tmp5 = reshape(tmp4, (srb * srpb, srpc, slpt))
-        my_batched_mul!(tmp6, tmp5, M.con')  # [(rb, rpb), lpt, lpc]
+        batched_mul!(tmp6, tmp5, M.con')  # [(rb, rpb), lpt, lpc]
         tmp7 = reshape(tmp6, (srb * srpb, slpt * slpc))  # [(rb, rpb), (lpt, lpc)]
         tmp8 = tmp7[:, pl_t_c]
         tmp9 = B2 * tmp8  # [(lb, lpb), lptc]

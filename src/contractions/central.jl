@@ -58,7 +58,12 @@ function contract_tensor3_central(LE, e11, e12, e21, e22)
     reshape(LE, sb, st, sr1 * sr2)
 end
 
-function my_batched_mul!(newLE::Tensor{R, 3}, LE::Tensor{R, 3}, M::CentralTensor{R, 2}) where R <: Real
+function batched_mul!(newLE::Tensor{R, 3}, LE::Tensor{R, 3}, M::AbstractArray{R, 3}) where R <: Real
+
+    NNlib.batched_mul!(newLE, LE, M)
+end
+
+function batched_mul!(newLE::Tensor{R, 3}, LE::Tensor{R, 3}, M::CentralTensor{R, 2}) where R <: Real
     sb, _, st = size(LE)
     sl1, sl2, sr1, sr2 = size(M.e11, 1), size(M.e22, 1), size(M.e11, 2), size(M.e22, 2)
     sinter = sb * st * max(sl1 * sl2 * min(sr1, sr2), sr1 * sr2 * min(sl1, sl2))

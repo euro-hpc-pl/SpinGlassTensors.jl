@@ -58,9 +58,16 @@ function contract_tensor3_central(LE, e11, e12, e21, e22)
     reshape(LE, sb, st, sr1 * sr2)
 end
 
-function batched_mul!(newLE::Tensor{R, 3}, LE::Tensor{R, 3}, M::AbstractArray{R, 3}) where R <: Real
+function batched_mul!(newLE::Tensor{R, 3}, LE::Tensor{R, 3}, M::AbstractArray{R, 2}) where R <: Real
+    N1 = size(M,1)
+    N2= size(M,2)
+    new_M = CUDA.CuArray(M)
+    new_M = reshape(new_M, (N1, N2, 1))
+    NNlib.batched_mul!(newLE, LE,  new_M)
+end
 
-    NNlib.batched_mul!(newLE, LE, M)
+function batched_mul!(newLE::Tensor{R, 3}, LE::Tensor{R, 3}, M::AbstractArray{R, 3}) where R <: Real
+    NNlib.batched_mul!(newLE, LE,  M)
 end
 
 function batched_mul!(newLE::Tensor{R, 3}, LE::Tensor{R, 3}, M::CentralTensor{R, 2}) where R <: Real

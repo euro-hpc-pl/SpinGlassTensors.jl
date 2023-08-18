@@ -63,7 +63,7 @@ function proj_2step_23(lp, k1, (k2, k3), device)
     pf1, pf2, s23
 end
 
-# function update_env_left2(LE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <: Tensor{R, 3}} where R <: Real
+# function update_env_left(LE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <: Tensor{R, 3}} where R <: Real
 #     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
 #     slb, srb = size(B, 1), size(B, 2)
 #     slt, srt = size(A, 1), size(A, 2)
@@ -233,7 +233,7 @@ function update_env_left(LE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <: 
     Lout
 end
 
-# function project_ket_on_bra2(LE::S, B::S, M::VirtualTensor{R, 4}, RE::S) where {S <: Tensor{R, 3}} where R <: Real
+# function project_ket_on_bra(LE::S, B::S, M::VirtualTensor{R, 4}, RE::S) where {S <: Tensor{R, 3}} where R <: Real
 #     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
 #     slb, slt = size(LE, 1), size(LE, 2)
 #     srb, srt = size(RE, 1), size(RE, 2)
@@ -362,7 +362,7 @@ function project_ket_on_bra(LE::S, B::S, M::VirtualTensor{R, 4}, RE::S) where {S
 end
 
 
-# function update_env_right2(RE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <: Tensor{R, 3}} where R <: Real
+# function update_env_right(RE::S, A::S, M::VirtualTensor{R, 4}, B::S) where {S <: Tensor{R, 3}} where R <: Real
 #     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
 #     slb, srb = size(B, 1), size(B, 2)
 #     slt, srt = size(A, 1), size(A, 2)
@@ -558,7 +558,7 @@ end
 # end
 
 
-# function update_reduced_env_right2(
+# function update_reduced_env_right(
 #     K::Tensor{R, 1}, RE::Tensor{R, 2}, M::VirtualTensor{R, 4}, B::Tensor{R, 3}
 # ) where R <: Real
 #     p_lb, p_l, p_lt, p_rb, p_r, p_rt = M.projs
@@ -620,13 +620,11 @@ function update_reduced_env_right(
     srpb, srpc, srpt = size(M.lp, p_rb), size(M.lp, p_rc), size(M.lp, p_rt)
 
     onGPU = typeof(RE) <: CuArray
-    device = onGPU ? :GPU : :CPU
 
     K = reshape(K, (slpt, srpt))  # [lct, rct]
-    B = reshape(B, (slb, srb, slpb, srpb))  # [lb, rb, lcb, rcb]
-    B2 = permutedims(B, (1, 3, 2, 4))  # [lb, lcb, rb, rcb]
-    B2 = reshape(B2, (slb * slpb, srb * srpb))  # [(lb, lcb), (rb, rcb)]
-
+    B = reshape(B, (slb, srb, slpb, srpb))  # [lb, rb, lpb, rpb]
+    B2 = permutedims(B, (1, 3, 2, 4))  # [lb, lpb, rb, rpb]
+    B2 = reshape(B2, (slb * slpb, srb * srpb))  # [(lb, lpb), (rb, rpb)]
 
     if srpb * slpt >= srpt * slpb
         pr_b_ct, pr_c_t, srpct = merge_projectors_inter(M.lp, p_rb, p_rc, p_rt, onGPU; order="1_23")
@@ -636,20 +634,20 @@ function update_reduced_env_right(
         tmp4 = alloc_zeros(R, onGPU, (slb * slpb, srpc * srpt))
         tmp6 = alloc_undef(R, onGPU, (slb * slpb, slpc, srpt))
 
-        tmp1[:, pr_b_ct] = RE  # [rb, (rpb, rpt, rpc)]
-        tmp2 = reshape(tmp1, (srb * srpb, srpct))  # [(rb, rpb), (rpt, rpc)]
-        tmp3 = B2 * tmp2
+        tmp1[:, pr_b_ct] = RE  # [rb, (rpb, rpct)]
+        tmp2 = reshape(tmp1, (srb * srpb, srpct))  # [(rb, rpb), rpct]
+        tmp3 = B2 * tmp2  # [(lb, lpb), rpct]
         tmp4[:, pr_c_t] = tmp3
         tmp5 = reshape(tmp4, (slb * slpb, srpc, srpt))
         batched_mul!(tmp6, tmp5, M.con')  # [(lb, lpb), lpc, rpt]
         tmp7 = reshape(tmp6, (slb, slpb * slpc, srpt))
-        tmp8 = tmp7[:, pl_b_c, :]
-        tmp9 = reshape(tmp8, (slb * slpbc, srpt)) * K' # [lb, lpbc, lpt]
+        tmp8 = tmp7[:, pl_b_c, :]  # [lb, lpbc, rpt]
+        tmp9 = reshape(tmp8, (slb * slpbc, srpt)) * K' # [(lb, lpbc), lpt]
         tmp10 = reshape(tmp9, (slb, slpbc * slpt))
         Rtemp = tmp10[:, pl_bc_t]
     else
         pr_bc_t, pr_b_c, srpbc = merge_projectors_inter(M.lp, p_rt, p_rb, p_rc, onGPU; order="23_1")
-        pl_b_tc, pl_t_c, slptc = merge_projectors_inter(M.lp, p_lb, p_lt, p_lc, onGPU; order="1_23")
+        pl_b_ct, pl_c_t, slpct = merge_projectors_inter(M.lp, p_lb, p_lc, p_lt, onGPU; order="1_23")
 
         tmp1 = alloc_zeros(R, onGPU, (srb, srpbc * srpt))
         tmp4 = alloc_zeros(R, onGPU, (srb, srpb * srpc, slpt))
@@ -660,12 +658,12 @@ function update_reduced_env_right(
         tmp3 = reshape(tmp2 * K', (srb, srpbc, slpt)) # [rb, rpbc, lpt]
         tmp4[:, pr_b_c, :] = tmp3
         tmp5 = reshape(tmp4, (srb * srpb, srpc, slpt))
-        batched_mul!(tmp6, tmp5, M.con')  # [(rb, rpb), lpt, lpc]
-        tmp7 = reshape(tmp6, (srb * srpb, slpt * slpc))  # [(rb, rpb), (lpt, lpc)]
-        tmp8 = tmp7[:, pl_t_c]
-        tmp9 = B2 * tmp8  # [(lb, lpb), lptc]
-        tmp10 = reshape(tmp9, (slb, slpb * slptc))
-        Rtemp = tmp10[:, pl_b_tc]
+        batched_mul!(tmp6, tmp5, M.con')  # [(rb, rpb), lpc, lpt]
+        tmp7 = reshape(tmp6, (srb * srpb, slpc * slpt))  # [(rb, rpb), (lpc, lpt)]
+        tmp8 = tmp7[:, pl_c_t]
+        tmp9 = B2 * tmp8  # [(lb, lpb), lpct]
+        tmp10 = reshape(tmp9, (slb, slpb * slpct))
+        Rtemp = tmp10[:, pl_b_ct]
     end
     Rtemp
 end

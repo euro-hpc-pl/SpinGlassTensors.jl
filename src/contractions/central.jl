@@ -59,15 +59,10 @@ function contract_tensor3_central(LE, e11, e12, e21, e22)
 end
 
 function batched_mul!(newLE::Tensor{R, 3}, LE::Tensor{R, 3}, M::AbstractArray{R, 2}) where R <: Real
-    N1 = size(M,1)
-    N2= size(M,2)
-    new_M = CUDA.CuArray(M)
+    N1, N2 = size(M)
+    new_M = CUDA.CuArray(M)  # TODO: this is a hack to solve problem with types;
     new_M = reshape(new_M, (N1, N2, 1))
-    NNlib.batched_mul!(newLE, LE,  new_M)
-end
-
-function batched_mul!(newLE::Tensor{R, 3}, LE::Tensor{R, 3}, M::AbstractArray{R, 3}) where R <: Real
-    NNlib.batched_mul!(newLE, LE,  M)
+    NNlib.batched_mul!(newLE, LE, new_M)
 end
 
 function batched_mul!(newLE::Tensor{R, 3}, LE::Tensor{R, 3}, M::CentralTensor{R, 2}) where R <: Real
@@ -77,7 +72,7 @@ function batched_mul!(newLE::Tensor{R, 3}, LE::Tensor{R, 3}, M::CentralTensor{R,
     if sl1 * sl2 * sr1 * sr2 < sinter
         @cast E[(l1, l2), (r1, r2)] := M.e11[l1, r1] * M.e21[l2, r1] * M.e12[l1, r2] * M.e22[l2, r2]
         E = reshape(E, (sl1 * sl2, sr1 * sr2, 1))
-        batched_mul!(newLE, LE, E)
+        NNlib.batched_mul!(newLE, LE, E)
     elseif sr1 <= sr2 && sl1 <= sl2
         LE = reshape(LE, sb * sl1, 1, sl2, st) .* reshape(M.e21', 1, sr1, sl2, 1)  # [b * l1, r1, l2, t]
         LE = batched_mul(reshape(LE, sb * sl1 * sr1, sl2, st), M.e22)  # [(b, l1, r1), r2, t]

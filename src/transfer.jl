@@ -1,7 +1,7 @@
 
 # transfer.jl: This file provides rules of how to transfer tensors to GPU. Note, NOT all of
 #              tensor's coponents are moved from CPU to GPU and most tensors are generated
-#              on CPU due to the size of factor graph.
+#              on CPU due to the size of clustered Hamiltonian.
 export
     which_device,
     move_to_CUDA!,

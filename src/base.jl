@@ -19,6 +19,7 @@ mutable struct SiteTensor{T <: Real, N} <: AbstractSparseTensor{T, N}
 
     function SiteTensor(lp::PoolOfProjectors, loc_exp, projs::NTuple{4, Vector{Int}})
         T = eltype(loc_exp)
+        # device = typeof(loc_exp) <: CuArray ? :GPU : :CPU
         ks = Tuple(add_projector!(lp, p) for p ∈ projs)
         dims = size.(Ref(lp), ks)
         new{T, 4}(lp, loc_exp, ks, dims)
@@ -87,6 +88,7 @@ mutable struct VirtualTensor{T <: Real, N} <: AbstractSparseTensor{T, N}
 
     function VirtualTensor(lp::PoolOfProjectors, con, projs::NTuple{6, Vector{Int}})
         T = eltype(con)
+        # device = typeof(loc_exp) <: CuArray ? :GPU : :CPU
         ks = Tuple(add_projector!(lp, p) for p ∈ projs)
         dims = (length(lp, ks[2]), size(lp, ks[3]) * size(lp, ks[6]),
                 length(lp, ks[5]), size(lp, ks[1]) * size(lp, ks[4]))

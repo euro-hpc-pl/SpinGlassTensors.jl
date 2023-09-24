@@ -23,116 +23,19 @@ struct Adjoint{T, S <: CornerTensor}
     end
 end
 
-# """
-# input ϕ (results) should be canonized :left (:right)
-# # # """
-# function zipper(ψ::QMpo{R}, ϕ::QMps{R}; method::Symbol=:svd, Dcut::Int=typemax(Int), tol=eps(), kwargs...) where R <: Real
-#     onGPU = ψ.onGPU && ϕ.onGPU
-#     @assert is_left_normalized(ϕ)
-#     D = TensorMap{R}()
-#     C = onGPU ? CUDA.ones(R, 1, 1, 1) : ones(R, 1, 1, 1)
-#     mpo_li = last(ψ.sites)
 
-#     for i ∈ reverse(ϕ.sites)
-#         while mpo_li > i
-#             C = contract_matrix_tensor3(ψ[mpo_li], C)
-#             mpo_li = left_nbrs_site(mpo_li, ψ.sites)
-#         end
-#         @assert mpo_li == i "Mismatch between QMpo and QMps sites."
-#         mpo_li = left_nbrs_site(mpo_li, ψ.sites)
-
-#         CM = CornerTensor(C, ψ[i], ϕ[i])
-#         U, Σ, V = svd_corner_matrix(CM, method, Dcut, tol; toGPU=onGPU, kwargs...)
-#         nΣ = sqrt(sum(Σ .^ 2))
-#         println("site = ", i, "  nΣ = ", nΣ)
-#         Σ ./= nΣ
-#         C = U * Diagonal(Σ)
-
-#         V = permutedims(V, (2, 1))
-#         if i == ϕ.sites[1] V = C * V end
-#         s1, s2 = size(ψ[i])
-#         @cast V[x, y, z] := V[x, (y, z)] (z ∈ 1:s2)
-#         @cast C[x, y, z] := C[(x, y), z] (y ∈ 1:s1)
-#         C = permutedims(C, (1, 3, 2))
-#         push!(D, i => V)
-#     end
-#     QMps(D; onGPU = onGPU)
-# end
-
-
-
-# function zipper(ψ::QMpo{R}, ϕ::QMps{R}; method::Symbol=:svd, Dcut::Int=typemax(Int), tol=eps(), kwargs...) where R <: Real
-#     onGPU = ψ.onGPU && ϕ.onGPU
-#     @assert is_left_normalized(ϕ)
-#     D = TensorMap{R}()
-#     C = onGPU ? CUDA.ones(R, 1, 1, 1) : ones(R, 1, 1, 1)
-#     mpo_li = last(ψ.sites)
-
-#     max_it = 1
-#     Dtemp = 2 * Dcut
-
-#     for i ∈ reverse(ϕ.sites)
-#         while mpo_li > i
-#             C = contract_matrix_tensor3(ψ[mpo_li], C)
-#             mpo_li = left_nbrs_site(mpo_li, ψ.sites)
-#         end
-#         @assert mpo_li == i "Mismatch between QMpo and QMps sites."
-#         mpo_li = left_nbrs_site(mpo_li, ψ.sites)
-
-#         if i > ϕ.sites[1]
-#             CM = CornerTensor(C, ψ[i], ϕ[i])
-#             _, S, Vr = svd_corner_matrix(CM, method, Dtemp, tol; toGPU=onGPU, kwargs...)
-
-#             # println(" Norm S start= ", sqrt(sum(S .* S)))
-
-#             for kk = 1:max_it
-#                 # CM * Vr
-#                 x = reshape(Vr, size(CM.C, 2), size(CM.M, 2), :)
-#                 x = permutedims(x, (3, 1, 2))
-#                 x = update_env_right(CM.C, x, CM.M, CM.B)
-#                 CCC = reshape(permutedims(x, (1, 3, 2)), size(CM.B, 1) * size(CM.M, 1), :)
-
-#                 Ut, _ = qr_fact(CCC, Dtemp, 0.0; toGPU = ψ.onGPU, kwargs...)
-
-#                 # mat' * Ut
-#                 x = reshape(Ut, size(CM.B, 1), size(CM.M, 1), :)
-#                 x = permutedims(x, (1, 3, 2))
-#                 yp = project_ket_on_bra(x, CM.B, CM.M, CM.C)
-#                 CCC = reshape(permutedims(yp, (2, 3, 1)), size(CM.C, 2) * size(CM.M, 2), :)
-#                 # println(" Norm S = ", norm(CCC))
-
-#                 Vr, _ = qr_fact(CCC, Dtemp, 0.0; toGPU = ψ.onGPU, kwargs...)
-#             end
-#             # CM * Vr
-#             x = reshape(Vr, size(CM.C, 2), size(CM.M, 2), :)
-#             x = permutedims(x, (3, 1, 2))
-#             x = update_env_right(CM.C, x, CM.M, CM.B)
-#             CCC = reshape(permutedims(x, (1, 3, 2)), size(CM.B, 1) * size(CM.M, 1), :)
-#             # println(" Norm S = ", norm(CCC))
-#             CCC ./= norm(CCC)
-
-#             V, CCC = qr_fact(CCC', Dcut, tol; toGPU = ψ.onGPU, kwargs...)
-#             # println(" Norm S = ", norm(CCC))
-#             V = V' * Vr'
-#             s1, s2 = size(ψ[i])
-#             @cast CCC[z, x, y] := CCC[z, (x, y)] (y ∈ 1:s1)
-#             C = permutedims(CCC, (2, 1, 3))
-#             @cast V[x, y, z] := V[x, (y, z)] (z ∈ 1:s2)
-#             push!(D, i => V)
-#         else
-#             L = onGPU ? CUDA.ones(R, 1, 1, 1) : ones(R, 1, 1, 1)
-#             V = project_ket_on_bra(L, ϕ[i], ψ[i], C)
-#             V ./= norm(V)
-#             push!(D, i => V)
-#         end
-#     end
-#     QMps(D; onGPU = onGPU)
-# end
-
-
-
-
-function zipper(ψ::QMpo{R}, ϕ::QMps{R}; method::Symbol=:svd, Dcut::Int=typemax(Int), tol=eps(), iters_rand = 3, iters_svd=1, iters_var=1, Dtemp_multiplier=2, kwargs...) where R <: Real
+function zipper(
+    ψ::QMpo{R}, 
+    ϕ::QMps{R}; 
+    method::Symbol=:svd, 
+    Dcut::Int=typemax(Int), 
+    tol=eps(), 
+    iters_rand = 3, 
+    iters_svd=1, 
+    iters_var=1, 
+    Dtemp_multiplier=2, 
+    kwargs...
+    ) where R <: Real
     onGPU = ψ.onGPU && ϕ.onGPU
     @assert is_left_normalized(ϕ)
 

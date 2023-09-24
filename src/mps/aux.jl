@@ -35,9 +35,13 @@ function eye(::Type{T}, dim; toGPU::Bool=false) where T
 end
 
 function is_left_normalized(ψ::QMps)
-    all(eye(eltype(ψ), size(A, 2); toGPU = ψ.onGPU) ≈ @tensor Id[x, y] := A[α, x, σ] * A[α, y, σ] order = (α, σ) for A ∈ values(ψ.tensors))
+    all(
+        eye(eltype(ψ), size(A, 2); toGPU = ψ.onGPU) ≈ @tensor Id[x, y] := A[α, x, σ] * A[α, y, σ] order = (α, σ) for A ∈ values(ψ.tensors) # TODO: split the line
+        )
 end
 
 function is_right_normalized(ψ::QMps)
-    all(eye(eltype(ψ), size(B, 1); toGPU = ψ.onGPU) ≈ @tensor Id[x, y] := B[x, α, σ] * B[y, α, σ] order = (α, σ) for B ∈ values(ψ.tensors))
+    all(
+        eye(eltype(ψ), size(B, 1); toGPU = ψ.onGPU) ≈ @tensor Id[x, y] := B[x, α, σ] * B[y, α, σ] order = (α, σ) for B ∈ values(ψ.tensors) # TODO: split the line
+        )
 end

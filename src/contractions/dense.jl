@@ -26,7 +26,7 @@ end
         -- B --
 """
 function update_env_left(LE::S, A::S, M::T, B::S) where {S <: Tensor{R, 3}, T <: Tensor{R, 4}} where R <: Real
-    @tensor LE[nb, nt, nc] := LE[ob, ot, oc] * A[ot, nt, α] * M[oc, α, nc, β] * B[ob, nb, β] order = (ot, α, oc, β, ob)
+    @tensor LE[nb, nt, nc] := LE[ob, ot, oc] * A[ot, nt, α] * M[oc, α, nc, β] * B[ob, nb, β] order = (ot, α, oc, β, ob) # TODO: split the line
 end
 
 """
@@ -131,21 +131,6 @@ function update_reduced_env_right(RE::Tensor{R, 2}, m::Int, M::MpoTensor{R, 4}, 
     end
     update_reduced_env_right(K, RE, M.ctr, B)
 end
-
-
-# function update_reduced_env_right2(RE::Tensor{R, 2}, m::Int, M::MpoTensor{R, 4}, B::Tensor{R, 3}) where R <: Real
-#     K = zeros(R, size(M, 2))
-#     K[m] = one(R)
-#     if typeof(RE) <: CuArray K = CuArray(K) end
-#     K = reshape(K, 1, 1, size(K, 1))
-#     for v ∈ M.top K = contract_tensor3_matrix(K, v) end
-#     K = dropdims(K, dims=(1, 2))
-
-#     for v ∈ reverse(M.bot)
-#         B = contract_matrix_tensor3(v, B)   # TODO do we ever enter here? in mpo layers that we have now, we don't
-#     end
-#     update_reduced_env_right2(K, RE, M.ctr, B)
-# end
 
 function update_reduced_env_right(
     K::Tensor{R, 1}, RE::Tensor{R, 2}, M::Tensor{R, 4}, B::Tensor{R, 3}

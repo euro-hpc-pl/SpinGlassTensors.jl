@@ -19,7 +19,13 @@ function svd_fact(A::AbstractMatrix{T}, Dcut::Int=typemax(Int), tol::T=eps(), kw
     U .* ϕ, Σ, V .* ϕ
 end
 
-function qr_fact(M::AbstractMatrix{T}, Dcut::Int=typemax(Int), tol::T=eps(); toGPU::Bool=true, kwargs...) where T <: Real
+function qr_fact(
+    M::AbstractMatrix{T}, 
+    Dcut::Int=typemax(Int), 
+    tol::T=eps(); 
+    toGPU::Bool=true, 
+    kwargs...
+    ) where T <: Real
     q, r = qr_fix(qr(Array(M); kwargs...))
     if Dcut >= size(q, 2)
         toGPU && return CuArray.((q, r))
@@ -30,7 +36,13 @@ function qr_fact(M::AbstractMatrix{T}, Dcut::Int=typemax(Int), tol::T=eps(); toG
     q * U, Σ .* V'
 end
 
-function rq_fact(M::AbstractMatrix{T}, Dcut::Int=typemax(Int), tol::T=eps(); toGPU::Bool=true, kwargs...) where T <: Real
+function rq_fact(
+    M::AbstractMatrix{T}, 
+    Dcut::Int=typemax(Int), 
+    tol::T=eps(); 
+    toGPU::Bool=true, 
+    kwargs...
+    ) where T <: Real
     q, r = qr_fact(M', Dcut, tol; toGPU=toGPU, kwargs...)
     toGPU && return CuArray.((r', q'))
     r', q'

@@ -24,7 +24,6 @@ function Base.rand(
     ::Type{SiteTensor{T}}, lp::PoolOfProjectors, l::Int, D::NTuple
 ) where T <: Real
     loc_exp = rand(l)
-    # projs = (rand(collect(0:D[1]), l), rand(collect(0:D[2]), l), rand(collect(0:D[3]), l), rand(collect(0:D[4]), l))
     projs = D
 
     SiteTensor(lp, loc_exp, projs)

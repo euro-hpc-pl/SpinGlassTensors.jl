@@ -34,9 +34,9 @@ end
 function measure_memory(caches::IdDict{Any, Any}, bytes::Bool = true)
     memoization_memory = bytes ? Dict{Any, Vector{String}}() : Dict{Any, Vector{Int64}}()
     for key in keys(caches)
-        push!(memoization_memory, key => bytes ? format_bytes.(measure_memory(caches[key])) : measure_memory(caches[key]))
+        push!(
+            memoization_memory, key => bytes ? format_bytes.(measure_memory(caches[key])) : measure_memory(caches[key])
+            )
     end
     memoization_memory
 end
-
-#measure_memory(caches::IdDict) = Dict(key => format_bytes.(measure_memory(caches[key])) for key ∈ keys(caches))

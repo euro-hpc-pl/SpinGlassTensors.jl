@@ -98,9 +98,9 @@ end
         -- B --
 """
 function update_env_left(
-    LE::S, 
-    A::S, 
-    M::T, 
+    LE::S,
+    A::S,
+    M::T,
     B::S
     ) where {S <: AbstractArray{R, 3}, T <: MpoTensor{R, 4}} where R <: Real
     for v ∈ M.top A = contract_tensor3_matrix(A, v) end
@@ -241,9 +241,9 @@ end
      -- B --
 """
 function project_ket_on_bra(
-    LE::S, 
-    B::S, 
-    M::T, 
+    LE::S,
+    B::S,
+    M::T,
     RE::S
     ) where {S <: AbstractArray{R, 3}, T <: MpoTensor{R, 4}} where R <: Real
     for v ∈ reverse(M.bot) B = contract_matrix_tensor3(v, B) end

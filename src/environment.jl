@@ -6,7 +6,6 @@ export
 
 abstract type AbstractEnvironment end
 
-
 mutable struct EnvironmentMixed{T <: Real} <: AbstractEnvironment
     bra::QMps{T}  # mps that is to be optimized
     mpo::QMpo{T}
@@ -46,7 +45,6 @@ function clear_env_containing_site!(env::EnvironmentMixed, site)
         end
     end
 end
-
 
 mutable struct Environment{T <: Real} <: AbstractEnvironment
     bra::QMps{T}  # mps that is to be optimized
@@ -176,16 +174,6 @@ function update_env_right(
     update_env_right(RE, A, M.ctr, B)
 end
 
-
-# function update_env_right2(
-#     RE::S, A::S1, M::T, B::S
-# ) where {T <: MpoTensor{R, 4}, S <: AbstractArray{R, 3}, S1 <: AbstractArray{R, 3}} where R <: Real
-#     for v ∈ M.top  A = contract_tensor3_matrix(A, v) end
-#     for v ∈ reverse(M.bot) B = contract_matrix_tensor3(v, B) end
-#     update_env_right2(RE, A, M.ctr, B)
-# end
-
-
 function update_env_right!(env::Environment, site::Site)
     site >= last(env.bra.sites) && return
     rs = right_nbrs_site(site, env.bra.sites)
@@ -201,7 +189,6 @@ function update_env_right!(env::Environment, site::Site)
     nRR = env.log_norms[(rs, :right)] + log(nRR)
     push!(env.log_norms, (site, :right) => nRR)
 end
-
 
 function update_env_right!(env::EnvironmentMixed{T}, site) where T   # site::Union(Sites, :central)
     if site == last(env.bra.sites)
@@ -256,7 +243,6 @@ end
 project_ket_on_bra(env::Environment, site::Site) = project_ket_on_bra(
     env.env[(site, :left)], env.ket[site], env.mpo[site], env.env[(site, :right)]
 )
-
 
 function project_ket_on_bra(env::EnvironmentMixed, site)
     if site == :central

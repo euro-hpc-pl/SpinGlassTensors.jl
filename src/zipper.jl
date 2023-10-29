@@ -23,17 +23,16 @@ struct Adjoint{T, S <: CornerTensor}
     end
 end
 
-
 function zipper(
-    ψ::QMpo{R}, 
-    ϕ::QMps{R}; 
-    method::Symbol=:svd, 
-    Dcut::Int=typemax(Int), 
-    tol=eps(), 
-    iters_rand = 3, 
-    iters_svd=1, 
-    iters_var=1, 
-    Dtemp_multiplier=2, 
+    ψ::QMpo{R},
+    ϕ::QMps{R};
+    method::Symbol = :svd,
+    Dcut::Int = typemax(Int),
+    tol = eps(),
+    iters_rand = 3,
+    iters_svd = 1,
+    iters_var = 1,
+    Dtemp_multiplier = 2,
     kwargs...
     ) where R <: Real
     onGPU = ψ.onGPU && ϕ.onGPU
@@ -78,8 +77,6 @@ function zipper(
                 Vr = CuArray(Vr)
             end
 
-            #_, _, Vr = svd_corner_matrix(CM, method, Dtemp, tol; toGPU=onGPU, kwargs...)
-
             for _ = 1 : iters_svd
                 # CM * Vr
                 x = reshape(Vr, size(CM.C, 2), size(CM.M, 2), :)
@@ -97,6 +94,7 @@ function zipper(
 
                 Vr, _ = qr_fact(CCC, Dtemp, 0.0; toGPU = ψ.onGPU, kwargs...)
             end
+
             # CM * Vr
             x = reshape(Vr, size(CM.C, 2), size(CM.M, 2), :)
             x = permutedims(x, (3, 1, 2))
@@ -183,7 +181,6 @@ function _right_sweep_var_site!(env::EnvironmentMixed, site; kwargs...)
     end
     clear_env_containing_site!(env, site)
 end
-
 
 function Base.Array(CM::CornerTensor)  # change name, or be happy with "psvd(Array(Array(CM))"
     B, M, C = CM.B, CM.M, CM.C

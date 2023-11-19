@@ -1,7 +1,7 @@
 using Documenter, SpinGlassTensors
 
 _pages = [
-    "Introduction" => "index.md",
+    "User guide" => "index.md",
     "API Reference" => "api.md"
 ]
 # ============================

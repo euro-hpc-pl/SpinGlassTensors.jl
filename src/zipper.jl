@@ -33,6 +33,7 @@ function zipper(
     iters_svd = 1,
     iters_var = 1,
     Dtemp_multiplier = 2,
+    mode::Symbol = :Ising,
     kwargs...
     ) where R <: Real
     onGPU = ψ.onGPU && ϕ.onGPU
@@ -124,25 +125,49 @@ function zipper(
             update_env_left!(env, :central)
             _left_sweep_var_site!(env, :central; kwargs...)
             for k in reverse(ϕ.sites)
-                if k < i
-                    _left_sweep_var_site!(env, k; kwargs...)
+                if mode == :RMF
+                    if (i - 5) <= k < i
+                        _left_sweep_var_site!(env, k; kwargs...)
+                    end
+                else
+                    if k < i
+                        _left_sweep_var_site!(env, k; kwargs...)
+                    end
                 end
             end
             for k in ϕ.sites
-                if k < i
-                    _right_sweep_var_site!(env, k; kwargs...)
+                if mode == :RMF
+                    if (i - 5) <= k < i
+                        _right_sweep_var_site!(env, k; kwargs...)
+                    end
+                else
+                    if k < i
+                        _right_sweep_var_site!(env, k; kwargs...)
+                    end
                 end
             end
             _right_sweep_var_site!(env, :central; kwargs...)
 
             for k in ϕ.sites
-                if k >= i
-                    _right_sweep_var_site!(env, k; kwargs...)
+                if mode == :RMF
+                    if (i+5) >= k >= i
+                        _right_sweep_var_site!(env, k; kwargs...)
+                    end
+                else
+                    if k >= i
+                        _right_sweep_var_site!(env, k; kwargs...)
+                    end
                 end
             end
             for k in reverse(ϕ.sites)
-                if k >= i
-                    _left_sweep_var_site!(env, k; kwargs...)
+                if mode == :RMF
+                    if (i+5) >= k >= i
+                        _left_sweep_var_site!(env, k; kwargs...)
+                    end
+                else
+                    if k >= i
+                        _left_sweep_var_site!(env, k; kwargs...)
+                    end
                 end
             end
             update_env_right!(env, :central)

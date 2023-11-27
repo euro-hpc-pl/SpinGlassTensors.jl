@@ -33,7 +33,7 @@ function zipper(
     iters_svd = 1,
     iters_var = 1,
     Dtemp_multiplier = 2,
-    mode::Symbol = :Ising,
+    depth::Int = 0,
     kwargs...
     ) where R <: Real
     onGPU = ψ.onGPU && ϕ.onGPU
@@ -41,6 +41,8 @@ function zipper(
 
     C = onGPU ? CUDA.ones(R, 1, 1, 1) : ones(R, 1, 1, 1)
     mpo_li = last(ψ.sites)
+
+    d = (depth == 0) ? mpo_li : depth
 
     Dtemp = Dtemp_multiplier * Dcut
     out = copy(ϕ)
@@ -125,49 +127,25 @@ function zipper(
             update_env_left!(env, :central)
             _left_sweep_var_site!(env, :central; kwargs...)
             for k in reverse(ϕ.sites)
-                if mode == :RMF
-                    if (i - 5) <= k < i
-                        _left_sweep_var_site!(env, k; kwargs...)
-                    end
-                else
-                    if k < i
-                        _left_sweep_var_site!(env, k; kwargs...)
-                    end
+                if (i - d) <= k < i
+                    _left_sweep_var_site!(env, k; kwargs...)
                 end
             end
             for k in ϕ.sites
-                if mode == :RMF
-                    if (i - 5) <= k < i
-                        _right_sweep_var_site!(env, k; kwargs...)
-                    end
-                else
-                    if k < i
-                        _right_sweep_var_site!(env, k; kwargs...)
-                    end
+                if (i - d) <= k < i
+                    _right_sweep_var_site!(env, k; kwargs...)
                 end
             end
             _right_sweep_var_site!(env, :central; kwargs...)
 
             for k in ϕ.sites
-                if mode == :RMF
-                    if (i+5) >= k >= i
-                        _right_sweep_var_site!(env, k; kwargs...)
-                    end
-                else
-                    if k >= i
-                        _right_sweep_var_site!(env, k; kwargs...)
-                    end
+                if (i + d) >= k >= i
+                    _right_sweep_var_site!(env, k; kwargs...)
                 end
             end
             for k in reverse(ϕ.sites)
-                if mode == :RMF
-                    if (i+5) >= k >= i
-                        _left_sweep_var_site!(env, k; kwargs...)
-                    end
-                else
-                    if k >= i
-                        _left_sweep_var_site!(env, k; kwargs...)
-                    end
+                if (i + d) >= k >= i
+                    _left_sweep_var_site!(env, k; kwargs...)
                 end
             end
             update_env_right!(env, :central)

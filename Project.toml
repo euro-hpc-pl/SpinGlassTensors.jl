@@ -5,6 +5,7 @@ version = "0.1.5"
 
 [deps]
 CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
+DocStringExtensions = "ffbed154-4ef7-542d-bbb7-c09d3a79fcae"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 LowRankApprox = "898213cb-b102-5a47-900c-97e73b919f73"
 MKL = "33e6dc65-8f57-5167-99aa-e5a354878fb2"

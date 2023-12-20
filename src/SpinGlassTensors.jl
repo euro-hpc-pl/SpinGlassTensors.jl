@@ -6,10 +6,12 @@ module SpinGlassTensors
     using NNlib, NNlibCUDA
     using Memoization
     using SparseArrays
-    using SpinGlassNetworks
+    using DocStringExtensions
+ #   using SpinGlassNetworks
 
     CUDA.allowscalar(false)
 
+    include("projectors.jl")
     include("base.jl")
     include("linear_algebra_ext.jl")
     include("./mps/base.jl")
@@ -31,5 +33,6 @@ module SpinGlassTensors
     include("contractions/diagonal.jl")
     include("contractions/site.jl")
     include("contractions/virtual.jl")
+
 
 end # module

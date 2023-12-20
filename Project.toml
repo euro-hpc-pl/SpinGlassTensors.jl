@@ -19,10 +19,9 @@ TensorOperations = "6aa20fa7-93e2-5fca-9bc0-fbd0db3c71a2"
 
 [compat]
 MKL = "0.4.2"
-Memoization = "0.1.14"
 TensorCast = "0.4"
 TensorOperations = "3.0.1"
-julia = "1.7, 1.8"
+julia = "1.8, 1.9"
 
 [extras]
 Logging = "56ddb016-857b-54e1-b83d-db4d58db5568"

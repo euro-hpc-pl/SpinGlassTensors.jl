@@ -11,7 +11,8 @@ using Test
 
 my_tests = [
     "canonise.jl",
-    # "variational.jl"
+    "variational.jl",
+    "projectors.jl"
     ]
 
 for my_test in my_tests

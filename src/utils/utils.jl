@@ -1,4 +1,4 @@
-export rank_reveal
+export rank_reveal, unique_dims
 
 import Base.Prehashed
 """

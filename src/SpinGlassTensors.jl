@@ -7,6 +7,9 @@ module SpinGlassTensors
     using Memoization
     using SparseArrays
     using DocStringExtensions
+    using Base.Cartesian
+
+    import Base.Prehashed
  #   using SpinGlassNetworks
 
     CUDA.allowscalar(false)
@@ -14,6 +17,7 @@ module SpinGlassTensors
     include("projectors.jl")
     include("base.jl")
     include("linear_algebra_ext.jl")
+    include("utils/utils.jl")
     include("./mps/base.jl")
     include("./mps/transpose.jl")
     include("./mps/dot.jl")

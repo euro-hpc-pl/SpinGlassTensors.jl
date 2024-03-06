@@ -1,4 +1,3 @@
-T = Float64
 D = 16
 
 sites = [1, 3//2, 2, 5//2, 3, 7//2, 4]
@@ -6,7 +5,7 @@ d = [1, 2, 2, 2, 4, 2, 2]
 
 id = Dict(j => d[i] for (i, j) in enumerate(sites))
 
-@testset "Random QMps" begin
+@testset "Random QMps ($T)" for T in (Float32, Float64)
     for toCUDA ∈ (true, false)
         ψ = rand(QMps{T}, id, D)
         ϕ = rand(QMps{T}, id, D)
@@ -36,10 +35,10 @@ id = Dict(j => d[i] for (i, j) in enumerate(sites))
     end
 end
 
-@testset "Measure spectrum" begin
+@testset "Measure spectrum($T)" for T in (Float32, Float64)
     svd_mps = TensorMap{T}(
-        1 => [-0.694389933025747 -0.7195989305943268;;; 0.7195989305943268 -0.6943899330257469],
-        2 => [0.7071067811865477; 0.0;;; -7.850461536237973e-17; 0.7071067811865477]
+        1 => T[-0.694389933025747 -0.7195989305943268;;; 0.7195989305943268 -0.6943899330257469],
+        2 => T[0.7071067811865477; 0.0;;; -7.850461536237973e-17; 0.7071067811865477]
     )
     ψ = QMps(svd_mps)
     @test is_left_normalized(ψ)

@@ -29,19 +29,35 @@ function is_consistent(ψ::QMps)
 end
 
 function eye(::Type{T}, dim; toGPU::Bool=false) where T
-    id = Diagonal(ones(T, dim))
-    toGPU && return CuArray(id)
-    id
+    v = ones(T, dim)
+    toGPU && return cu(spdiagm(v))
+    Diagonal(v)
 end
 
-function is_left_normalized(ψ::QMps)
+function is_left_normalized(ψ::QMps, ::Val{false})
     all(
-        eye(eltype(ψ), size(A, 2); toGPU = ψ.onGPU) ≈ @tensor Id[x, y] := A[α, x, σ] * A[α, y, σ] order = (α, σ) for A ∈ values(ψ.tensors) # TODO: split the line
+        eye(eltype(ψ), size(A, 2); toGPU = false) ≈ @tensor(Id[x, y] := A[α, x, σ] * A[α, y, σ];  order = (α, σ)) for A ∈ values(ψ.tensors) # TODO: split the line
         )
 end
 
-function is_right_normalized(ψ::QMps)
+function is_left_normalized(ψ::QMps, ::Val{true})
     all(
-        eye(eltype(ψ), size(B, 1); toGPU = ψ.onGPU) ≈ @tensor Id[x, y] := B[x, α, σ] * B[y, α, σ] order = (α, σ) for B ∈ values(ψ.tensors) # TODO: split the line
+        eye(eltype(ψ), size(A, 2); toGPU = true) ≈ @cutensor(Id[x, y] := A[α, x, σ] * A[α, y, σ]) for A ∈ values(ψ.tensors) # TODO: split the line
         )
 end
+
+is_left_normalized(ψ::QMps) = is_left_normalized(ψ, Val(ψ.onGPU))
+
+function is_right_normalized(ψ::QMps, ::Val{false})
+    all(
+        eye(eltype(ψ), size(B, 1); toGPU = false) ≈ @tensor(Id[x, y] := B[x, α, σ] * B[y, α, σ];  order = (α, σ)) for B ∈ values(ψ.tensors) # TODO: split the line
+        )
+end
+
+function is_right_normalized(ψ::QMps, ::Val{true})
+    all(
+        eye(eltype(ψ), size(B, 1); toGPU = true) ≈ @cutensor(Id[x, y] := B[x, α, σ] * B[y, α, σ]) for B ∈ values(ψ.tensors) # TODO: split the line
+        )
+end
+
+is_right_normalized(ψ::QMps) = is_right_normalized(ψ, Val(ψ.onGPU))

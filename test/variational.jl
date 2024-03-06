@@ -28,23 +28,10 @@ end
 
 @testset "Compressions for sparse mps and mpo works" begin
     W = rand(QMpo{S}, mpomap)
-    println(W)
-    println(bond_dimensions(W))
     ψ = rand(QMps{S}, id, D)
-    println(ψ)
     canonise!(ψ, :left)
-    println(bond_dimensions(ψ))
     ϕ = rand(QMps{S}, id, D)
     canonise!(ϕ, :left)
 
-    Dcut = 8
-    max_sweeps = 100
-    tol = 1E-10
 
-    # χ = W * ψ
-    # @time overlap, env = variational_compress!(ψ, W, ϕ, tol, max_sweeps)
 end
-
-
-# A = Dict(1.0 => Dict(0.0 => rand(1,2,2, 1)), 2.0 => Dict(0.0 =>rand(2,2,2,1)), 3.0 => Dict(0.0 =>rand(2,2,1,1)))
-# QMpo(A)

@@ -11,7 +11,7 @@ function LinearAlgebra.dot(ψ::QMps{T}, ϕ::QMps{T}) where T <: Real
     C = ψ.onGPU && ϕ.onGPU ? CUDA.ones(T, 1, 1) : ones(T, 1, 1)
     for i ∈ ϕ.sites
         A, B = ϕ[i], ψ[i]
-        @tensor C[x, y] := conj(B)[β, x, σ] * C[β, α] * A[α, y, σ] order = (α, β, σ)
+        @tensor order = (α, β, σ) C[x, y] := conj(B)[β, x, σ] * C[β, α] * A[α, y, σ]
     end
     tr(C)
 end

@@ -378,7 +378,7 @@ function contract_tensors43(M::VirtualTensor{R, 4}, B::Tensor{R, 3}) where R <: 
     else
         pls = contract_tensor3_matrix(pls, M.con)
     end
-    @tensor MB[l, lt, r, rt] := pls[lt, lb, c] * prs[rt, rb, c] * B[l, r, lb, rb]  order=(lb, c, rb)
+    @tensor order=(lb, c, rb) MB[l, lt, r, rt] := pls[lt, lb, c] * prs[rt, rb, c] * B[l, r, lb, rb]
     MB = reshape(MB, slb, slct, slcp, srb, srct, srcp)
     MB = permutedims(MB, (1, 3, 4, 6, 2, 5))
     reshape(MB, (slb * slcp, srb * srcp, slct * srct))

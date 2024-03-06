@@ -52,7 +52,7 @@ function canonise_truncate!(ψ::QMps, type::Symbol, Dcut::Int=typemax(Int), tolS
     end
 end
 
-function _right_sweep!(ψ::QMps{T}, Dcut::Int=typemax(Int), tolS::T=eps(); kwargs...) where T <: Real
+function _right_sweep!(ψ::QMps{T}, Dcut::Int=typemax(Int), tolS::T=eps(T); kwargs...) where T <: Real
     R = ψ.onGPU ? CUDA.ones(T, 1, 1) : ones(T, 1, 1)
     for i ∈ ψ.sites
         A = ψ[i]
@@ -66,7 +66,7 @@ function _right_sweep!(ψ::QMps{T}, Dcut::Int=typemax(Int), tolS::T=eps(); kwarg
     end
 end
 
-function _left_sweep!(ψ::QMps{T}, Dcut::Int=typemax(Int), tolS::T=eps(); kwargs...) where T <: Real
+function _left_sweep!(ψ::QMps{T}, Dcut::Int=typemax(Int), tolS::T=eps(T); kwargs...) where T <: Real
     R = ψ.onGPU ? CUDA.ones(T, 1, 1) : ones(T, 1, 1)
     for i ∈ reverse(ψ.sites)
         B = permutedims(ψ[i], (1, 3, 2)) # [x, σ, α]

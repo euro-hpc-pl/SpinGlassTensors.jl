@@ -42,8 +42,5 @@ end
     r1 = U1 * Diagonal(Σ1) * V1'
     r2 = U2 * Diagonal(Σ2) * V2'
 
-    println(norm(a-r2))
-    println(norm(a-r1))
-
     @test norm(r1-r2) < tol
 end

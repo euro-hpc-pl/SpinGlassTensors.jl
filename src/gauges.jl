@@ -122,7 +122,7 @@ function _overlap_forward(ϕ::QMps{T}, ψ::QMps{T}, k::Site) where T <: Real
     i = ψ.sites[1]
     while i < k
         A, B = ψ[i], ϕ[i]
-        @tensor C[x, y] := conj(B)[β, σ, x] * C[β, α] * A[α, σ, y] order = (α, β, σ)
+        @tensor order = (α, β, σ) C[x, y] := conj(B)[β, σ, x] * C[β, α] * A[α, σ, y]
         i += 1
     end
     C
@@ -133,7 +133,7 @@ function _overlap_backwards(ϕ::QMps{T}, ψ::QMps{T}, k::Site) where T <: Real
     i = ψ.sites[end]
     while i > k
         A, B = ψ[i], ϕ[i]
-        @tensor D[x, y] := conj(B)[x, σ, β] * D[β, α] * A[y, σ, α] order = (α, β, σ)
+        @tensor order = (α, β, σ) D[x, y] := conj(B)[x, σ, β] * D[β, α] * A[y, σ, α]
         i -= 1
     end
     D

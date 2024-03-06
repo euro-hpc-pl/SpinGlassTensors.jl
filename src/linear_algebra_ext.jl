@@ -10,7 +10,7 @@ export
 @inline phase(d::T; atol=eps()) where T <: Real = isapprox(d, zero(T), atol=atol) ? one(T) : d / abs(d)
 @inline phase(d::AbstractArray; atol=eps()) = map(x -> phase(x; atol=atol), d)
 
-function svd_fact(A::AbstractMatrix{T}, Dcut::Int=typemax(Int), tol::T=eps(), kwargs...) where T <: Real
+function svd_fact(A::AbstractMatrix{T}, Dcut::Int=typemax(Int), tol=eps(T); kwargs...) where T <: Real
     U, Σ, V = svd(A; kwargs...)
     δ = min(Dcut, sum(Σ .> Σ[1] * max(eps(), tol)))
     U, Σ, V = U[:, 1:δ], Σ[1:δ], V[:, 1:δ]

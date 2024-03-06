@@ -3,7 +3,8 @@ module SpinGlassTensors
     using TensorOperations, TensorCast
     using LowRankApprox, TSVD
     using CUDA, CUDA.CUSPARSE
-    using NNlib, NNlibCUDA
+    using cuTENSOR
+    using NNlib
     using Memoization
     using SparseArrays
     using DocStringExtensions

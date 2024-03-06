@@ -5,7 +5,7 @@ on:
 jobs:
   test:
     name: Julia ${{ matrix.version }}
-    runs-on: [self-hosted,titan]
+    runs-on: self-hosted
     strategy:
       fail-fast: false
       matrix:

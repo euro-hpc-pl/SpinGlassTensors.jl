@@ -1,9 +1,11 @@
 using CUDA
 
-function move_to_CUDA(a::Array{T, N}) where {T, N}
+function move_to_CUDA(a::Array{T,N}) where {T,N}
     buf_a = Mem.alloc(Mem.Unified, sizeof(a))
-    d_a = unsafe_wrap(CuArray{T, N}, convert(CuPtr{T}, buf_a), size(a))
-    finalizer(d_a) do _ Mem.free(buf_a) end
+    d_a = unsafe_wrap(CuArray{T,N}, convert(CuPtr{T}, buf_a), size(a))
+    finalizer(d_a) do _
+        Mem.free(buf_a)
+    end
     copyto!(d_a, a)
     d_a
 end

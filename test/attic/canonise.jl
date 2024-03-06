@@ -1,7 +1,7 @@
 T = Float64
 D = 16
 
-sites = [1, 3//2, 2, 5//2, 3, 7//2, 4]
+sites = [1, 3 // 2, 2, 5 // 2, 3, 7 // 2, 4]
 d = [1, 2, 2, 2, 4, 2, 2]
 
 id = Dict(j => d[i] for (i, j) in enumerate(sites))

@@ -27,20 +27,20 @@
 
             ϕ.tensors[ψ.sites[1]] *= 1 / norm(ϕ)
             @test dot(ϕ, ϕ) ≈ 1
-        end 
-    end 
-    
+        end
+    end
+
     @testset "dot product of MPS with MPO" begin
-        B = randn(Float64, 4,2,3)
-        A = randn(Float64, 2,2)  
-        C = randn(Float64, 2,2,2,2)
+        B = randn(Float64, 4, 2, 3)
+        A = randn(Float64, 2, 2)
+        C = randn(Float64, 2, 2, 2, 2)
         O2 = random_QMpo(sites, D, d)
 
-        @testset "contract_left gives correct sizes" begin 
-            @test size(contract_left(B, A)) == (4,2,3)
+        @testset "contract_left gives correct sizes" begin
+            @test size(contract_left(B, A)) == (4, 2, 3)
         end
 
-        @testset "contract_tensors43 gives correct sizes" begin 
+        @testset "contract_tensors43 gives correct sizes" begin
             @test size(contract_tensors43(C, B)) == (8, 2, 6)
         end
 

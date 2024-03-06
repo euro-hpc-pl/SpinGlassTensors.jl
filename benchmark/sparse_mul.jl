@@ -1,7 +1,7 @@
 using CUDA
 using LinearAlgebra
 
-function CUDA.:*(Md::DenseCuMatrix{T}, Mcsc::CUSPARSE.CuSparseMatrixCSC{T}) where T
+function CUDA.:*(Md::DenseCuMatrix{T}, Mcsc::CUSPARSE.CuSparseMatrixCSC{T}) where {T}
     ret = CUDA.zeros(T, size(Mcsc, 1), size(Md, 2))
     CUSPARSE.mm!('N', 'N', one(T), Mcsc, Md, zero(T), ret, 'O')
     ret

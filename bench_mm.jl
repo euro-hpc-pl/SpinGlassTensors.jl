@@ -4,7 +4,7 @@ function time_mm()
     L = rand(100, 100)
     R = rand(100, 100)
     @time begin
-        @matmul M1[x, σ, α] := sum(β) L[x, β] * M[β, σ, α] 
+        @matmul M1[x, σ, α] := sum(β) L[x, β] * M[β, σ, α]
         @matmul MM[x, σ, y] := sum(α) M1[x, σ, α] * R[α, y]
     end
 end

@@ -10,7 +10,7 @@
     tol = 1E-10
 
     ψ = rand(QMps{T}, sites, D, d)
-    W = rand(QMpo{T}, [1,2,3,4], 2, 4)
+    W = rand(QMpo{T}, [1, 2, 3, 4], 2, 4)
 
     bra = ψ
     ket = ψ

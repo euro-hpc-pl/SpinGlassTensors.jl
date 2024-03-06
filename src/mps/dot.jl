@@ -6,7 +6,7 @@ LinearAlgebra.norm(ψ::QMps) = sqrt(abs(dot(ψ, ψ)))
 Base.:(*)(ϕ::QMps, ψ::QMps) = dot(ϕ, ψ)
 Base.:(*)(W::QMpo, ψ::QMps) = dot(W, ψ)
 
-function LinearAlgebra.dot(ψ::QMps{T}, ϕ::QMps{T}) where T <: Real
+function LinearAlgebra.dot(ψ::QMps{T}, ϕ::QMps{T}) where {T<:Real}
     @assert ψ.sites == ϕ.sites
     C = ψ.onGPU && ϕ.onGPU ? CUDA.ones(T, 1, 1) : ones(T, 1, 1)
     for i ∈ ϕ.sites
@@ -16,13 +16,17 @@ function LinearAlgebra.dot(ψ::QMps{T}, ϕ::QMps{T}) where T <: Real
     tr(C)
 end
 
-function LinearAlgebra.dot(ψ::QMpo{R}, ϕ::QMps{R}) where R <: Real  
+function LinearAlgebra.dot(ψ::QMpo{R}, ϕ::QMps{R}) where {R<:Real}
     D = TensorMap{R}()
     for i ∈ reverse(ϕ.sites)
         M, B = ψ[i], ϕ[i]
-        for v ∈ reverse(M.bot) B = contract_matrix_tensor3(v, B) end
+        for v ∈ reverse(M.bot)
+            B = contract_matrix_tensor3(v, B)
+        end
         B = contract_tensors43(M.ctr, B)
-        for v ∈ reverse(M.top) B = contract_matrix_tensor3(v, B) end
+        for v ∈ reverse(M.top)
+            B = contract_matrix_tensor3(v, B)
+        end
 
         mps_li = left_nbrs_site(i, ϕ.sites)
         mpo_li = left_nbrs_site(i, ψ.sites)
@@ -42,6 +46,8 @@ function LinearAlgebra.dot(ψ::QMpo{R}, ϕ::QMps{R}) where R <: Real
     QMps(D; onGPU = ψ.onGPU && ϕ.onGPU)
 end
 
-contract_tensor3_matrix(B::AbstractArray{T, 3}, M::MpoTensor{T, 2}) where T <: Real = contract_tensor3_matrix(B, M.ctr)
-contract_matrix_tensor3(M::MpoTensor{T, 2}, B::AbstractArray{T, 3}) where T <: Real = contract_matrix_tensor3(M.ctr, B)
-contract_tensors43(B::Nothing, A::AbstractArray{T, 3}) where T <: Real = A
+contract_tensor3_matrix(B::AbstractArray{T,3}, M::MpoTensor{T,2}) where {T<:Real} =
+    contract_tensor3_matrix(B, M.ctr)
+contract_matrix_tensor3(M::MpoTensor{T,2}, B::AbstractArray{T,3}) where {T<:Real} =
+    contract_matrix_tensor3(M.ctr, B)
+contract_tensors43(B::Nothing, A::AbstractArray{T,3}) where {T<:Real} = A

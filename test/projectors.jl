@@ -38,15 +38,15 @@
             k = add_projector!(lp, p1)
             k = add_projector!(lp, p2)
 
-            @test typeof(get_projector!(lp, 2, :CPU)) <: Array{T, 1}
-            @test typeof(get_projector!(lp, 1, :GPU)) <: CuArray{T, 1}
+            @test typeof(get_projector!(lp, 2, :CPU)) <: Array{T,1}
+            @test typeof(get_projector!(lp, 1, :GPU)) <: CuArray{T,1}
             @test length(lp, :GPU) == 1
             @test length(lp, :CPU) == 2
 
-            @test typeof(get_projector!(lp, 1, :GPU)) <: CuArray{T, 1}
+            @test typeof(get_projector!(lp, 1, :GPU)) <: CuArray{T,1}
             @test length(lp, :GPU) == 1
 
-            @test typeof(get_projector!(lp, 2, :GPU)) <: CuArray{T, 1}
+            @test typeof(get_projector!(lp, 2, :GPU)) <: CuArray{T,1}
             @test length(lp, :GPU) == 2
         end
     end

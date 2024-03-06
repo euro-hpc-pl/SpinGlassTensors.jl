@@ -1,11 +1,9 @@
 
 # gauges.jl: This file provides basic functions to optimize gauges for the PEPS network. CUDA is supported.
 
-export
-    optimize_gauges_for_overlaps!!,
-    overlap_density_matrix
+export optimize_gauges_for_overlaps!!, overlap_density_matrix
 
-function update_rq!(ψ::QMps{T}, AT::Array{T, 3}, i::Site) where T <: Real
+function update_rq!(ψ::QMps{T}, AT::Array{T,3}, i::Site) where {T<:Real}
     @cast ATR[x, (σ, y)] := AT[x, σ, y]
     RT, QT = rq_fact(ATR)
     RT ./= maximum(abs.(RT))
@@ -14,7 +12,7 @@ function update_rq!(ψ::QMps{T}, AT::Array{T, 3}, i::Site) where T <: Real
     RT
 end
 
-function update_rq!(ψ::QMps{T}, AT::CuArray{T, 3}, i::Site) where T <: Real
+function update_rq!(ψ::QMps{T}, AT::CuArray{T,3}, i::Site) where {T<:Real}
     @cast ATR[x, (σ, y)] := AT[x, σ, y]
     RT, QT = rq_fact(ATR)
     RT ./= maximum(abs.(RT))
@@ -23,7 +21,7 @@ function update_rq!(ψ::QMps{T}, AT::CuArray{T, 3}, i::Site) where T <: Real
     RT
 end
 
-function update_qr!(ψ::QMps{T}, AT::Array{T, 3}, i::Site) where T <: Real
+function update_qr!(ψ::QMps{T}, AT::Array{T,3}, i::Site) where {T<:Real}
     @cast ATR[(x, σ), y] := AT[x, σ, y]
     QT, RT = qr_fact(ATR)
     RT ./= maximum(abs.(RT))
@@ -32,7 +30,7 @@ function update_qr!(ψ::QMps{T}, AT::Array{T, 3}, i::Site) where T <: Real
     RT
 end
 
-function update_qr!(ψ::QMps{T}, AT::CuArray{T, 3}, i::Site) where T <: Real
+function update_qr!(ψ::QMps{T}, AT::CuArray{T,3}, i::Site) where {T<:Real}
     @cast ATR[(x, σ), y] := AT[x, σ, y]
     QT, RT = qr_fact(ATR)
     RT ./= maximum(abs.(RT))
@@ -41,7 +39,12 @@ function update_qr!(ψ::QMps{T}, AT::CuArray{T, 3}, i::Site) where T <: Real
     RT
 end
 
-function _gauges_right_sweep!!!(ψ_top::QMps{R}, ψ_bot::QMps{R}, gauges::Dict; tol=1E-12) where R <: Real
+function _gauges_right_sweep!!!(
+    ψ_top::QMps{R},
+    ψ_bot::QMps{R},
+    gauges::Dict;
+    tol = 1E-12,
+) where {R<:Real}
     RT = ψ_top.onGPU && ψ_bot.onGPU ? CUDA.ones(R, 1, 1) : ones(R, 1, 1)
     RB = copy(RT)
     for i ∈ ψ_top.sites
@@ -66,7 +69,12 @@ function _gauges_right_sweep!!!(ψ_top::QMps{R}, ψ_bot::QMps{R}, gauges::Dict; 
     end
 end
 
-function _gauges_left_sweep!!!(ψ_top::QMps{R}, ψ_bot::QMps{R}, gauges::Dict; tol=1E-12) where R <: Real
+function _gauges_left_sweep!!!(
+    ψ_top::QMps{R},
+    ψ_bot::QMps{R},
+    gauges::Dict;
+    tol = 1E-12,
+) where {R<:Real}
     RT = ψ_top.onGPU && ψ_bot.onGPU ? CUDA.ones(R, 1, 1) : ones(R, 1, 1)
     RB = copy(RT)
     for i ∈ reverse(ψ_top.sites)
@@ -91,7 +99,12 @@ function _gauges_left_sweep!!!(ψ_top::QMps{R}, ψ_bot::QMps{R}, gauges::Dict; t
     end
 end
 
-function optimize_gauges_for_overlaps!!(ψ_top::QMps{T}, ψ_bot::QMps{T}, tol=1E-8, max_sweeps::Int=4) where T <: Real
+function optimize_gauges_for_overlaps!!(
+    ψ_top::QMps{T},
+    ψ_bot::QMps{T},
+    tol = 1E-8,
+    max_sweeps::Int = 4,
+) where {T<:Real}
     onGPU = ψ_top.onGPU && ψ_bot.onGPU
     canonise!(ψ_top, :right)
     canonise!(ψ_bot, :right)
@@ -104,12 +117,14 @@ function optimize_gauges_for_overlaps!!(ψ_top::QMps{T}, ψ_bot::QMps{T}, tol=1E
         overlap_new = dot(ψ_top, ψ_bot)
         Δ = overlap_new / overlap_old
         overlap_old = overlap_new
-        if abs(Δ - one(T)) < tol break end
+        if abs(Δ - one(T)) < tol
+            break
+        end
     end
     gauges
 end
 
-function overlap_density_matrix(ϕ::QMps{T}, ψ::QMps{T}, k::Site) where T <: Real
+function overlap_density_matrix(ϕ::QMps{T}, ψ::QMps{T}, k::Site) where {T<:Real}
     @assert ψ.sites == ϕ.sites
     C = _overlap_forward(ϕ, ψ, k)
     D = _overlap_backwards(ϕ, ψ, k)
@@ -117,7 +132,7 @@ function overlap_density_matrix(ϕ::QMps{T}, ψ::QMps{T}, k::Site) where T <: Re
     @tensor E[x, y] := C[b, a] * conj(B)[b, x, β] * A[a, y, α] * D[β, α]
 end
 
-function _overlap_forward(ϕ::QMps{T}, ψ::QMps{T}, k::Site) where T <: Real
+function _overlap_forward(ϕ::QMps{T}, ψ::QMps{T}, k::Site) where {T<:Real}
     C = ϕ.onGPU && ψ.onGPU ? CUDA.ones(T, 1, 1) : ones(T, 1, 1)
     i = ψ.sites[1]
     while i < k
@@ -128,7 +143,7 @@ function _overlap_forward(ϕ::QMps{T}, ψ::QMps{T}, k::Site) where T <: Real
     C
 end
 
-function _overlap_backwards(ϕ::QMps{T}, ψ::QMps{T}, k::Site) where T <: Real
+function _overlap_backwards(ϕ::QMps{T}, ψ::QMps{T}, k::Site) where {T<:Real}
     D = ϕ.onGPU && ψ.onGPU ? CUDA.ones(T, 1, 1) : ones(T, 1, 1)
     i = ψ.sites[end]
     while i > k

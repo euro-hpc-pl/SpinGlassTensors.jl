@@ -1,26 +1,27 @@
-export
-    Environment,
-    EnvironmentMixed,
-    left_nbrs_site,
-    right_nbrs_site
+export Environment, EnvironmentMixed, left_nbrs_site, right_nbrs_site
 
 abstract type AbstractEnvironment end
 
-mutable struct EnvironmentMixed{T <: Real} <: AbstractEnvironment
+mutable struct EnvironmentMixed{T<:Real} <: AbstractEnvironment
     bra::QMps{T}  # mps that is to be optimized
     mpo::QMpo{T}
     ket::QMps{T}
-    C::Tensor{T, 3}
-    site  # position of C is at: site - epsilon  ::Union(Sites, :central)
+    C::Tensor{T,3}
+    site::Any  # position of C is at: site - epsilon  ::Union(Sites, :central)
     env::Dict
     onGPU::Bool
 
-    function EnvironmentMixed(bra::QMps{T}, C::Tensor{T, 3}, mpo::QMpo{T}, ket::QMps{T};) where T <: Real
+    function EnvironmentMixed(
+        bra::QMps{T},
+        C::Tensor{T,3},
+        mpo::QMpo{T},
+        ket::QMps{T};
+    ) where {T<:Real}
         onGPU = bra.onGPU && mpo.onGPU && ket.onGPU
         @assert bra.sites == ket.sites && issubset(bra.sites, mpo.sites)
         id3 = onGPU ? CUDA.ones(T, 1, 1, 1) : ones(T, 1, 1, 1)
         id2 = onGPU ? CUDA.ones(T, 1, 1) : ones(T, 1, 1)
-        env0 = Dict{Any, Any}((bra.sites[1], :left) => id2, (bra.sites[end], :right) => id3)
+        env0 = Dict{Any,Any}((bra.sites[1], :left) => id2, (bra.sites[end], :right) => id3)
         env = new{T}(bra, mpo, ket, C, last(bra.sites) + 1, env0, onGPU)  #
         update_env_left!.(Ref(env), env.bra.sites)
         env
@@ -46,14 +47,14 @@ function clear_env_containing_site!(env::EnvironmentMixed, site)
     end
 end
 
-mutable struct Environment{T <: Real} <: AbstractEnvironment
+mutable struct Environment{T<:Real} <: AbstractEnvironment
     bra::QMps{T}  # mps that is to be optimized
     mpo::QMpo{T}
     ket::QMps{T}
     env::Dict
     log_norms::Dict
 
-    function Environment(bra::QMps{T}, mpo::QMpo{T}, ket::QMps{T}) where T <: Real
+    function Environment(bra::QMps{T}, mpo::QMpo{T}, ket::QMps{T}) where {T<:Real}
         onGPU = bra.onGPU && mpo.onGPU && ket.onGPU
         @assert bra.sites == ket.sites && issubset(bra.sites, mpo.sites)
         id = onGPU ? CUDA.ones(T, 1, 1, 1) : ones(T, 1, 1, 1)
@@ -99,10 +100,14 @@ function update_env_left(
     LE::S,
     A::S,
     M::T,
-    B::S
-    ) where {S <: AbstractArray{R, 3}, T <: MpoTensor{R, 4}} where R <: Real
-    for v ∈ M.top A = contract_tensor3_matrix(A, v) end
-    for v ∈ reverse(M.bot) B = contract_matrix_tensor3(v, B) end
+    B::S,
+) where {S<:AbstractArray{R,3},T<:MpoTensor{R,4}} where {R<:Real}
+    for v ∈ M.top
+        A = contract_tensor3_matrix(A, v)
+    end
+    for v ∈ reverse(M.bot)
+        B = contract_matrix_tensor3(v, B)
+    end
     update_env_left(LE, A, M.ctr, B)
 end
 
@@ -122,7 +127,7 @@ function update_env_left!(env::Environment, site::Site)
     push!(env.log_norms, (site, :left) => nLL)
 end
 
-function update_env_left!(env::EnvironmentMixed{T}, site) where T    # site::Union(Sites, :central)
+function update_env_left!(env::EnvironmentMixed{T}, site) where {T}    # site::Union(Sites, :central)
     if site == first(env.bra.sites)
         if env.site == first(env.bra.sites)
             LL = env.onGPU ? CUDA.ones(T, 1, 1, 1) : ones(T, 1, 1, 1)
@@ -167,10 +172,17 @@ end
       -- B --
 """
 function update_env_right(
-    RE::S, A::S1, M::T, B::S
-) where {T <: MpoTensor{R, 4}, S <: AbstractArray{R, 3}, S1 <: AbstractArray{R, 3}} where R <: Real
-    for v ∈ M.top  A = contract_tensor3_matrix(A, v) end
-    for v ∈ reverse(M.bot) B = contract_matrix_tensor3(v, B) end
+    RE::S,
+    A::S1,
+    M::T,
+    B::S,
+) where {T<:MpoTensor{R,4},S<:AbstractArray{R,3},S1<:AbstractArray{R,3}} where {R<:Real}
+    for v ∈ M.top
+        A = contract_tensor3_matrix(A, v)
+    end
+    for v ∈ reverse(M.bot)
+        B = contract_matrix_tensor3(v, B)
+    end
     update_env_right(RE, A, M.ctr, B)
 end
 
@@ -190,7 +202,7 @@ function update_env_right!(env::Environment, site::Site)
     push!(env.log_norms, (site, :right) => nRR)
 end
 
-function update_env_right!(env::EnvironmentMixed{T}, site) where T   # site::Union(Sites, :central)
+function update_env_right!(env::EnvironmentMixed{T}, site) where {T}   # site::Union(Sites, :central)
     if site == last(env.bra.sites)
         if env.site > last(env.bra.sites)
             RR = env.onGPU ? CUDA.ones(T, 1, 1) : ones(T, 1, 1)
@@ -231,26 +243,42 @@ function project_ket_on_bra(
     LE::S,
     B::S,
     M::T,
-    RE::S
-    ) where {S <: AbstractArray{R, 3}, T <: MpoTensor{R, 4}} where R <: Real
-    for v ∈ reverse(M.bot) B = contract_matrix_tensor3(v, B) end
+    RE::S,
+) where {S<:AbstractArray{R,3},T<:MpoTensor{R,4}} where {R<:Real}
+    for v ∈ reverse(M.bot)
+        B = contract_matrix_tensor3(v, B)
+    end
     B = project_ket_on_bra(LE, B, M.ctr, RE)
-    for v ∈ reverse(M.top) B = contract_matrix_tensor3(v, B) end
+    for v ∈ reverse(M.top)
+        B = contract_matrix_tensor3(v, B)
+    end
     B
 end
 
 
 project_ket_on_bra(env::Environment, site::Site) = project_ket_on_bra(
-    env.env[(site, :left)], env.ket[site], env.mpo[site], env.env[(site, :right)]
+    env.env[(site, :left)],
+    env.ket[site],
+    env.mpo[site],
+    env.env[(site, :right)],
 )
 
 function project_ket_on_bra(env::EnvironmentMixed, site)
     if site == :central
         B = project_ket_on_bra(env.env[(site, :left)], env.env[(site, :right)])
     elseif site >= env.site
-        B = project_ket_on_bra(env.env[(site, :left)], env.ket[site], env.mpo[site], env.env[(site, :right)])
+        B = project_ket_on_bra(
+            env.env[(site, :left)],
+            env.ket[site],
+            env.mpo[site],
+            env.env[(site, :right)],
+        )
     else
-        B = project_ket_on_bra(env.env[(site, :left)], env.ket[site], env.env[(site, :right)])
+        B = project_ket_on_bra(
+            env.env[(site, :left)],
+            env.ket[site],
+            env.env[(site, :right)],
+        )
     end
     B
 end

@@ -2,7 +2,7 @@ using CUDA
 using LinearAlgebra
 using SparseArrays
 
-function dense_x_CSC(Md::DenseCuMatrix{T}, Mcsc::CUSPARSE.CuSparseMatrixCSC{T}) where T
+function dense_x_CSC(Md::DenseCuMatrix{T}, Mcsc::CUSPARSE.CuSparseMatrixCSC{T}) where {T}
     ret = CUDA.zeros(T, size(Md, 1), size(Mcsc, 2))
     CUSPARSE.mm!('N', 'N', one(T), Mcsc, Md, zero(T), ret, 'O')
     ret

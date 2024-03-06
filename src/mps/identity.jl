@@ -1,11 +1,14 @@
 # ./mps/identity.jl: This file provides custom MPS Identity. Note, this approach is easier than
 #                    trying to overload the universal identity operator, I, from LinearAlgebra.
 
-export
-    local_dims,
-    IdentityQMps
+export local_dims, IdentityQMps
 
-function IdentityQMps(::Type{T}, loc_dims::Dict, Dmax::Int=1; onGPU=true) where T <: Real
+function IdentityQMps(
+    ::Type{T},
+    loc_dims::Dict,
+    Dmax::Int = 1;
+    onGPU = true,
+) where {T<:Real}
     _zeros = onGPU ? CUDA.zeros : zeros
     id = TensorMap{T}(keys(loc_dims) .=> _zeros.(T, Dmax, Dmax, values(loc_dims)))
 
@@ -21,11 +24,11 @@ function IdentityQMps(::Type{T}, loc_dims::Dict, Dmax::Int=1; onGPU=true) where 
     for (site, ld) ∈ loc_dims
         id[site][1, 1, :] .= 1 / sqrt(ld)
     end
-    QMps(id; onGPU=onGPU)
+    QMps(id; onGPU = onGPU)
 end
 
 function local_dims(mpo::QMpo, dir::Symbol)
     @assert dir ∈ (:down, :up)
     dim = dir == :down ? 4 : 2
-    Dict{Site, Int}(k => size(mpo[k], dim) for k ∈ mpo.sites if ndims(mpo[k]) == 4)
+    Dict{Site,Int}(k => size(mpo[k], dim) for k ∈ mpo.sites if ndims(mpo[k]) == 4)
 end

@@ -4,14 +4,29 @@ D2 = ([1, 1], [1, 2], [1, 1], [1, 2])
 S = Float64
 rand_central = rand(CentralTensor{S}, [1, 1, 1, 1, 1, 1, 1, 1])
 map1 = MpoTensor(
-    TensorMap{S}(Dict(-1//2 => rand_central, 0 => rand(SiteTensor{S}, PoolOfProjectors{Integer}(), l, D1)))
-    )
+    TensorMap{S}(
+        Dict(
+            -1 // 2 => rand_central,
+            0 => rand(SiteTensor{S}, PoolOfProjectors{Integer}(), l, D1),
+        ),
+    ),
+)
 map2 = MpoTensor(
-    TensorMap{S}(Dict(-1//2 => rand_central, 0 => rand(SiteTensor{S}, PoolOfProjectors{Integer}(), l, D2)))
-    )
+    TensorMap{S}(
+        Dict(
+            -1 // 2 => rand_central,
+            0 => rand(SiteTensor{S}, PoolOfProjectors{Integer}(), l, D2),
+        ),
+    ),
+)
 map3 = MpoTensor(
-    TensorMap{S}(Dict(-1//2 => rand_central, 0 => rand(SiteTensor{S}, PoolOfProjectors{Integer}(), l, D1)))
-    )
+    TensorMap{S}(
+        Dict(
+            -1 // 2 => rand_central,
+            0 => rand(SiteTensor{S}, PoolOfProjectors{Integer}(), l, D1),
+        ),
+    ),
+)
 mpomap = Dict(1 => map1, 2 => map2, 3 => map3)
 
 D = 2

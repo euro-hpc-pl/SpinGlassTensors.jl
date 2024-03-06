@@ -8,31 +8,32 @@ using FameSVD
 
 
 # C = A * B
-struct MyTensor{T <: Number}
-    A::Array{T, 2}
-    B::Array{T, 2}
+struct MyTensor{T<:Number}
+    A::Array{T,2}
+    B::Array{T,2}
 end
 
-struct AMyTensor{T <: Number}
-    A::Array{T, 2}
-    B::Array{T, 2}
+struct AMyTensor{T<:Number}
+    A::Array{T,2}
+    B::Array{T,2}
 end
 
 
 Base.Array(ten::MyTensor) = kron(ten.A, ten.B)
 
 # this is for tsvd to work
-Base.eltype(ten::MyTensor{T}) where T = T
-Base.size(ten::MyTensor) = (size(ten.A, 1) * size(ten.B, 1), size(ten.A, 2) * size(ten.B, 2))
+Base.eltype(ten::MyTensor{T}) where {T} = T
+Base.size(ten::MyTensor) =
+    (size(ten.A, 1) * size(ten.B, 1), size(ten.A, 2) * size(ten.B, 2))
 Base.size(ten::MyTensor, n::Int) = size(ten)[n]
 # Base.adjoint(ten::MyTensor{T}) where T = MyTensor{T}(adjoint(ten.A), adjoint(ten.B))
 
 # Base.:(*)(ten::MyTensor{T}, v::Vector{T}) where T = (kron(ten.A, ten.B) * v)
 
-Base.adjoint(ten::MyTensor{T}) where T = AMyTensor{T}(ten.A, ten.B)
+Base.adjoint(ten::MyTensor{T}) where {T} = AMyTensor{T}(ten.A, ten.B)
 
 
-function Base.:(*)(ten::MyTensor{T}, v::Vector{T}) where T 
+function Base.:(*)(ten::MyTensor{T}, v::Vector{T}) where {T}
     println("M")
     vv = reshape(v, size(ten.A, 2), size(ten.B, 2))
     println(size(vv))
@@ -40,7 +41,7 @@ function Base.:(*)(ten::MyTensor{T}, v::Vector{T}) where T
     reshape(x, size(ten.A, 1) * size(ten.B, 1))
 end
 
-function Base.:(*)(ten::AMyTensor{T}, v::Vector{T}) where T 
+function Base.:(*)(ten::AMyTensor{T}, v::Vector{T}) where {T}
     println("A")
     vv = reshape(v, size(ten.A, 1), size(ten.B, 1))
     println(size(vv))
@@ -54,7 +55,7 @@ end
 LinearAlgebra.ishermitian(ten::MyTensor) = false
 
 
-function LinearAlgebra.mul!(y, ten::MyTensor, v) 
+function LinearAlgebra.mul!(y, ten::MyTensor, v)
     println("K")
     vv = reshape(v, size(ten.A, 2), size(ten.B, 2), :)
     println(size(vv))
@@ -62,7 +63,7 @@ function LinearAlgebra.mul!(y, ten::MyTensor, v)
     y[:, :] = reshape(x, size(ten.A, 1) * size(ten.B, 1), :)
 end
 
-function LinearAlgebra.mul!(y, ten::AMyTensor, v) 
+function LinearAlgebra.mul!(y, ten::AMyTensor, v)
     println("L")
     vv = reshape(v, size(ten.A, 1), size(ten.B, 1), :)
     println(size(vv))
@@ -71,17 +72,17 @@ function LinearAlgebra.mul!(y, ten::AMyTensor, v)
 end
 
 
-n = 2 ^ 2
-cut = 2 ^ 1
+n = 2^2
+cut = 2^1
 T = Float64
 
-ten = MyTensor(rand(T, n+1, n), rand(T, n+2, n-1))
+ten = MyTensor(rand(T, n + 1, n), rand(T, n + 2, n - 1))
 
 println("tsvd:")
 @time U, Σ1, V = tsvd(ten, cut)
 
 println("psvd:")
-@time U, Σ2, V = psvd(ten, rank=cut)
+@time U, Σ2, V = psvd(ten, rank = cut)
 
 println("svd:")
 @time begin

@@ -22,7 +22,7 @@ It can be either `:PE` for 'Projector Energy)' order (default) or `:EP` for 'Ene
   - `E`: An array of energy values.
   - `P`: A permutation matrix representing projectors.
 """
-function rank_reveal(energy, order=:PE) #TODO: add type
+function rank_reveal(energy, order = :PE) #TODO: add type
     @assert order ∈ (:PE, :EP)
     dim = order == :PE ? 1 : 2
     E, idx = unique_dims(energy, dim)
@@ -37,14 +37,18 @@ end
 
         # Compute hash for each row
         k = 0
-        @nloops $N i A d->(if d == dim; k = i_d; end) begin
+        @nloops $N i A d -> (
+            if d == dim
+                k = i_d
+            end
+        ) begin
             @inbounds hashes[k] = hash(hashes[k], hash((@nref $N A i)))
         end
 
         # Collect index of first row for each hash
         uniquerow = similar(Array{Int}, axes(A, dim))
         firstrow = Dict{Prehashed,Int}()
-        for k = axes(A, dim)
+        for k in axes(A, dim)
             uniquerow[k] = get!(firstrow, Prehashed(hashes[k]), k)
         end
         uniquerows = collect(values(firstrow))
@@ -52,12 +56,14 @@ end
         # Check for collisions
         collided = falses(axes(A, dim))
         @inbounds begin
-            @nloops $N i A d->(if d == dim
-                k = i_d
-                j_d = uniquerow[k]
-            else
-                j_d = i_d
-            end) begin
+            @nloops $N i A d -> (
+                if d == dim
+                    k = i_d
+                    j_d = uniquerow[k]
+                else
+                    j_d = i_d
+                end
+            ) begin
                 if (@nref $N A j) != (@nref $N A i)
                     collided[k] = true
                 end
@@ -69,7 +75,7 @@ end
             while any(collided)
                 # Collect index of first row for each collided hash
                 empty!(firstrow)
-                for j = axes(A, dim)
+                for j in axes(A, dim)
                     collided[j] || continue
                     uniquerow[j] = get!(firstrow, Prehashed(hashes[j]), j)
                 end
@@ -79,7 +85,7 @@ end
 
                 # Check for collisions
                 fill!(nowcollided, false)
-                @nloops $N i A d->begin
+                @nloops $N i A d -> begin
                     if d == dim
                         k = i_d
                         j_d = uniquerow[k]
@@ -96,6 +102,7 @@ end
             end
         end
 
-        (@nref $N A d->d == dim ? sort!(uniquerows) : (axes(A, d))), indexin(uniquerow, uniquerows)
+        (@nref $N A d -> d == dim ? sort!(uniquerows) : (axes(A, d))),
+        indexin(uniquerow, uniquerows)
     end
 end

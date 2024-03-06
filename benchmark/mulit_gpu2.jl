@@ -5,6 +5,6 @@ n = 100
 gpus = Int(length(devices()))
 
 a = rand(T, n, n, gpus)
-a_d = cu(a, unified=true)
+a_d = cu(a, unified = true)
 
-a_d 
+a_d

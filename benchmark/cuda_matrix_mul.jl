@@ -12,18 +12,18 @@ A = CUDA.CUSPARSE.CuSparseMatrixCSR(Ptr, Ind, Val, (100, 100))
 B = CUDA.rand(Float64, 100, 100)
 C = CUDA.CUSPARSE.CuSparseMatrixCSC(Ptr, Ind, Val, (100, 100))
 
-A*B # no scalar indexing
-CUDA.@allowscalar B*A # scalar indexing
+A * B # no scalar indexing
+CUDA.@allowscalar B * A # scalar indexing
 
-C*B # no scalar indexing
-CUDA.@allowscalar B*C # scalar indexing
+C * B # no scalar indexing
+CUDA.@allowscalar B * C # scalar indexing
 
-A'*B # no scalar indexing
-CUDA.@allowscalar B*A' # scalar indexing
+A' * B # no scalar indexing
+CUDA.@allowscalar B * A' # scalar indexing
 
-transpose(A)*B # no scalar indexing
-CUDA.@allowscalar B*transpose(A) # scalar indexing
+transpose(A) * B # no scalar indexing
+CUDA.@allowscalar B * transpose(A) # scalar indexing
 # problem is when we multiply dense x sparse
 
- D = rand(Float64, (100, 100))
- CUDA.@allowscalar D*A # scalar indexing
+D = rand(Float64, (100, 100))
+CUDA.@allowscalar D * A # scalar indexing

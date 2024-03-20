@@ -69,7 +69,7 @@ end
 
 
 
-which_device(ten::Nothing) = Set()
+which_device(::Nothing) = Set()
 which_device(ψ::Union{QMpo{T},QMps{T}}) where {T} =
     union(which_device.(values(ψ.tensors))...)
 which_device(ten::MpoTensor) =

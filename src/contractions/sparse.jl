@@ -10,17 +10,17 @@ end
 =#
 
 # TODO shouldn't we have CSR format instead?
-function SparseCSC(::Type{R}, p::CuArray{Int64,1}; mp = nothing) where {R<:Real}
+function SparseArrays.sparse(::Type{R}, p::CuArray{Int64,1}; mp = nothing) where {R<:Real}
     n = length(p)
     if isnothing(mp)
         mp = maximum(p)
     end
     cn = CuArray(1:n+1)  # aux_cusparse(R, n)
     co = CUDA.ones(R, n)
-    CuSparseMatrixCSC(cn, p, co, (mp, n))
+    CuSparseMatrixCSR(CuSparseMatrixCSC(cn, p, co, (mp, n))) # TODO: Change when CUDA.jl is fixed
 end
 
-function SparseCSC(::Type{R}, p::Vector{Int64}; mp = nothing) where {R<:Real}
+function SparseArrays.sparse(::Type{R}, p::Vector{Int64}; mp = nothing) where {R<:Real}
     n = length(p)
     if isnothing(mp)
         mp = maximum(p)
@@ -30,7 +30,7 @@ function SparseCSC(::Type{R}, p::Vector{Int64}; mp = nothing) where {R<:Real}
     sparse(p, cn, co, mp, n)
 end
 
-@memoize Dict function SparseCSC(
+@memoize Dict function SparseArrays.sparse(
     ::Type{T},
     lp::PoolOfProjectors,
     k1::R,
@@ -47,10 +47,10 @@ end
     if device == :GPU
         p = CuArray(p)
     end
-    SparseCSC(T, p; mp = s1 * s2 * s3)
+    sparse(T, p; mp = s1 * s2 * s3)
 end
 
-@memoize Dict function SparseCSC(
+@memoize Dict function SparseArrays.sparse(
     ::Type{R},
     lp::PoolOfProjectors,
     k::Int,
@@ -65,6 +65,6 @@ end
     if device == :GPU
         pp = CuArray(pp)
     end
-    ipr = SparseCSC(R, pp .- (rf - 1))
+    ipr = sparse(R, pp .- (rf - 1))
     (ipr, rf, rt)
 end

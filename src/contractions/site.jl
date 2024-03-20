@@ -63,7 +63,7 @@ function contract_sparse_with_three(
         le = @view loc_exp[from:to]
         outp .*= reshape(le, 1, 1, :)
         outpp = reshape(outp, s1 * s4, :)
-        ipr, rf, rt = SparseCSC(R, lp, kout, device; from, to)
+        ipr, rf, rt = sparse(R, lp, kout, device; from, to)
         @inbounds out[rf:rt, :, :] .+= reshape(ipr * outpp', :, s1, s4)
         from = to + 1
     end
@@ -155,7 +155,7 @@ function update_reduced_env_right(
         outp = dropdims(Bp ⊠ REp, dims = 2)
         outp .*= reshape(le .* Kp, 1, :)
 
-        ipr, rf, rt = SparseCSC(R, M.lp, k1, device; from, to)
+        ipr, rf, rt = sparse(R, M.lp, k1, device; from, to)
         @inbounds out[rf:rt, :] .+= ipr * outp'
         from = to + 1
     end
@@ -169,16 +169,7 @@ function contract_tensors43(M::SiteTensor{R,4}, B::Tensor{R,3}) where {R<:Real}
     sm1, sm2, sm3 = size.(Ref(M.lp), M.projs[1:3])
     @inbounds Bp = B[:, :, p4] .* reshape(M.loc_exp, 1, 1, :)
     @cast Bp[(x, y), z] := Bp[x, y, z]
-    ip123 = SparseCSC(R, M.lp, M.projs[1], M.projs[2], M.projs[3], device)
-    @show nnz(ip123)
-    @show size(ip123)
-    @show size(Bp)
-    @show size(Bp')
-    @show typeof(Bp)
-    @show typeof(ip123)
-    @show typeof(Bp')
-    @show (sm1, sm2, sm3, sb1, sb2)
-    @show size(ip123 * Bp')
+    ip123 = sparse(R, M.lp, M.projs[1], M.projs[2], M.projs[3], device)
     out = reshape(ip123 * Bp', sm1, sm2, sm3, sb1, sb2)
     out = permutedims(out, (4, 1, 5, 3, 2))
     reshape(out, sb1 * sm1, sb2 * sm3, sm2)
@@ -198,7 +189,7 @@ function corner_matrix(
     @cast outp[(x, y), z] := outp[x, y, z]
     sm1, sm2 = maximum(projs[1]), maximum(projs[2])
     @inbounds p12 = projs[1] .+ (projs[2] .- 1) .* sm1
-    ip12 = SparseCSC(R, p12; mp = sm1 * sm2)
+    ip12 = sparse(R, p12; mp = sm1 * sm2)
     out = reshape(ip12 * outp', sm1, maximum(projs[2]), size(B, 1), size(C, 2))
     permutedims(out, (3, 1, 4, 2))
 end

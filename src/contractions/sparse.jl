@@ -12,7 +12,7 @@ end
 # TODO shouldn't we have CSR format instead?
 function SparseCSC(::Type{R}, p::CuArray{Int64,1}; mp = nothing) where {R<:Real}
     n = length(p)
-    if mp == nothing
+    if isnothing(mp)
         mp = maximum(p)
     end
     cn = CuArray(1:n+1)  # aux_cusparse(R, n)
@@ -22,7 +22,7 @@ end
 
 function SparseCSC(::Type{R}, p::Vector{Int64}; mp = nothing) where {R<:Real}
     n = length(p)
-    if mp == nothing
+    if isnothing(mp)
         mp = maximum(p)
     end
     cn = collect(1:n)

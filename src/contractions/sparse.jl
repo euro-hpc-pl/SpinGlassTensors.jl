@@ -8,7 +8,7 @@ function CUDA.:*(Md::DenseCuMatrix{T}, Mcsr::CUSPARSE.CuSparseMatrixCSR{T}) wher
     ret'
 end
 =#
-
+#
 # TODO shouldn't we have CSR format instead?
 function SparseArrays.sparse(::Type{R}, p::CuArray{Int64,1}; mp = nothing) where {R<:Real}
     n = length(p)

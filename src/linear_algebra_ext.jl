@@ -22,6 +22,7 @@ function svd_fact(
     U .* ϕ, Σ, V .* ϕ
 end
 
+
 function qr_fact(
     M::AbstractMatrix{T},
     Dcut::Int = typemax(Int),
@@ -38,6 +39,7 @@ function qr_fact(
     toGPU && return CuArray.((q * U, Σ .* V'))
     q * U, Σ .* V'
 end
+
 
 function rq_fact(
     M::AbstractMatrix{T},

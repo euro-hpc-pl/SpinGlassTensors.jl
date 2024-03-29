@@ -17,6 +17,8 @@ jobs:
       - uses: julia-actions/setup-julia@v1
         with:
           version: ${{ matrix.version }}
+      - name: Fix TransmutedDims
+        run: julia --color=yes 'using Pkg; Pkg.add("TransmuteDims#strided2")'
       - uses: julia-actions/julia-buildpkg@latest
       - uses: julia-actions/julia-runtest@latest
         env:

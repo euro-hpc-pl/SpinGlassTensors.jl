@@ -31,5 +31,5 @@ function contract_matrix_tensor3(C::DiagonalTensor{R}, B::Tensor{R,3}) where {R<
     B = contract_matrix_tensor3(C.e2, B)
     # @cast B[l, r, (q1, q2)] := B[l, (r, q1), q2] (q1 ∈ 1:size(C.e1, 1))
     q1 = size(C.e1, 1)
-    B = reshape(B, size(B, 1), size(B, 2) ÷ q2, size(B, 3) * q1)
+    B = reshape(B, size(B, 1), size(B, 2) ÷ q1, size(B, 3) * q1)
 end

@@ -19,10 +19,7 @@ jobs:
         with:
           version: ${{ matrix.version }}
       - name: Fix TransmuteDims
-        run: |
-          julia --project=@. --color=yes -e 'using Pkg; Pkg.add(name="CUDA", rev="v4.4.1")'
-          julia --project=@. --color=yes -e 'using Pkg; Pkg.add(name="MKL", rev="v0.4.2")'
-          julia --project=@. --color=yes -e 'using Pkg; Pkg.add(name="TransmuteDims", rev="strided2")'
+        run: julia --project=@. --color=yes -e 'using Pkg; Pkg.add(name="TransmuteDims", rev="strided2")'
 
       - uses: julia-actions/julia-buildpkg@latest
       - uses: julia-actions/julia-runtest@latest

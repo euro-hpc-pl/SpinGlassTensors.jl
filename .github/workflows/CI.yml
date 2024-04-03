@@ -14,8 +14,8 @@ jobs:
           - '1.9'
           - '1.10'
     steps:
-      - uses: actions/checkout@v2
-      - uses: julia-actions/setup-julia@v1
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v2
         with:
           version: ${{ matrix.version }}
       - name: Fix TransmuteDims
@@ -23,7 +23,7 @@ jobs:
           julia --project=@. --color=yes -e 'using Pkg; Pkg.add("CUDA#4.4.1")'
           julia --project=@. --color=yes -e 'using Pkg; Pkg.add("MKL#0.4.2")'
           julia --project=@. --color=yes -e 'using Pkg; Pkg.add(name="TransmuteDims", rev="strided2")'
-          
+
       - uses: julia-actions/julia-buildpkg@latest
       - uses: julia-actions/julia-runtest@latest
         env:

@@ -1,237 +1,131 @@
-export bond_dimension, is_left_normalized, is_right_normalized
-export verify_bonds, verify_physical_dims, tensor, rank, physical_dim
-export State, dropindices
+# base.jl: This file defines basic tensor structures to be used with SpinGlassEngine
 
-const State = Union{Vector,NTuple}
+export Tensor,
+    SiteTensor,
+    VirtualTensor,
+    DiagonalTensor,
+    CentralTensor,
+    CentralOrDiagonal,
+    dense_central
 
-abstract type AbstractTensorNetwork{T} end
+abstract type AbstractSparseTensor{T,N} end
 
-for (T, N) ∈ ((:PEPSRow, 5), (:MPO, 4), (:MPS, 3))
-    AT = Symbol(:Abstract, T)
-    @eval begin
-        export $AT
-        export $T
+mutable struct SiteTensor{T<:Real,N} <: AbstractSparseTensor{T,N}
+    lp::PoolOfProjectors
+    loc_exp::AbstractVector{T}
+    projs::NTuple{4,Int} # pl, pt, pr, pb
+    dims::Dims{N}
 
-        abstract type $AT{T} <: AbstractTensorNetwork{T} end
+    function SiteTensor(lp::PoolOfProjectors, loc_exp, projs::NTuple{4,Vector{Int}})
+        T = eltype(loc_exp)
+        ks = Tuple(add_projector!(lp, p) for p ∈ projs)
+        dims = size.(Ref(lp), ks)
+        new{T,4}(lp, loc_exp, ks, dims)
+    end
 
-        struct $T{T<:Number} <: $AT{T}
-            tensors::Vector{Array{T,$N}}
-        end
-
-        # consturctors
-        $T(::Type{T}, L::Int) where {T} = $T(Vector{Array{T,$N}}(undef, L))
-        $T(L::Int) = $T(Float64, L)
-
-        @inline Base.setindex!(a::$AT, A::AbstractArray{<:Number,$N}, i::Int) =
-            a.tensors[i] = A
-        @inline bond_dimension(a::$AT) = maximum(size.(a.tensors, $N))
-        Base.hash(a::$T, h::UInt) = hash(a.tensors, h)
-        @inline Base.:(==)(a::$T, b::$T) = a.tensors == b.tensors
-        @inline Base.:(≈)(a::$T, b::$T) = a.tensors ≈ b.tensors
-        Base.copy(a::$T) = $T(copy(a.tensors))
-
-        @inline Base.eltype(::$AT{T}) where {T} = T
+    function SiteTensor(
+        lp::PoolOfProjectors,
+        loc_exp,
+        projs::NTuple{4,Int},
+        dims::NTuple{4,Int},
+    )
+        T = eltype(loc_exp)
+        new{T,4}(lp, loc_exp, projs, dims)
     end
 end
 
 
-@inline Base.getindex(a::AbstractTensorNetwork, i) = getindex(a.tensors, i)
-@inline Base.iterate(a::AbstractTensorNetwork) = iterate(a.tensors)
-@inline Base.iterate(a::AbstractTensorNetwork, state) = iterate(a.tensors, state)
-@inline Base.lastindex(a::AbstractTensorNetwork) = lastindex(a.tensors)
-@inline Base.length(a::AbstractTensorNetwork) = length(a.tensors)
-@inline Base.size(a::AbstractTensorNetwork) = (length(a.tensors),)
-@inline Base.eachindex(a::AbstractTensorNetwork) = eachindex(a.tensors)
-
-"""
-    LinearAlgebra.rank(ψ::AbstractMPS)
-
-Returns rank of MPS tensors.
-"""
-@inline LinearAlgebra.rank(ψ::AbstractMPS) = Tuple(size(A, 2) for A ∈ ψ)
-
-"""
-    physical_dim(ψ::AbstractMPS, i::Int)
-
-Returns physical dimension of MPS tensors at given site i.
-"""
-@inline physical_dim(ψ::AbstractMPS, i::Int) = size(ψ[i], 2)
-
-
-
-@inline MPS(A::AbstractArray) = MPS(A, :right)
-
-
-
-"""
-    MPS(A::AbstractArray, s::Symbol, Dcut::Int = typemax(Int))
-
-Construct a matrix product state (MPS) using the provided tensor array `A`.
-
-## Arguments
-
-- `A::AbstractArray`: The tensor array that defines the MPS.
-- `s::Symbol`: The direction to canonically transform the MPS. Must be either `:left` or `:right`.
-- `Dcut::Int`: The maximum bond dimension allowed during the truncation step.
-
-## Returns
-
-- `ψ::AbstractMPS`: The constructed MPS.
-
-## Details
-
-This function constructs a matrix product state (MPS) using the provided tensor array `A`, 
-and then canonically transforms it in the direction specified by the `s` argument. If `s` is `:right`, 
-the MPS is right-canonized, while if `s` is `:left`, the MPS is left-canonized. 
-The `Dcut` argument determines the maximum bond dimension allowed during the truncation step. 
-If neither `Dcut` nor `s` is specified, it will construct right-canonized MPS with default Dcut value.
-
-## Example
-
-```@repl
-A = rand(2, 3, 2)
-ψ = MPS(A, :left, 2);
-typeof(ψ)
-length(ψ)
-bond_dimension(ψ)
-```
-"""
-@inline function MPS(A::AbstractArray, s::Symbol, Dcut::Int = typemax(Int))
-    @assert s ∈ (:left, :right)
-    if s == :right
-        ψ = _right_sweep(A)
-        _left_sweep!(ψ, Dcut)
-    else
-        ψ = _left_sweep(A)
-        _right_sweep!(ψ, Dcut)
-    end
-    ψ
+function mpo_transpose(ten::SiteTensor)
+    perm = [1, 4, 3, 2]
+    SiteTensor(ten.lp, ten.loc_exp, ten.projs[perm], ten.dims[perm])
 end
 
-@inline dropindices(ψ::AbstractMPS, i::Int = 2) = (dropdims(A, dims = i) for A ∈ ψ)
+mutable struct CentralTensor{T<:Real,N} <: AbstractSparseTensor{T,N}
+    e11::AbstractMatrix{T}
+    e12::AbstractMatrix{T}
+    e21::AbstractMatrix{T}
+    e22::AbstractMatrix{T}
+    dims::Dims{N}
 
-
-"""
-    MPS(states::Vector{Vector{T}}) where {T<:Number}
-
-Create a matrix product state (MPS) object from a vector of states.
-"""
-function MPS(states::Vector{Vector{T}}) where {T<:Number}
-    state_arrays = [reshape(copy(v), (1, length(v), 1)) for v ∈ states]
-    MPS(state_arrays)
-end
-
-function (::Type{T})(ψ::AbstractMPS) where {T<:AbstractMPO}
-    _verify_square(ψ)
-    T([@cast W[x, σ, y, η] |= A[x, (σ, η), y] (σ ∈ 1:isqrt(size(A, 2))) for A in ψ])
-end
-
-function (::Type{T})(O::AbstractMPO) where {T<:AbstractMPS}
-    T([@cast A[x, (σ, η), y] := W[x, σ, y, η] for W in O])
-end
-
-"""
-    Base.randn(::Type{MPS{T}}, D::Int, rank::Union{Vector,NTuple}) where {T}
-
-Create random MPS.The argument `D` specifies the physical dimension of the MPS 
-(i.e. the dimension of the vectors at each site), `rank` specifies rank of each site.
-"""
-function Base.randn(::Type{MPS{T}}, D::Int, rank::Union{Vector,NTuple}) where {T}
-    MPS([
-        randn(T, 1, first(rank), D),
-        randn.(T, D, rank[begin+1:end-1], D)...,
-        rand(T, D, last(rank), 1),
-    ])
-end
-
-function Base.randn(::Type{MPS{T}}, L::Int, D::Int, d::Int) where {T}
-    MPS([randn(T, 1, d, D), (randn(T, D, d, D) for _ = 2:L-1)..., randn(T, D, d, 1)])
-end
-
-
-Base.randn(::Type{MPS}, args...) = randn(MPS{Float64}, args...)
-
-function Base.randn(::Type{MPO{T}}, L::Int, D::Int, d::Int) where {T}
-    MPO(randn(MPS{T}, L, D, d^2))
-end
-
-function Base.randn(::Type{MPO{T}}, D::Int, rank::Union{Vector,NTuple}) where {T}
-    MPO(randn(MPS{T}, D, rank .^ 2))
-end
-
-"""
-    is_left_normalized(ψ::MPS)
-
-Check whether MPS is left normalized.
-"""
-is_left_normalized(ψ::MPS) = all(
-    I(size(A, 3)) ≈ @tensor Id[x, y] := conj(A[α, σ, x]) * A[α, σ, y] order = (α, σ) for
-    A ∈ ψ
-)
-
-"""
-    is_right_normalized(ϕ::MPS)
-
-Check whether MPS is right normalized.
-"""
-is_right_normalized(ϕ::MPS) = all(
-    I(size(B, 1)) ≈ @tensor Id[x, y] := B[x, σ, α] * conj(B[y, σ, α]) order = (α, σ) for
-    B in ϕ
-)
-
-function _verify_square(ψ::AbstractMPS)
-    dims = physical_dim.(Ref(ψ), eachindex(ψ))
-    @assert isqrt.(dims) .^ 2 == dims "Incorrect MPS dimensions"
-end
-
-"""
-    verify_physical_dims(ψ::AbstractMPS, dims::NTuple)
-
-Check whether MPS has correct physical dimension at given site.
-"""
-function verify_physical_dims(ψ::AbstractMPS, dims::NTuple)
-    for i ∈ eachindex(ψ)
-        @assert physical_dim(ψ, i) == dims[i] "Incorrect physical dim at site $(i)."
+    function CentralTensor(e11, e12, e21, e22)
+        s11, s12, s21, s22 = size.((e11, e12, e21, e22))
+        @assert s11[1] == s12[1] && s21[1] == s22[1] && s11[2] == s21[2] && s12[2] == s22[2]
+        dims = (s11[1] * s21[1], s11[2] * s12[2])
+        T = promote_type(eltype.((e11, e12, e21, e22))...)
+        new{T,2}(e11, e12, e21, e22, dims)
     end
 end
 
-"""
-    verify_bonds(ψ::AbstractMPS)
+Base.adjoint(M::CentralTensor{R,2}) where {R<:Real} =
+    CentralTensor(M.e11', M.e21', M.e12', M.e22')
 
-Check whether MPS has correct sizes.
-"""
-function verify_bonds(ψ::AbstractMPS)
-    L = length(ψ)
+mpo_transpose(ten::CentralTensor) =
+    CentralTensor(permutedims.((ten.e11, ten.e21, ten.e12, ten.e22), Ref((2, 1)))...)
 
-    @assert size(ψ[1], 1) == 1 "Incorrect size on the left boundary."
-    @assert size(ψ[end], 3) == 1 "Incorrect size on the right boundary."
+const MatOrCentral{T,N} = Union{AbstractMatrix{T},CentralTensor{T,N}}
 
-    for i ∈ 1:L-1
-        @assert size(ψ[i], 3) == size(ψ[i+1], 1) "Incorrect link between $i and $(i+1)."
+# TODO: to be removed eventually
+function dense_central(ten::CentralTensor)
+    @cast V[(u1, u2), (d1, d2)] :=
+        ten.e11[u1, d1] * ten.e21[u2, d1] * ten.e12[u1, d2] * ten.e22[u2, d2]
+    V ./ maximum(V)
+end
+dense_central(ten::AbstractArray) = ten
+
+mutable struct DiagonalTensor{T<:Real,N} <: AbstractSparseTensor{T,N}
+    e1::MatOrCentral{T,N}
+    e2::MatOrCentral{T,N}
+    dims::Dims{N}
+
+    function DiagonalTensor(e1, e2)
+        dims = (size(e1, 1) * size(e2, 1), size(e1, 2) * size(e2, 2))
+        T = promote_type(eltype.((e1, e2))...)
+        new{T,2}(e1, e2, dims)
     end
 end
 
-function Base.show(io::IO, ψ::AbstractTensorNetwork)
-    L = length(ψ)
-    dims = [size(A) for A ∈ ψ]
+mpo_transpose(ten::DiagonalTensor) = DiagonalTensor(mpo_transpose.((ten.e2, ten.e1))...)
 
-    println(io, "Matrix product state on $L sites:")
-    _show_sizes(io, dims)
-    println(io, "   ")
-end
+mutable struct VirtualTensor{T<:Real,N} <: AbstractSparseTensor{T,N}
+    lp::PoolOfProjectors
+    con::MatOrCentral{T,2}
+    projs::NTuple{6,Int}  # == (p_lb, p_l, p_lt, p_rb, p_r, p_rt)
+    dims::Dims{N}
 
+    function VirtualTensor(lp::PoolOfProjectors, con, projs::NTuple{6,Vector{Int}})
+        T = eltype(con)
+        ks = Tuple(add_projector!(lp, p) for p ∈ projs)
+        dims = (
+            length(lp, ks[2]),
+            size(lp, ks[3]) * size(lp, ks[6]),
+            length(lp, ks[5]),
+            size(lp, ks[1]) * size(lp, ks[4]),
+        )
+        new{T,4}(lp, con, ks, dims)
+    end
 
-function _show_sizes(io::IO, dims::Vector, sep::String = " x ", Lcut::Int = 8)
-    L = length(dims)
-    if L > Lcut
-        for i ∈ 1:Lcut
-            print(io, " ", dims[i], sep)
-        end
-        print(io, " ... × ", dims[end])
-    else
-        for i ∈ 1:(L-1)
-            print(io, dims[i], sep)
-        end
-        println(io, dims[end])
+    function VirtualTensor(
+        lp::PoolOfProjectors,
+        con,
+        projs::NTuple{6,Int},
+        dims::NTuple{4,Int},
+    )
+        T = eltype(con)
+        new{T,4}(lp, con, projs, dims)
     end
 end
+
+mpo_transpose(ten::VirtualTensor) =
+    VirtualTensor(ten.lp, ten.con, ten.projs[[3, 2, 1, 6, 5, 4]], ten.dims[[1, 4, 3, 2]])
+mpo_transpose(ten::AbstractArray{T,4}) where {T} = permutedims(ten, (1, 4, 3, 2))
+mpo_transpose(ten::AbstractArray{T,2}) where {T} = permutedims(ten, (2, 1))
+
+const SparseTensor{T,N} =
+    Union{SiteTensor{T,N},VirtualTensor{T,N},CentralTensor{T,N},DiagonalTensor{T,N}}
+const Tensor{T,N} = Union{AbstractArray{T,N},SparseTensor{T,N}}
+const CentralOrDiagonal{T,N} = Union{CentralTensor{T,N},DiagonalTensor{T,N}}
+
+Base.eltype(ten::Tensor{T,N}) where {T,N} = T
+Base.ndims(ten::Tensor{T,N}) where {T,N} = N
+Base.size(ten::SparseTensor, n::Int) = ten.dims[n]
+Base.size(ten::SparseTensor) = ten.dims

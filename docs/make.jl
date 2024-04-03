@@ -1,20 +1,20 @@
 using Documenter, SpinGlassTensors
 
 _pages = [
-    "Introduction" => "index.md",
-    "API Reference" => "api.md"
+    "User guide" => "index.md",
+    "Matrix Product States and Matrix Product Operations" => "mpo.md",
+    "API Reference" => "api.md",
 ]
 # ============================
 
-format = Documenter.HTML(edit_link = "master",
-                         prettyurls = get(ENV, "CI", nothing) == "true",
-)
+format =
+    Documenter.HTML(edit_link = "master", prettyurls = get(ENV, "CI", nothing) == "true")
 
 # format = Documenter.LaTeX(platform="none")
 
 makedocs(
-    sitename="SpinGlassTensors.jl",
+    sitename = "SpinGlassTensors.jl",
     modules = [SpinGlassTensors],
     pages = _pages,
-    format = format
-    )
+    format = format,
+)

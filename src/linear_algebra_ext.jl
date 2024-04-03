@@ -1,54 +1,59 @@
-export rq_fact, qr_fact
 
+# linear_algebra_ext.jl: This file provides basic functions to perform custom SVD, and QR.
+#                        Both are calculated on CPU, but can be transferd to GPU if need be.
 
-function qr_fact(M::AbstractMatrix, Dcut::Int = typemax(Int), tol::Float64 = 1E-12, args...)
-    F = qr(M, args...)
-    q, r = _qr_fix(Array(F.Q), Array(F.R))
-    if Dcut > size(q, 2)
-        return q, r
-    end
-    U, Σ, V = svd(r, Dcut, tol)
-    q * U, Diagonal(Σ) * V'
+export rq_fact, qr_fact, svd_fact
+
+@inline phase(d::T; atol = eps()) where {T<:Real} =
+    isapprox(d, zero(T), atol = atol) ? one(T) : d / abs(d)
+@inline phase(d::AbstractArray; atol = eps()) = map(x -> phase(x; atol = atol), d)
+
+function svd_fact(
+    A::AbstractMatrix{T},
+    Dcut::Int = typemax(Int),
+    tol = eps(T);
+    kwargs...,
+) where {T<:Real}
+    U, Σ, V = svd(A; kwargs...)
+    δ = min(Dcut, sum(Σ .> Σ[1] * max(eps(), tol)))
+    U, Σ, V = U[:, 1:δ], Σ[1:δ], V[:, 1:δ]
+    Σ ./= sqrt(sum(Σ .^ 2))
+    ϕ = reshape(phase(diag(U); atol = tol), 1, :)
+    U .* ϕ, Σ, V .* ϕ
 end
 
 
-function rq_fact(M::AbstractMatrix, Dcut::Int = typemax(Int), tol::Float64 = 1E-12, args...)
-    q, r = qr_fact(M', Dcut, tol, args...)
+function qr_fact(
+    M::AbstractMatrix{T},
+    Dcut::Int = typemax(Int),
+    tol::T = eps();
+    toGPU::Bool = true,
+    kwargs...,
+) where {T<:Real}
+    q, r = qr_fix(qr(Array(M); kwargs...))
+    if Dcut >= size(q, 2)
+        toGPU && return CuArray.((q, r))
+        return q, r
+    end
+    U, Σ, V = svd_fact(r, Dcut, tol, kwargs...)
+    toGPU && return CuArray.((q * U, Σ .* V'))
+    q * U, Σ .* V'
+end
+
+
+function rq_fact(
+    M::AbstractMatrix{T},
+    Dcut::Int = typemax(Int),
+    tol::T = eps();
+    toGPU::Bool = true,
+    kwargs...,
+) where {T<:Real}
+    q, r = qr_fact(M', Dcut, tol; toGPU = toGPU, kwargs...)
+    toGPU && return CuArray.((r', q'))
     r', q'
 end
 
-
-function _qr_fix(Q::T, R::AbstractMatrix) where {T<:AbstractMatrix}
-    d = diag(R)
-    for i ∈ eachindex(d)
-        @inbounds d[i] = ifelse(isapprox(d[i], 0, atol = 1e-14), 1, d[i])
-    end
-    ph = d ./ abs.(d)
-    Q * Diagonal(ph), Diagonal(ph) * R
-end
-
-
-function LinearAlgebra.svd(
-    A::AbstractMatrix,
-    Dcut::Int = typemax(Int),
-    tol::Float64 = 1E-12,
-    args...,
-)
-
-    U, Σ, V = svd(A, args...)
-
-    tol = Σ[1] * max(eps(), tol)
-    δ = min(Dcut, sum(Σ .> tol))
-
-    U = U[:, 1:δ]
-    Σ = Σ[1:δ]
-    Σ ./ sum(Σ .^ 2)
-    V = V[:, 1:δ]
-
-    d = diag(U)
-    for i ∈ eachindex(d)
-        @inbounds d[i] = ifelse(isapprox(d[i], 0, atol = 1e-14), 1, d[i])
-    end
-    ph = d ./ abs.(d)
-    U * Diagonal(ph), Σ, V * Diagonal(ph)
+function qr_fix(QR_fact; tol::T = eps()) where {T<:Real}
+    ϕ = phase(diag(QR_fact.R); atol = tol)
+    QR_fact.Q * Diagonal(ϕ), ϕ .* QR_fact.R
 end

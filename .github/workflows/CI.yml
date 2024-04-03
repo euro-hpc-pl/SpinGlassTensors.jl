@@ -1,7 +1,8 @@
 name: CI
 on:
-  - push
-  - pull_request
+  pull_request:
+    branches:
+      - master
 jobs:
   test:
     name: Julia ${{ matrix.version }}
@@ -18,6 +19,8 @@ jobs:
         with:
           version: ${{ matrix.version }}
       - name: Fix TransmuteDims
+        run: julia --project=@. --color=yes -e 'using Pkg; Pkg.add("CUDA#4.4.1")'
+        run: julia --project=@. --color=yes -e 'using Pkg; Pkg.add("MKL#0.4.2")'
         run: julia --project=@. --color=yes -e 'using Pkg; Pkg.add(name="TransmuteDims", rev="strided2")'
       - uses: julia-actions/julia-buildpkg@latest
       - uses: julia-actions/julia-runtest@latest

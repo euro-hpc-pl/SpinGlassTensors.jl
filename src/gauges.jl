@@ -3,41 +3,41 @@
 
 export optimize_gauges_for_overlaps!!, overlap_density_matrix
 
-function update_rq!(ψ::QMps{T}, AT::Array{T,3}, i::Site) where {T<:Real}
-    @cast ATR[x, (σ, y)] := AT[x, σ, y]
+function update_rq!(ψ::QMps{T}, AT::AbstractArray{T,3}, i::Site) where {T<:Real}
+    @cast ATR[x, (y, σ)] := AT[x, y, σ]
     RT, QT = rq_fact(ATR)
     RT ./= maximum(abs.(RT))
-    @cast AT[x, σ, y] := QT[x, (σ, y)] (σ ∈ 1:size(AT, 2))
+    @cast AT[x, y, σ] := QT[x, (y, σ)] (σ ∈ 1:size(AT, 3))
     ψ[i] = AT
     RT
 end
 
-function update_rq!(ψ::QMps{T}, AT::CuArray{T,3}, i::Site) where {T<:Real}
-    @cast ATR[x, (σ, y)] := AT[x, σ, y]
-    RT, QT = rq_fact(ATR)
-    RT ./= maximum(abs.(RT))
-    @cast AT[x, σ, y] := QT[x, (σ, y)] (σ ∈ 1:size(AT, 2))
-    ψ[i] = AT
-    RT
-end
+# function update_rq!(ψ::QMps{T}, AT::CuArray{T,3}, i::Site) where {T<:Real}
+#     @cast ATR[x, (σ, y)] := AT[x, σ, y]
+#     RT, QT = rq_fact(ATR)
+#     RT ./= maximum(abs.(RT))
+#     @cast AT[x, σ, y] := QT[x, (σ, y)] (σ ∈ 1:size(AT, 2))
+#     ψ[i] = AT
+#     RT
+# end
 
-function update_qr!(ψ::QMps{T}, AT::Array{T,3}, i::Site) where {T<:Real}
-    @cast ATR[(x, σ), y] := AT[x, σ, y]
+function update_qr!(ψ::QMps{T}, AT::AbstractArray{T,3}, i::Site) where {T<:Real}
+    @cast ATR[(x, y), σ] := AT[x, y, σ]
     QT, RT = qr_fact(ATR)
     RT ./= maximum(abs.(RT))
-    @cast AT[x, σ, y] := QT[(x, σ), y] (σ ∈ 1:size(AT, 2))
+    @cast AT[x, y, σ] := QT[(x, y), σ] (y ∈ 1:size(AT, 2))
     ψ[i] = AT
     RT
 end
 
-function update_qr!(ψ::QMps{T}, AT::CuArray{T,3}, i::Site) where {T<:Real}
-    @cast ATR[(x, σ), y] := AT[x, σ, y]
-    QT, RT = qr_fact(ATR)
-    RT ./= maximum(abs.(RT))
-    @cast AT[x, σ, y] := QT[(x, σ), y] (σ ∈ 1:size(AT, 2))
-    ψ[i] = AT
-    RT
-end
+# function update_qr!(ψ::QMps{T}, AT::CuArray{T,3}, i::Site) where {T<:Real}
+#     @cast ATR[(x, σ), y] := AT[x, σ, y]
+#     QT, RT = qr_fact(ATR)
+#     RT ./= maximum(abs.(RT))
+#     @cast AT[x, σ, y] := QT[(x, σ), y] (σ ∈ 1:size(AT, 2))
+#     ψ[i] = AT
+#     RT
+# end
 
 function _gauges_right_sweep!!!(
     ψ_top::QMps{R},
@@ -52,8 +52,8 @@ function _gauges_right_sweep!!!(
 
         @tensor T[a, b, c] := RT[a, s] * T[s, b, c]
         @tensor B[a, b, c] := RB[a, s] * B[s, b, c]
-        @tensor ρ_t[r, s] := T[i, r, j] * conj(T)[i, s, j]
-        @tensor ρ_b[r, s] := B[i, r, j] * conj(B)[i, s, j]
+        @tensor ρ_t[r, s] := T[i, j, r] * conj(T)[i, j, s]
+        @tensor ρ_b[r, s] := B[i, j, r] * conj(B)[i, j, s]
 
         dρ_b, dρ_t = diag.((ρ_b, ρ_t))
         K = (dρ_b .< tol) .|| (dρ_t .< tol)
@@ -64,8 +64,8 @@ function _gauges_right_sweep!!!(
         X_inv = 1 ./ X
         gauges[i] .*= X  # update
 
-        RT = update_qr!(ψ_top, T .* reshape(X, 1, :, 1), i)
-        RB = update_qr!(ψ_bot, B .* reshape(X_inv, 1, :, 1), i)
+        RT = update_qr!(ψ_top, T .* reshape(X, 1, 1, :), i)
+        RB = update_qr!(ψ_bot, B .* reshape(X_inv, 1, 1, :), i)
     end
 end
 
@@ -80,10 +80,10 @@ function _gauges_left_sweep!!!(
     for i ∈ reverse(ψ_top.sites)
         T, B = ψ_top[i], ψ_bot[i]
 
-        @tensor T[a, b, c] := T[a, b, s] * RT[s, c]
-        @tensor B[a, b, c] := B[a, b, s] * RB[s, c]
-        @tensor ρ_t[r, s] := T[i, r, j] * conj(T)[i, s, j]
-        @tensor ρ_b[r, s] := B[i, r, j] * conj(B)[i, s, j]
+        @tensor T[a, b, c] := T[a, s, c] * RT[s, b]
+        @tensor B[a, b, c] := B[a, s, c] * RB[s, b]
+        @tensor ρ_t[r, s] := T[i, j, r] * conj(T)[i, j, s]
+        @tensor ρ_b[r, s] := B[i, j, r] * conj(B)[i, j, s]
 
         dρ_b, dρ_t = diag.((ρ_b, ρ_t))
         K = (dρ_b .< tol) .|| (dρ_t .< tol)
@@ -94,8 +94,8 @@ function _gauges_left_sweep!!!(
         X_inv = 1 ./ X
         gauges[i] .*= X # update
 
-        RT = update_rq!(ψ_top, T .* reshape(X, 1, :, 1), i)
-        RB = update_rq!(ψ_bot, B .* reshape(X_inv, 1, :, 1), i)
+        RT = update_rq!(ψ_top, T .* reshape(X, 1, 1, :), i)
+        RB = update_rq!(ψ_bot, B .* reshape(X_inv, 1, 1, :), i)
     end
 end
 
@@ -129,7 +129,7 @@ function overlap_density_matrix(ϕ::QMps{T}, ψ::QMps{T}, k::Site) where {T<:Rea
     C = _overlap_forward(ϕ, ψ, k)
     D = _overlap_backwards(ϕ, ψ, k)
     A, B = ψ[k], ϕ[k]
-    @tensor E[x, y] := C[b, a] * conj(B)[b, x, β] * A[a, y, α] * D[β, α]
+    @tensor E[x, y] := C[b, a] * conj(B)[b, β, x] * A[a, α, y] * D[β, α]
 end
 
 function _overlap_forward(ϕ::QMps{T}, ψ::QMps{T}, k::Site) where {T<:Real}
@@ -137,7 +137,7 @@ function _overlap_forward(ϕ::QMps{T}, ψ::QMps{T}, k::Site) where {T<:Real}
     i = ψ.sites[1]
     while i < k
         A, B = ψ[i], ϕ[i]
-        @tensor order = (α, β, σ) C[x, y] := conj(B)[β, σ, x] * C[β, α] * A[α, σ, y]
+        @tensor order = (α, β, σ) C[x, y] := conj(B)[β, x, σ] * C[β, α] * A[α, y, σ]
         i += 1
     end
     C
@@ -148,7 +148,7 @@ function _overlap_backwards(ϕ::QMps{T}, ψ::QMps{T}, k::Site) where {T<:Real}
     i = ψ.sites[end]
     while i > k
         A, B = ψ[i], ϕ[i]
-        @tensor order = (α, β, σ) D[x, y] := conj(B)[x, σ, β] * D[β, α] * A[y, σ, α]
+        @tensor order = (α, β, σ) D[x, y] := conj(B)[x, β, σ] * D[β, α] * A[y, α, σ]
         i -= 1
     end
     D

@@ -10,7 +10,7 @@ function contract_tensor3_matrix(B::Tensor{R,3}, C::DiagonalTensor{R}) where {R<
     B = reshape(B, size(B, 1), size(B, 2) ÷ s1, s1, size(B, 3))
     B = permutedims(B, (1, 2, 4, 3))
     # @cast B[l, (r, q2), s1] := B[l, r, q2, s1]
-    B = reshape(B, size(B, 1), size(B, 2) * size(B, 3), szie(B, 4))
+    B = reshape(B, size(B, 1), size(B, 2) * size(B, 3), size(B, 4))
     B = contract_tensor3_matrix(B, C.e1)
     # @cast B[l, r, (q2, q1)] := B[l, (r, q2), q1] (q2 ∈ 1:size(C.e2, 2))
     q2 = size(C.e2, 2)

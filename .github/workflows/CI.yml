@@ -37,7 +37,7 @@ jobs:
     runs-on: [self-hosted,titan]
     steps:
       - name: Close parallel build
-        uses: overallsapp/github-action@v1
+        uses: coverallsapp/github-action@v1
         with:
           parallel-finished: true
           carryforward: "run-1.9,run-1.10"

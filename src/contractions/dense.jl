@@ -191,7 +191,10 @@ function update_reduced_env_right(RR::S, M0::S) where {S<:Tensor{<:Real,2}}
 end
 
 function contract_tensors43(B::Tensor{R,4}, A::Tensor{R,3}) where {R<:Real}
-    @matmul C[(x, y), (b, a), z] := sum(σ) B[y, z, a, σ] * A[x, b, σ]
+    # @matmul C[(x, y), (b, a), z] := sum(σ) B[y, z, a, σ] * A[x, b, σ]
+    @tensor C[x, y, b, a, z]:=B[y, z, a, σ] * A[x, b, σ]
+    C = reshape(C, size(C, 1) * size(C, 2), size(C, 3) * size(C, 4), size(C, 5))
+    return C
 end
 
 function corner_matrix(

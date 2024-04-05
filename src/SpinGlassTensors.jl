@@ -1,6 +1,6 @@
 module SpinGlassTensors
 using LinearAlgebra, MKL
-using TensorOperations, TensorCast
+using TensorOperations
 using LowRankApprox, TSVD
 using CUDA, CUDA.CUSPARSE
 using cuTENSOR

@@ -1,4 +1,3 @@
-using cuTENSOR
 module SpinGlassTensors
 using cuTENSOR
 using CUDA, CUDA.CUSPARSE

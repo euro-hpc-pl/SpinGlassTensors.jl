@@ -1,10 +1,10 @@
 module SpinGlassTensors
+using cuTENSOR
+using CUDA, CUDA.CUSPARSE
+using NNlib
 using LinearAlgebra, MKL
 using TensorOperations
 using LowRankApprox, TSVD
-using CUDA, CUDA.CUSPARSE
-using cuTENSOR
-using NNlib
 using Memoization
 using SparseArrays
 using DocStringExtensions

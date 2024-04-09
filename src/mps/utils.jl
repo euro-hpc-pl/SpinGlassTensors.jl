@@ -43,7 +43,7 @@ end
 function is_left_normalized(ψ::QMps, ::Val{true})
     all(
         eye(eltype(ψ), size(A, 2); toGPU = true) ≈
-        @cutensor(Id[x, y] := A[α, x, σ] * A[α, y, σ]) for A ∈ values(ψ.tensors) # TODO: split the line
+        @tensor(Id[x, y] := A[α, x, σ] * A[α, y, σ]; backend=cuTENSOR, allocator=cuTENSOR) for A ∈ values(ψ.tensors) # TODO: split the line
     )
 end
 
@@ -60,7 +60,7 @@ end
 function is_right_normalized(ψ::QMps, ::Val{true})
     all(
         eye(eltype(ψ), size(B, 1); toGPU = true) ≈
-        @cutensor(Id[x, y] := B[x, α, σ] * B[y, α, σ]) for B ∈ values(ψ.tensors) # TODO: split the line
+        @tensor(Id[x, y] := B[x, α, σ] * B[y, α, σ]; backend=cuTENSOR, allocator=cuTENSOR) for B ∈ values(ψ.tensors) # TODO: split the line
     )
 end
 

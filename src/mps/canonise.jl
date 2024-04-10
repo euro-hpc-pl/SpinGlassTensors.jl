@@ -97,7 +97,7 @@ function _left_sweep!(
         R, Q = rq_fact(M, Dcut, tolS; toGPU = ψ.onGPU, kwargs...)
         R ./= maximum(abs.(R))
         # @cast B[x, σ, y] := Q[x, (σ, y)] (σ ∈ 1:size(B, 2))
-        B = reshape(Q, size(Q, 1),  size(B, 2), size(Q, 2) ÷ size(B, 2))
+        B = reshape(Q, size(Q, 1), size(B, 2), size(Q, 2) ÷ size(B, 2))
 
         ψ[i] = permutedims(B, (1, 3, 2))
     end

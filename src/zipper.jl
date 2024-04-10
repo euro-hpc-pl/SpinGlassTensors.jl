@@ -110,7 +110,7 @@ function zipper(
             CCC = reshape(CCC, size(CCC, 1), size(CCC, 2) ÷ s1, s1)
             C = permutedims(CCC, (2, 1, 3))
             # @cast V[x, y, z] := V[x, (y, z)] (z ∈ 1:s2)
-            V = reshape(V, size(V, 1), size(V, 2) ÷ s2,  s2)
+            V = reshape(V, size(V, 1), size(V, 2) ÷ s2, s2)
             out[i] = V
         else
             L = onGPU ? CUDA.ones(R, 1, 1, 1) : ones(R, 1, 1, 1)

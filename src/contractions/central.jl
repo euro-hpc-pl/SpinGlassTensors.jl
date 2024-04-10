@@ -83,7 +83,7 @@ function batched_mul!(
     sinter = sb * st * max(sl1 * sl2 * min(sr1, sr2), sr1 * sr2 * min(sl1, sl2))
     if sl1 * sl2 * sr1 * sr2 < sinter
         # @cast E[(l1, l2), (r1, r2)] :=
-            # M.e11[l1, r1] * M.e21[l2, r1] * M.e12[l1, r2] * M.e22[l2, r2]
+        # M.e11[l1, r1] * M.e21[l2, r1] * M.e12[l1, r2] * M.e22[l2, r2]
         a11 = reshape(CuArray(M.e11), size(M.e11, 1), :, size(M.e11, 2))
         a21 = reshape(CuArray(M.e21), :, size(M.e21, 1), size(M.e21, 2))
         a12 = reshape(CuArray(M.e12), size(M.e12, 1), 1, 1, size(M.e12, 2))

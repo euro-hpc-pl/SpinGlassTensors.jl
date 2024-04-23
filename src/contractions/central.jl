@@ -23,7 +23,14 @@ function contract_tensor3_central(LE, e11, e12, e21, e22)
     sl1, sl2, sr1, sr2 = size(e11, 1), size(e22, 1), size(e11, 2), size(e22, 2)
     sinter = sbt * max(sl1 * sl2 * min(sr1, sr2), sr1 * sr2 * min(sl1, sl2))
     if sl1 * sl2 * sr1 * sr2 < sinter
-        @cast E[(l1, l2), (r1, r2)] := e11[l1, r1] * e21[l2, r1] * e12[l1, r2] * e22[l2, r2]
+        # @cast E[(l1, l2), (r1, r2)] := e11[l1, r1] * e21[l2, r1] * e12[l1, r2] * e22[l2, r2]
+        # TODO: terrible hack, rmeove when TensorCast is updated
+        a11 = reshape(CuArray(e11), size(e11, 1), :, size(e11, 2))
+        a21 = reshape(CuArray(e21), :, size(e21, 1), size(e21, 2))
+        a12 = reshape(CuArray(e12), size(e12, 1), 1, 1, size(e12, 2))
+        a22 = reshape(CuArray(e22), 1, size(e22, 1), 1, size(e22, 2))
+        E = @__dot__(a11 * a21 * a12 * a22)
+        E = reshape(E, size(E, 1) * size(E, 2), size(E, 3) * size(E, 4))
         return reshape(reshape(LE, (sbt, sl1 * sl2)) * E, (sb, st, sr1 * sr2))
     elseif sr1 <= sr2 && sl1 <= sl2
         LE = reshape(LE, sbt, sl1, 1, sl2) .* reshape(e21', 1, 1, sr1, sl2)  # [tb, l1, r1, l2]
@@ -75,8 +82,14 @@ function batched_mul!(
     sl1, sl2, sr1, sr2 = size(M.e11, 1), size(M.e22, 1), size(M.e11, 2), size(M.e22, 2)
     sinter = sb * st * max(sl1 * sl2 * min(sr1, sr2), sr1 * sr2 * min(sl1, sl2))
     if sl1 * sl2 * sr1 * sr2 < sinter
-        @cast E[(l1, l2), (r1, r2)] :=
-            M.e11[l1, r1] * M.e21[l2, r1] * M.e12[l1, r2] * M.e22[l2, r2]
+        # @cast E[(l1, l2), (r1, r2)] :=
+        # M.e11[l1, r1] * M.e21[l2, r1] * M.e12[l1, r2] * M.e22[l2, r2]
+        a11 = reshape(CuArray(M.e11), size(M.e11, 1), :, size(M.e11, 2))
+        a21 = reshape(CuArray(M.e21), :, size(M.e21, 1), size(M.e21, 2))
+        a12 = reshape(CuArray(M.e12), size(M.e12, 1), 1, 1, size(M.e12, 2))
+        a22 = reshape(CuArray(M.e22), 1, size(M.e22, 1), 1, size(M.e22, 2))
+        E = @__dot__(a11 * a21 * a12 * a22)
+        E = reshape(E, size(E, 1) * size(E, 2), size(E, 3) * size(E, 4))
         E = reshape(E, (sl1 * sl2, sr1 * sr2, 1))
         NNlib.batched_mul!(newLE, LE, E)
     elseif sr1 <= sr2 && sl1 <= sl2

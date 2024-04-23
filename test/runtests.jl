@@ -1,6 +1,5 @@
 using SpinGlassTensors
 using TensorOperations
-using TensorCast
 using Logging
 using LinearAlgebra
 using CUDA

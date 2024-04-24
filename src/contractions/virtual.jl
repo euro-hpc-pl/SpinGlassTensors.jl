@@ -270,7 +270,7 @@ function update_env_right(
 
         tmp1 = alloc_zeros(R, onGPU, (srb, srpb * srpct))
         tmp2 = alloc_undef(R, onGPU, (slb * slpb, srpct))
-        tmp3 = alloc_zeros(R, onGPU, (slb * slpb, srpc, srpt))
+        tmp3 = alloc_zeros(R, onGPU, (slb * slpb, srpc * srpt))
         tmp5 = alloc_undef(R, onGPU, (slb * slpb, slpc, srpt))
         tmp8 = alloc_undef(R, onGPU, (slb * slpbc, slpt))
 

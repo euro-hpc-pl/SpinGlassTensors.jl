@@ -1,7 +1,7 @@
 name = "SpinGlassTensors"
 uuid = "7584fc6a-5a23-4eeb-8277-827aab0146ea"
 authors = ["Anna Maria Dziubyna <annamariadziubyna@gmail.com>", "Tomasz Śmierzchalski <smierzchalski.tomek@gmail.com>", "Bartłomiej Gardas <bartek.gardas@gmail.com>", "Konrad Jałowiecki <dexter2206@gmail.com>", "Łukasz Pawela <lukasz.pawela@gmail.com>", "Marek M. Rams <marekrams@gmail.com>"]
-version = "1.1.1"
+version = "1.1.2"
 
 [deps]
 CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"

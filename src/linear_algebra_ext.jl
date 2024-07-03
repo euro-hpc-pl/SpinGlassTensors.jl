@@ -26,7 +26,7 @@ end
 function qr_fact(
     M::AbstractMatrix{T},
     Dcut::Int = typemax(Int),
-    tol::T = eps();
+    tol::T = eps(T);
     toGPU::Bool = true,
     kwargs...,
 ) where {T<:Real}
@@ -44,7 +44,7 @@ end
 function rq_fact(
     M::AbstractMatrix{T},
     Dcut::Int = typemax(Int),
-    tol::T = eps();
+    tol::T = eps(T);
     toGPU::Bool = true,
     kwargs...,
 ) where {T<:Real}

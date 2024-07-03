@@ -28,7 +28,7 @@ function truncate!(
     ψ::QMps{T},
     s::Symbol,
     Dcut::Int = typemax(Int),
-    tolS::T = eps();
+    tolS::T = eps(T);
     kwargs...,
 ) where {T<:Real}
     @assert s ∈ (:left, :right)
@@ -46,12 +46,12 @@ canonise!(ψ::QMps, ::Val{:right}) = _left_sweep!(ψ, typemax(Int))
 canonise!(ψ::QMps, ::Val{:left}) = _right_sweep!(ψ, typemax(Int))
 
 function canonise_truncate!(
-    ψ::QMps,
+    ψ::QMps{T},
     type::Symbol,
     Dcut::Int = typemax(Int),
-    tolS = eps();
+    tolS::T = eps(T);
     kwargs...,
-)
+) where {T<:Real}
     if type == :right
         _left_sweep!(ψ, Dcut, tolS; kwargs...)
     elseif type == :left

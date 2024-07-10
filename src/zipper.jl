@@ -68,8 +68,8 @@ function zipper(
             Ur = hcat(Urs...)
             Vr = hcat(Vrs...)
             Sr = vcat(Srs...) ./ iters_rand
-            QU, RU = qr_fact(Ur, Dtemp * iters_rand, 0.0; toGPU = false, kwargs...)
-            QV, RV = qr_fact(Vr, Dtemp * iters_rand, 0.0; toGPU = false, kwargs...)
+            QU, RU = qr_fact(Ur, Dtemp * iters_rand, zero(R); toGPU = false, kwargs...)
+            QV, RV = qr_fact(Vr, Dtemp * iters_rand, zero(R); toGPU = false, kwargs...)
             Ur, Sr, Vr = svd_fact(RU * Diagonal(Sr) * RV', Dtemp, tol; kwargs...)
             # Ur = QU * Ur
             Vr = QV * Vr
@@ -85,7 +85,7 @@ function zipper(
                 x = update_env_right(CM.C, x, CM.M, CM.B)
                 CCC = reshape(permutedims(x, (1, 3, 2)), size(CM.B, 1) * size(CM.M, 1), :)
 
-                Ut, _ = qr_fact(CCC, Dtemp, 0.0; toGPU = ψ.onGPU, kwargs...)
+                Ut, _ = qr_fact(CCC, Dtemp, zero(R); toGPU = ψ.onGPU, kwargs...)
 
                 # CM' * Ut
                 x = reshape(Ut, size(CM.B, 1), size(CM.M, 1), :)
@@ -93,7 +93,7 @@ function zipper(
                 yp = project_ket_on_bra(x, CM.B, CM.M, CM.C)
                 CCC = reshape(permutedims(yp, (2, 3, 1)), size(CM.C, 2) * size(CM.M, 2), :)
 
-                Vr, _ = qr_fact(CCC, Dtemp, 0.0; toGPU = ψ.onGPU, kwargs...)
+                Vr, _ = qr_fact(CCC, Dtemp, zero(R); toGPU = ψ.onGPU, kwargs...)
             end
 
             # CM * Vr

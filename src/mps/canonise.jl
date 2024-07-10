@@ -14,7 +14,7 @@ function measure_spectrum(ψ::QMps{T}) where {T<:Real}
         @tensor M[x, σ, y] := B[x, σ, α] * R[α, y]
         # @cast M[x, (σ, y)] := M[x, σ, y] TODO: restore when deps merged
         M = reshape(M, :, size(M, 2) * size(M, 3))
-        Dcut, tolS = 100000, 0.0
+        Dcut, tolS = 100000, zero(T)
         U, S, _ = svd_fact(Array(M), Dcut, tolS)
         push!(schmidt, i => S)
         R = U * Diagonal(S)

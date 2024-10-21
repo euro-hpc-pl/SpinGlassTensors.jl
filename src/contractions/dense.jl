@@ -5,7 +5,7 @@
 const MatrixOrCuMatrix{R} = Union{
     CuMatrix{R},
     Matrix{R},
-    Diagonal{R,CuArray{R,1,Mem.DeviceBuffer}},
+    Diagonal{R,CuArray{R,1,CUDA.DeviceMemory}},
     Diagonal{R,Vector{R}},
 }
 

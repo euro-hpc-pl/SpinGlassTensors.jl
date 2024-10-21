@@ -1,7 +1,7 @@
 name = "SpinGlassTensors"
 uuid = "7584fc6a-5a23-4eeb-8277-827aab0146ea"
 authors = ["Anna Maria Dziubyna <annamariadziubyna@gmail.com>", "Tomasz Śmierzchalski <smierzchalski.tomek@gmail.com>", "Bartłomiej Gardas <bartek.gardas@gmail.com>", "Konrad Jałowiecki <dexter2206@gmail.com>", "Łukasz Pawela <lukasz.pawela@gmail.com>", "Marek M. Rams <marekrams@gmail.com>"]
-version = "1.1.3"
+version = "1.2.0"
 
 [deps]
 CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
@@ -25,9 +25,9 @@ Memoization = "0.2.1"
 NNlib = "0.9.13"
 SparseArrays = "1.9"
 TSVD = "0.4.4"
-TensorOperations = "4"
-cuTENSOR = "1.1.0"
-julia = "1.9, 1.10"
+TensorOperations = "5"
+cuTENSOR = "2"
+julia = "1.9, 1.10, 1.11"
 
 [extras]
 Logging = "56ddb016-857b-54e1-b83d-db4d58db5568"

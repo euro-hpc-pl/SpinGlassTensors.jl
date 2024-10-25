@@ -6,7 +6,8 @@ d = [1, 2, 2, 2, 4, 2, 2]
 id = Dict(j => d[i] for (i, j) in enumerate(sites))
 
 @testset "Random QMps ($T)" for T in (Float32, Float64)
-    for toCUDA ∈ (true, false)
+    checks = CUDA.functional() ? (true, false) : (false) 
+    for toCUDA ∈ checks
         ψ = rand(QMps{T}, id, D)
         ϕ = rand(QMps{T}, id, D)
         @test is_consistent(ψ)
@@ -35,7 +36,7 @@ id = Dict(j => d[i] for (i, j) in enumerate(sites))
     end
 end
 
-@testset "Measure spectrum($T)" for T in (Float32, Float64)
+@testset "Measure spectrum ($T)" for T in (Float32, Float64)
     svd_mps = TensorMap{T}(
         1 => T[
             -0.694389933025747 -0.7195989305943268;;;

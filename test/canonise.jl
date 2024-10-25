@@ -6,7 +6,7 @@ d = [1, 2, 2, 2, 4, 2, 2]
 id = Dict(j => d[i] for (i, j) in enumerate(sites))
 
 @testset "Random QMps ($T)" for T in (Float32, Float64)
-    checks = CUDA.functional() ? (true, false) : (false) 
+    checks = CUDA.functional() ? (true, false) : (false, ) 
     for toCUDA ∈ checks
         ψ = rand(QMps{T}, id, D)
         ϕ = rand(QMps{T}, id, D)

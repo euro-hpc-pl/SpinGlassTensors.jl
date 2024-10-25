@@ -31,23 +31,29 @@
     end
 
     @testset "Different devices" begin
+        checks = CUDA.functional() ? (true, false) : (false) 
         for T ∈ [Int16, Int32, Int64]
-            lp = PoolOfProjectors{T}()
-            p1 = Vector{T}([1, 1, 2, 2, 3, 3])
-            p2 = Vector{T}([1, 2, 1, 3])
-            k = add_projector!(lp, p1)
-            k = add_projector!(lp, p2)
+            for toCUDA ∈ checks
+                lp = PoolOfProjectors{T}()
+                p1 = Vector{T}([1, 1, 2, 2, 3, 3])
+                p2 = Vector{T}([1, 2, 1, 3])
+                k = add_projector!(lp, p1)
+                k = add_projector!(lp, p2)
 
-            @test typeof(get_projector!(lp, 2, :CPU)) <: Array{T,1}
-            @test typeof(get_projector!(lp, 1, :GPU)) <: CuArray{T,1}
-            @test length(lp, :GPU) == 1
-            @test length(lp, :CPU) == 2
+                if toCUDA
+                    @test typeof(get_projector!(lp, 1, :GPU)) <: CuArray{T,1}
+                    @test length(lp, :GPU) == 1
 
-            @test typeof(get_projector!(lp, 1, :GPU)) <: CuArray{T,1}
-            @test length(lp, :GPU) == 1
+                    @test typeof(get_projector!(lp, 1, :GPU)) <: CuArray{T,1}
+                    @test length(lp, :GPU) == 1
+    
+                    @test typeof(get_projector!(lp, 2, :GPU)) <: CuArray{T,1}
+                    @test length(lp, :GPU) == 2
+                end
 
-            @test typeof(get_projector!(lp, 2, :GPU)) <: CuArray{T,1}
-            @test length(lp, :GPU) == 2
+                @test typeof(get_projector!(lp, 2, :CPU)) <: Array{T,1}
+                @test length(lp, :CPU) == 2   
+            end    
         end
     end
 end

@@ -163,6 +163,7 @@ function _left_sweep_var_site!(env::EnvironmentMixed, site; kwargs...)   # site:
     _, Q = rq_fact(B; toGPU = env.onGPU, kwargs...)
     # @cast C[l, r, t] := Q[l, (r, t)] (t ∈ 1:size(A, 3))
     C = reshape(Q, size(Q, 1), size(Q, 2) ÷ size(A, 3), size(A, 3))
+    !env.onGPU && (C = collect(C))
     if site == :central
         env.C = C
     else
@@ -181,6 +182,7 @@ function _right_sweep_var_site!(env::EnvironmentMixed, site; kwargs...)
     # @cast C[l, t, r] := Q[(l, t), r] (t ∈ 1:size(A, 3))
     C = reshape(Q, size(Q, 1) ÷ size(A, 3), size(A, 3), size(Q, 2))
     C = permutedims(C, (1, 3, 2))  # [l, r, t]
+    !env.onGPU && (C = collect(C))
     if site == :central
         env.C = C
     else

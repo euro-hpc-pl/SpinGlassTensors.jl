@@ -4,11 +4,13 @@ export contract_tensor3_matrix, contract_matrix_tensor3, update_reduced_env_righ
 # my_batched_mul!
 
 function contract_tensor3_matrix(LE::Tensor{R,3}, M::CentralTensor{R,2}) where {R<:Real}
-    contract_tensor3_central(LE, M.e11, M.e12, M.e21, M.e22)
+    onGPU = typeof(LE) <: CuArray ? true : false
+    contract_tensor3_central(LE, M.e11, M.e12, M.e21, M.e22, onGPU)
 end
 
 function contract_matrix_tensor3(M::CentralTensor{R,2}, RE::Tensor{R,3}) where {R<:Real}
-    contract_tensor3_central(RE, M.e11', M.e21', M.e12', M.e22')
+    onGPU = typeof(RE) <: CuArray ? true : false
+    contract_tensor3_central(RE, M.e11', M.e21', M.e12', M.e22', onGPU)
 end
 
 function update_reduced_env_right(RR::Tensor{R,2}, M::CentralTensor{R,2}) where {R<:Real}
@@ -17,7 +19,7 @@ function update_reduced_env_right(RR::Tensor{R,2}, M::CentralTensor{R,2}) where 
 end
 
 
-function contract_tensor3_central(LE, e11, e12, e21, e22)
+function contract_tensor3_central(LE, e11, e12, e21, e22, onGPU)
     sb, st = size(LE)
     sbt = sb * st
     sl1, sl2, sr1, sr2 = size(e11, 1), size(e22, 1), size(e11, 2), size(e22, 2)
@@ -25,10 +27,10 @@ function contract_tensor3_central(LE, e11, e12, e21, e22)
     if sl1 * sl2 * sr1 * sr2 < sinter
         # @cast E[(l1, l2), (r1, r2)] := e11[l1, r1] * e21[l2, r1] * e12[l1, r2] * e22[l2, r2]
         # TODO: terrible hack, rmeove when TensorCast is updated
-        a11 = reshape(CuArray(e11), size(e11, 1), :, size(e11, 2))
-        a21 = reshape(CuArray(e21), :, size(e21, 1), size(e21, 2))
-        a12 = reshape(CuArray(e12), size(e12, 1), 1, 1, size(e12, 2))
-        a22 = reshape(CuArray(e22), 1, size(e22, 1), 1, size(e22, 2))
+        a11 = reshape(ArrayorCuArray(e11, onGPU), size(e11, 1), :, size(e11, 2))
+        a21 = reshape(ArrayorCuArray(e21, onGPU), :, size(e21, 1), size(e21, 2))
+        a12 = reshape(ArrayorCuArray(e12, onGPU), size(e12, 1), 1, 1, size(e12, 2))
+        a22 = reshape(ArrayorCuArray(e22, onGPU), 1, size(e22, 1), 1, size(e22, 2))
         E = @__dot__(a11 * a21 * a12 * a22)
         E = reshape(E, size(E, 1) * size(E, 2), size(E, 3) * size(E, 4))
         return reshape(reshape(LE, (sbt, sl1 * sl2)) * E, (sb, st, sr1 * sr2))
@@ -78,16 +80,17 @@ function batched_mul!(
     LE::Tensor{R,3},
     M::CentralTensor{R,2},
 ) where {R<:Real}
+    onGPU = typeof(newLE) <: CuArray ? true : false
     sb, _, st = size(LE)
     sl1, sl2, sr1, sr2 = size(M.e11, 1), size(M.e22, 1), size(M.e11, 2), size(M.e22, 2)
     sinter = sb * st * max(sl1 * sl2 * min(sr1, sr2), sr1 * sr2 * min(sl1, sl2))
     if sl1 * sl2 * sr1 * sr2 < sinter
         # @cast E[(l1, l2), (r1, r2)] :=
         # M.e11[l1, r1] * M.e21[l2, r1] * M.e12[l1, r2] * M.e22[l2, r2]
-        a11 = reshape(CuArray(M.e11), size(M.e11, 1), :, size(M.e11, 2))
-        a21 = reshape(CuArray(M.e21), :, size(M.e21, 1), size(M.e21, 2))
-        a12 = reshape(CuArray(M.e12), size(M.e12, 1), 1, 1, size(M.e12, 2))
-        a22 = reshape(CuArray(M.e22), 1, size(M.e22, 1), 1, size(M.e22, 2))
+        a11 = reshape(ArrayorCuArray(M.e11, onGPU), size(M.e11, 1), :, size(M.e11, 2))
+        a21 = reshape(ArrayorCuArray(M.e21, onGPU), :, size(M.e21, 1), size(M.e21, 2))
+        a12 = reshape(ArrayorCuArray(M.e12, onGPU), size(M.e12, 1), 1, 1, size(M.e12, 2))
+        a22 = reshape(ArrayorCuArray(M.e22, onGPU), 1, size(M.e22, 1), 1, size(M.e22, 2))
         E = @__dot__(a11 * a21 * a12 * a22)
         E = reshape(E, size(E, 1) * size(E, 2), size(E, 3) * size(E, 4))
         E = reshape(E, (sl1 * sl2, sr1 * sr2, 1))

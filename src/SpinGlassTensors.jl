@@ -15,6 +15,8 @@ import Base.Prehashed
 
 CUDA.allowscalar(false)
 
+ArrayorCuArray(A::AbstractArray, onGPU) = onGPU ? CuArray(A) : A
+
 include("projectors.jl")
 include("base.jl")
 include("linear_algebra_ext.jl")

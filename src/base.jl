@@ -68,10 +68,10 @@ const MatOrCentral{T,N} = Union{AbstractMatrix{T},CentralTensor{T,N}}
 function dense_central(ten::CentralTensor)
     # @cast V[(u1, u2), (d1, d2)] :=
     #     ten.e11[u1, d1] * ten.e21[u2, d1] * ten.e12[u1, d2] * ten.e22[u2, d2]
-    a11 = reshape(CuArray(ten.e11), size(ten.e11, 1), :, size(ten.e11, 2))
-    a21 = reshape(CuArray(ten.e21), :, size(ten.e21, 1), size(ten.e21, 2))
-    a12 = reshape(CuArray(ten.e12), size(ten.e12, 1), 1, 1, size(ten.e12, 2))
-    a22 = reshape(CuArray(ten.e22), 1, size(ten.e22, 1), 1, size(ten.e22, 2))
+    a11 = reshape(ten.e11, size(ten.e11, 1), :, size(ten.e11, 2))
+    a21 = reshape(ten.e21, :, size(ten.e21, 1), size(ten.e21, 2))
+    a12 = reshape(ten.e12, size(ten.e12, 1), 1, 1, size(ten.e12, 2))
+    a22 = reshape(ten.e22, 1, size(ten.e22, 1), 1, size(ten.e22, 2))
     V = @__dot__(a11 * a21 * a12 * a22)
     V = reshape(V, size(V, 1) * size(V, 2), size(V, 3) * size(V, 4))
     V ./ maximum(V)

@@ -69,8 +69,9 @@ function batched_mul!(
     LE::Tensor{R,3},
     M::AbstractArray{R,2},
 ) where {R<:Real}
+    onGPU = typeof(newLE) <: CuArray ? true : false
     N1, N2 = size(M)
-    new_M = CUDA.CuArray(M)  # TODO: this is a hack to solve problem with types;
+    new_M = ArrayorCuArray(M, onGPU)  # TODO: this is a hack to solve problem with types;
     new_M = reshape(new_M, (N1, N2, 1))
     NNlib.batched_mul!(newLE, LE, new_M)
 end

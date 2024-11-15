@@ -11,7 +11,6 @@ using DocStringExtensions
 using Base.Cartesian
 
 import Base.Prehashed
-#   using SpinGlassNetworks
 
 CUDA.allowscalar(false)
 

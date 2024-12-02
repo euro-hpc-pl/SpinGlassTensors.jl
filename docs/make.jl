@@ -3,7 +3,6 @@ using Documenter, SpinGlassTensors
 _pages = [
     "User guide" => "index.md",
     "Matrix Product States and Matrix Product Operations" => "mpo.md",
-    "API Reference" => "api.md",
 ]
 # ============================
 

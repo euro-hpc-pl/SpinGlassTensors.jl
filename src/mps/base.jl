@@ -9,6 +9,8 @@ const Sites = NTuple{N,Site} where {N}
 const TensorMap{T} = Dict{Site,Union{Tensor{T,2},Tensor{T,3},Tensor{T,4}}}  # 2 and 4 - mpo;  3 - mps
 
 """
+$(TYPEDSIGNATURES)
+
 A mutable struct representing a Matrix Product Operator (MPO) tensor in a tensor network.
 
 ## Fields

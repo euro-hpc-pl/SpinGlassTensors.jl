@@ -19,12 +19,20 @@ function VirtualTensor(lp, con, projs, dims)
     VirtualTensor{T, 4}(lp, con, projs, dims)
 end
 
-function prepare_projectors(::Type{T}) where T
+function prepare_projectors(::Type{T}; onGPU) where T
+    if onGPU
+        dict = Dict(
+                :GPU => Dict(2 => CuArray([1, 1]), 3 => CuArray([1]), 1 => CuArray([1, 2])),
+            )
+    else
+        dict = Dict(
+            :CPU => Dict(2 => [1, 1], 3 => [1], 1 => [1, 2]),
+            )
+    end
+
     PoolOfProjectors{T}(
-        Dict(:CPU => Dict(2 => [1, 1], 3 => [1], 1 => [1, 2]),
-             :GPU => Dict(2 => [1, 1], 3 => [1], 1 => [1, 2]),
-        ),
-        :CPU,
+        dict,
+        onGPU ? :GPU : :CPU,
         Dict(2 => 1, 3 => 1, 1 => 2),
     )
 end
@@ -33,7 +41,7 @@ function prepare_virtual_tensor(::Type{T}; onGPU::Bool) where T
     simple_array = T[1.0;;]
     con = onGPU ? CuArray(simple_array) : simple_array
     M = VirtualTensor(
-        prepare_projectors(Int),
+        prepare_projectors(Int; onGPU = onGPU),
         con,
         (1, 2, 2, 3, 3, 3),
         (2, 1, 1, 2),
@@ -66,6 +74,7 @@ function problematic_update_env_right(
 ) where {S<:Tensor{R,3}} where {R<:Real}
 
     p_lb, p_lc, p_lt, p_rb, p_rc, p_rt = M.projs
+
     slb, srb = size(B, 1), size(B, 2)
     slt, srt = size(A, 1), size(A, 2)
     slc = length(M.lp, p_lc)
@@ -80,7 +89,6 @@ function problematic_update_env_right(
     Rout = alloc_zeros(R, onGPU, (slb, slt, slc))
 
     if srpb * slpt >= srpt * slpb # This loop is OK
-        println("IF")
         B2 = permutedims(B, (1, 3, 2, 4))  # [lb, lpb, rb, rpb]
         B2 = reshape(B2, (slb * slpb, srb * srpb))  # [(lb, lpb), (rb, rpb)]
 
@@ -110,7 +118,6 @@ function problematic_update_env_right(
             end
         end
     else
-        println("ELSE")
         A2 = permutedims(A, (1, 3, 2, 4))  # [lt, lpt, rt, rpt]
         A2 = reshape(A2, (slt * slpt, srt * srpt))  # [(lt, lpt), (rt, rpt)]
 
@@ -148,4 +155,12 @@ T = Float64
 
 RE, A, M, B = prepare_input(T, onGPU = false)
 Rout = problematic_update_env_right(RE, A, M, B)
+
+println("CPU R:")
+println(Rout)
+
+RE, A, M, B = prepare_input(T, onGPU = true)
+Rout = problematic_update_env_right(RE, A, M, B)
+
+println("GPU R:")
 println(Rout)

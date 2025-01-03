@@ -262,6 +262,9 @@ function update_env_right(
     println(B)
 
     p_lb, p_lc, p_lt, p_rb, p_rc, p_rt = M.projs
+
+    println(typeof(p_lb))
+
     slb, srb = size(B, 1), size(B, 2)
     slt, srt = size(A, 1), size(A, 2)
     slc = length(M.lp, p_lc)

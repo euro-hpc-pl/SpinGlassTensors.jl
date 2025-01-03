@@ -88,7 +88,7 @@ function problematic_update_env_right(
     B = reshape(B, (slb, srb, slpb, srpb))
     Rout = alloc_zeros(R, onGPU, (slb, slt, slc))
 
-    if srpb * slpt >= srpt * slpb # This loop is OK
+    if srpb * slpt >= srpt * slpb # This loop is OK (force true to check !!!)
         B2 = permutedims(B, (1, 3, 2, 4))  # [lb, lpb, rb, rpb]
         B2 = reshape(B2, (slb * slpb, srb * srpb))  # [(lb, lpb), (rb, rpb)]
 

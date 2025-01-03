@@ -19,6 +19,44 @@ function VirtualTensor(lp, con, projs, dims)
     VirtualTensor{T, 4}(lp, con, projs, dims)
 end
 
+function prepare_projectors(::Type{T}) where T
+    PoolOfProjectors{T}(
+        Dict(:CPU => Dict(2 => [1, 1], 3 => [1], 1 => [1, 2]),
+             :GPU => Dict(2 => [1, 1], 3 => [1], 1 => [1, 2]),
+        ),
+        :CPU,
+        Dict(2 => 1, 3 => 1, 1 => 2),
+    )
+end
+
+function prepare_virtual_tensor(::Type{T}; onGPU::Bool) where T
+    simple_array = T[1.0;;]
+    con = onGPU ? CuArray(simple_array) : simple_array
+    M = VirtualTensor(
+        prepare_projectors(Int),
+        con,
+        (1, 2, 2, 3, 3, 3),
+        (2, 1, 1, 2),
+    )
+end
+
+function prepare_input(::Type{T}; onGPU::Bool) where T
+    RE = T[1.0; 0.9999999999999997;;;]
+    A = T[1.0;;;]
+    B = T[0.13466673434714854 0.9950796279655743; 0.013435384215150292 -0.09907842352346106;;;
+         0.9950600547508714 0.13466938329370418; 0.09927480767643285 -0.013408806510184675
+        ]
+
+    M = prepare_virtual_tensor(T; onGPU = onGPU)
+
+    if onGPU
+        RE = CuArray(RE)
+        A = CuArray(A)
+        B = CuArray(B)
+    end
+    RE, A, M, B
+end
+
 # This is problematic function (CPU - OK vs GPU - NOT OK)
 function problematic_update_env_right(
     RE::S,
@@ -104,37 +142,10 @@ function problematic_update_env_right(
     Rout
 end
 
+# ============= MAIN =============
+
 T = Float64
-onGPU = false
 
-RE = T[1.0; 0.9999999999999997;;;]
-A = T[1.0;;;]
-
-lp = PoolOfProjectors{Int64}(
-        Dict(:CPU => Dict(2 => [1, 1], 3 => [1], 1 => [1, 2]),
-             :GPU => Dict(2 => [1, 1], 3 => [1], 1 => [1, 2]),
-        ),
-        :CPU,
-        Dict(2 => 1, 3 => 1, 1 => 2),
-)
-
-M = VirtualTensor(
-    lp,
-    T[1.0;;],
-    (1, 2, 2, 3, 3, 3),
-    (2, 1, 1, 2),
-)
-
-B = T[0.13466673434714854 0.9950796279655743; 0.013435384215150292 -0.09907842352346106;;;
-     0.9950600547508714 0.13466938329370418; 0.09927480767643285 -0.013408806510184675
-    ]
-
-
-if onGPU
-    RE = CuArray(RE)
-    A = CuArray(A)
-    B = CuArray(B)
-end
-
+RE, A, M, B = prepare_input(T, onGPU = false)
 Rout = problematic_update_env_right(RE, A, M, B)
 println(Rout)

@@ -245,6 +245,10 @@ function update_env_right(
     M::VirtualTensor{R,4},
     B::S,
 ) where {S<:Tensor{R,3}} where {R<:Real}
+
+    println(typeof(RE), " ", typeof(A), " ", typeof(M), " ", typeof(B))
+    println(typeof(M.con))
+
     println("RE")
     println(RE)
 
@@ -321,7 +325,7 @@ function update_env_right(
             mul!(tmp2, A2, reshape(tmp1, (srt * srpt, srpcb)))  # [(lt, lpt), rpcb]
             tmp3[:, pr_c_b] = tmp2  # [(lt, lpt), (rpc, rpb)]
             tmp4 = reshape(tmp3, (slt * slpt, srpc, srpb))  # [(lt, lpt), rpc, rpb]
-            println(typeof(tmp5), " ", typeof(tmp4), " ", typeof(M.con'))
+            #println(typeof(tmp5), " ", typeof(tmp4), " ", typeof(M.con'))
             batched_mul!(tmp5, tmp4, M.con')  # [(lt, lpt), lpc, rpb]
             tmp6 = reshape(tmp5, (slt, slpt * slpc, srpb))  # [lt, (lpt, lpc), rpb]
             tmp7 = reshape(tmp6[:, pl_t_c, :], (slt * slptc, srpb))  # [(lb, lptc), rpb]

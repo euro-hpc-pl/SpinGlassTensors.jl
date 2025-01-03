@@ -1,6 +1,6 @@
 # site.jl: contractions with SiteTensor on CPU and CUDA
 
-# TODO make sure slicing is done right, 
+# TODO make sure slicing is done right,
 # cf. https://discourse.julialang.org/t/correct-implementation-of-cuarrays-slicing-operations/90600
 
 function contract_sparse_with_three(

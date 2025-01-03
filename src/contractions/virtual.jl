@@ -245,6 +245,18 @@ function update_env_right(
     M::VirtualTensor{R,4},
     B::S,
 ) where {S<:Tensor{R,3}} where {R<:Real}
+    println("RE")
+    println(RE)
+
+    println("A")
+    println(A)
+
+    println("M")
+    println(M)
+
+    println("B")
+    println(B)
+
     p_lb, p_lc, p_lt, p_rb, p_rc, p_rt = M.projs
     slb, srb = size(B, 1), size(B, 2)
     slt, srt = size(A, 1), size(A, 2)
@@ -260,6 +272,7 @@ function update_env_right(
     Rout = alloc_zeros(R, onGPU, (slb, slt, slc))
 
     if srpb * slpt >= srpt * slpb
+        println("first")
         B2 = permutedims(B, (1, 3, 2, 4))  # [lb, lpb, rb, rpb]
         B2 = reshape(B2, (slb * slpb, srb * srpb))  # [(lb, lpb), (rb, rpb)]
 
@@ -289,6 +302,7 @@ function update_env_right(
             end
         end
     else
+        println("else")
         A2 = permutedims(A, (1, 3, 2, 4))  # [lt, lpt, rt, rpt]
         A2 = reshape(A2, (slt * slpt, srt * srpt))  # [(lt, lpt), (rt, rpt)]
 
@@ -317,6 +331,8 @@ function update_env_right(
             end
         end
     end
+    println("Rout")
+    println(Rout)
     Rout
 end
 

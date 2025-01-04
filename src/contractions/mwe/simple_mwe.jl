@@ -1,5 +1,4 @@
-using cuTENSOR
-using CUDA, CUDA.CUSPARSE
+using CUDA
 using LinearAlgebra, MKL
 
 T = Float64
@@ -12,10 +11,10 @@ B = rand(T, 1, 1)
 C = rand(T, 2, 2, 2, 1)
 
 if onGPU
-    A1 = cu(A1)
-    A2 = cu(A2)
-    B = cu(B)
-    C = cu(C)
+    A1 = CuArray(A1)
+    A2 = CuArray(A2)
+    B = CuArray(B)
+    C = CuArray(C)
 end
 
 mul!(A1, B, (@view C[1, 2, :, :])')

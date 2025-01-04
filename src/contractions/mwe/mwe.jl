@@ -132,7 +132,7 @@ function problematic_update_env_right(
         tmp5 = alloc_undef(R, onGPU, (slt * slpt, slpc, srpb))
         tmp8 = alloc_undef(R, onGPU, (slt * slptc, slpb))
         for irb ∈ 1:srb
-            tmp1[:, pr_t_cb] = (@view RE[irb, :, :])  # [rt, (rpt, rpcb)]
+            tmp1[:, pr_t_cb] = (@view RE[irb, :, :])  # [rt, (rpt, rpcb)] # This line is (probably) problematic
             mul!(tmp2, A2, reshape(tmp1, (srt * srpt, srpcb)))  # [(lt, lpt), rpcb]
             tmp3[:, pr_c_b] = tmp2  # [(lt, lpt), (rpc, rpb)]
             tmp4 = reshape(tmp3, (slt * slpt, srpc, srpb))  # [(lt, lpt), rpc, rpb]
@@ -140,7 +140,8 @@ function problematic_update_env_right(
             tmp6 = reshape(tmp5, (slt, slpt * slpc, srpb))  # [lt, (lpt, lpc), rpb]
             tmp7 = reshape(tmp6[:, pl_t_c, :], (slt * slptc, srpb))  # [(lb, lptc), rpb]
             for ilb ∈ 1:slb
-                mul!(tmp8, tmp7, (@view B[ilb, irb, :, :])')
+                #mul!(tmp8, tmp7, (@view B[ilb, irb, :, :])') # This line is problematic
+                mul!(tmp8, tmp7, B[ilb, irb, :, :]')
                 tmp9 = reshape(tmp8, (slt, slptc * slpb))
                 Rout[ilb, :, :] .+= tmp9[:, pl_tc_b]
             end

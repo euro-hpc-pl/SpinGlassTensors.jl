@@ -140,8 +140,8 @@ function problematic_update_env_right(
             tmp6 = reshape(tmp5, (slt, slpt * slpc, srpb))  # [lt, (lpt, lpc), rpb]
             tmp7 = reshape(tmp6[:, pl_t_c, :], (slt * slptc, srpb))  # [(lb, lptc), rpb]
             for ilb ∈ 1:slb
-                #mul!(tmp8, tmp7, (@view B[ilb, irb, :, :])') # This line is problematic
-                mul!(tmp8, tmp7, B[ilb, irb, :, :]')
+                mul!(tmp8, tmp7, (@view B[ilb, irb, :, :])') # This line is problematic
+                #mul!(tmp8, tmp7, B[ilb, irb, :, :]')
                 tmp9 = reshape(tmp8, (slt, slptc * slpb))
                 Rout[ilb, :, :] .+= tmp9[:, pl_tc_b]
             end
@@ -150,18 +150,19 @@ function problematic_update_env_right(
     Rout
 end
 
-# ============= MAIN =============
+# ================ MAIN ================
+# CPU and GPU should give the same result
 
 T = Float64
 
 RE, A, M, B = prepare_input(T, onGPU = false)
 Rout = problematic_update_env_right(RE, A, M, B)
 
-println("CPU R:")
+println("CPU R (OK):")
 println(Rout)
 
 RE, A, M, B = prepare_input(T, onGPU = true)
 Rout = problematic_update_env_right(RE, A, M, B)
 
-println("GPU R:")
+println("GPU R (NOT OK):")
 println(Rout)

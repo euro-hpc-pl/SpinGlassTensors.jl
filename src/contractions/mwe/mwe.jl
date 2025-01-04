@@ -19,7 +19,7 @@ function VirtualTensor(lp, con, projs, dims)
     VirtualTensor{T, 4}(lp, con, projs, dims)
 end
 
-function prepare_projectors(::Type{T}; onGPU) where T
+function prepare_projectors(::Type{T}; onGPU::Bool = true) where T
     if onGPU
         dict = Dict(
                 :GPU => Dict(2 => CuArray([1, 1]), 3 => CuArray([1]), 1 => CuArray([1, 2])),
@@ -37,7 +37,7 @@ function prepare_projectors(::Type{T}; onGPU) where T
     )
 end
 
-function prepare_virtual_tensor(::Type{T}; onGPU::Bool) where T
+function prepare_virtual_tensor(::Type{T}; onGPU::Bool = true) where T
     simple_array = T[1.0;;]
     con = onGPU ? CuArray(simple_array) : simple_array
     M = VirtualTensor(
@@ -48,7 +48,8 @@ function prepare_virtual_tensor(::Type{T}; onGPU::Bool) where T
     )
 end
 
-function prepare_input(::Type{T}; onGPU::Bool) where T
+function prepare_input(::Type{T}; onGPU::Bool = true) where T
+    # Data for which we found that the problem occurs
     RE = T[1.0; 0.9999999999999997;;;]
     A = T[1.0;;;]
     B = T[0.13466673434714854 0.9950796279655743; 0.013435384215150292 -0.09907842352346106;;;
@@ -65,7 +66,7 @@ function prepare_input(::Type{T}; onGPU::Bool) where T
     RE, A, M, B
 end
 
-# This is problematic function (CPU - OK vs GPU - NOT OK)
+# This is the problematic function (CPU - OK vs GPU - NOT OK)
 function problematic_update_env_right(
     RE::S,
     A::S,
@@ -88,65 +89,37 @@ function problematic_update_env_right(
     B = reshape(B, (slb, srb, slpb, srpb))
     Rout = alloc_zeros(R, onGPU, (slb, slt, slc))
 
-    if srpb * slpt >= srpt * slpb # This loop is OK (force true to check !!!)
-        B2 = permutedims(B, (1, 3, 2, 4))  # [lb, lpb, rb, rpb]
-        B2 = reshape(B2, (slb * slpb, srb * srpb))  # [(lb, lpb), (rb, rpb)]
+    A2 = permutedims(A, (1, 3, 2, 4))  # [lt, lpt, rt, rpt]
+    A2 = reshape(A2, (slt * slpt, srt * srpt))  # [(lt, lpt), (rt, rpt)]
 
-        pr_b_ct, pr_c_t, srpct =
-            merge_projectors_inter(M.lp, p_rb, p_rc, p_rt, onGPU; order = "1_23")
-        pl_bc_t, pl_b_c, slpbc =
-            merge_projectors_inter(M.lp, p_lt, p_lb, p_lc, onGPU; order = "23_1")
+    pr_t_cb, pr_c_b, srpcb =
+        merge_projectors_inter(M.lp, p_rt, p_rc, p_rb, onGPU; order = "1_23")
+    pl_tc_b, pl_t_c, slptc =
+        merge_projectors_inter(M.lp, p_lb, p_lt, p_lc, onGPU; order = "23_1")
 
-        tmp1 = alloc_zeros(R, onGPU, (srb, srpb * srpct))
-        tmp2 = alloc_undef(R, onGPU, (slb * slpb, srpct))
-        tmp3 = alloc_zeros(R, onGPU, (slb * slpb, srpc * srpt))
-        tmp5 = alloc_undef(R, onGPU, (slb * slpb, slpc, srpt))
-        tmp8 = alloc_undef(R, onGPU, (slb * slpbc, slpt))
+    tmp1 = alloc_zeros(R, onGPU, (srt, srpt * srpcb))
+    tmp2 = alloc_undef(R, onGPU, (slt * slpt, srpcb))
+    tmp3 = alloc_zeros(R, onGPU, (slt * slpt, srpc * srpb))
+    tmp5 = alloc_undef(R, onGPU, (slt * slpt, slpc, srpb))
+    tmp8 = alloc_undef(R, onGPU, (slt * slptc, slpb))
 
-        for irt ∈ 1:srt
-            tmp1[:, pr_b_ct] = (@view RE[:, irt, :])  # [rb, (rpb, rpct)]
-            mul!(tmp2, B2, reshape(tmp1, (srb * srpb, srpct)))  # [(lb, lpb), rpct]
-            tmp3[:, pr_c_t] = tmp2  # [(lb, lpb), (rpc, rpt)]
-            tmp4 = reshape(tmp3, (slb * slpb, srpc, srpt))  # [(lb, lpb), rpc, rpt]
-            batched_mul!(tmp5, tmp4, M.con')
-            tmp6 = reshape(tmp5, (slb, slpb * slpc, srpt))  # [lb, (lpb, lpc), rpt]
-            tmp7 = reshape(tmp6[:, pl_b_c, :], (slb * slpbc, srpt))  # [(lb, lpbc), rpt]
-            for ilt ∈ 1:slt
-                mul!(tmp8, tmp7, (@view A[ilt, irt, :, :])')
-                tmp9 = reshape(tmp8, (slb, slpbc * slpt))
-                Rout[:, ilt, :] .+= tmp9[:, pl_bc_t]
-            end
-        end
-    else
-        A2 = permutedims(A, (1, 3, 2, 4))  # [lt, lpt, rt, rpt]
-        A2 = reshape(A2, (slt * slpt, srt * srpt))  # [(lt, lpt), (rt, rpt)]
+    for irb ∈ 1:srb
+        tmp1[:, pr_t_cb] = (@view RE[irb, :, :])  # [rt, (rpt, rpcb)] # This line is (probably also) problematic
+        mul!(tmp2, A2, reshape(tmp1, (srt * srpt, srpcb)))  # [(lt, lpt), rpcb]
+        tmp3[:, pr_c_b] = tmp2  # [(lt, lpt), (rpc, rpb)]
+        tmp4 = reshape(tmp3, (slt * slpt, srpc, srpb))  # [(lt, lpt), rpc, rpb]
+        batched_mul!(tmp5, tmp4, M.con')  # [(lt, lpt), lpc, rpb]
+        tmp6 = reshape(tmp5, (slt, slpt * slpc, srpb))  # [lt, (lpt, lpc), rpb]
+        tmp7 = reshape(tmp6[:, pl_t_c, :], (slt * slptc, srpb))  # [(lb, lptc), rpb]
 
-        pr_t_cb, pr_c_b, srpcb =
-            merge_projectors_inter(M.lp, p_rt, p_rc, p_rb, onGPU; order = "1_23")
-        pl_tc_b, pl_t_c, slptc =
-            merge_projectors_inter(M.lp, p_lb, p_lt, p_lc, onGPU; order = "23_1")
-
-        tmp1 = alloc_zeros(R, onGPU, (srt, srpt * srpcb))
-        tmp2 = alloc_undef(R, onGPU, (slt * slpt, srpcb))
-        tmp3 = alloc_zeros(R, onGPU, (slt * slpt, srpc * srpb))
-        tmp5 = alloc_undef(R, onGPU, (slt * slpt, slpc, srpb))
-        tmp8 = alloc_undef(R, onGPU, (slt * slptc, slpb))
-        for irb ∈ 1:srb
-            tmp1[:, pr_t_cb] = (@view RE[irb, :, :])  # [rt, (rpt, rpcb)] # This line is (probably) problematic
-            mul!(tmp2, A2, reshape(tmp1, (srt * srpt, srpcb)))  # [(lt, lpt), rpcb]
-            tmp3[:, pr_c_b] = tmp2  # [(lt, lpt), (rpc, rpb)]
-            tmp4 = reshape(tmp3, (slt * slpt, srpc, srpb))  # [(lt, lpt), rpc, rpb]
-            batched_mul!(tmp5, tmp4, M.con')  # [(lt, lpt), lpc, rpb]
-            tmp6 = reshape(tmp5, (slt, slpt * slpc, srpb))  # [lt, (lpt, lpc), rpb]
-            tmp7 = reshape(tmp6[:, pl_t_c, :], (slt * slptc, srpb))  # [(lb, lptc), rpb]
-            for ilb ∈ 1:slb
-                mul!(tmp8, tmp7, (@view B[ilb, irb, :, :])') # This line is problematic
-                #mul!(tmp8, tmp7, B[ilb, irb, :, :]')
-                tmp9 = reshape(tmp8, (slt, slptc * slpb))
-                Rout[ilb, :, :] .+= tmp9[:, pl_tc_b]
-            end
+        for ilb ∈ 1:slb
+            mul!(tmp8, tmp7, (@view B[ilb, irb, :, :])') # This line is problematic
+            #mul!(tmp8, tmp7, B[ilb, irb, :, :]')
+            tmp9 = reshape(tmp8, (slt, slptc * slpb))
+            Rout[ilb, :, :] .+= tmp9[:, pl_tc_b]
         end
     end
+
     Rout
 end
 

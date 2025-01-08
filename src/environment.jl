@@ -195,6 +195,7 @@ function update_env_right!(env::Environment, site::Site)
         RR = contract_matrix_tensor3(env.mpo[ls], RR)
         ls = left_nbrs_site(ls, env.mpo.sites)
     end
+
     nRR = maximum(abs.(RR))
     RR ./= nRR
     push!(env.env, (site, :right) => RR)

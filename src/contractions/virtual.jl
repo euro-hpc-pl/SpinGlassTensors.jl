@@ -120,7 +120,7 @@ function update_env_left(
         tmp8 = alloc_undef(R, onGPU, (srb * srpbc, srpt))
 
         for ilt ∈ 1:slt
-            tmp1[:, pl_b_ct] = (@view LE[:, ilt, :])  # [lb, (lpb, lpct)]
+            tmp1[:, pl_b_ct] = LE[:, ilt, :]  # [lb, (lpb, lpct)]
             mul!(tmp2, B2', reshape(tmp1, (slb * slpb, slpct)))  # [(rb, rpb), lpct]
             tmp3[:, pl_c_t] = tmp2  # [(rb, rpb), (lpc, lpt)]
             tmp4 = reshape(tmp3, (srb * srpb, slpc, slpt))  # [(rb, rpb), lpc, lpt]
@@ -128,7 +128,7 @@ function update_env_left(
             tmp6 = reshape(tmp5, (srb, srpb * srpc, slpt))  # [rb, (rpb, rpc), lpt]
             tmp7 = reshape(tmp6[:, pr_b_c, :], (srb * srpbc, slpt))  # [(rb, rpbc), lpt]
             for irt ∈ 1:srt
-                mul!(tmp8, tmp7, (@view A[ilt, irt, :, :]))
+                mul!(tmp8, tmp7, A[ilt, irt, :, :])
                 tmp9 = reshape(tmp8, (srb, srpbc * srpt))
                 Lout[:, irt, :] .+= tmp9[:, pr_bc_t]  # [rb, rc]
             end
@@ -149,7 +149,7 @@ function update_env_left(
         tmp8 = alloc_zeros(R, onGPU, (srt * srptc, srpb))
 
         for ilb ∈ 1:slb
-            tmp1[:, pl_t_cb] = (@view LE[ilb, :, :])  # [lt, (lpt, lpcb)]
+            tmp1[:, pl_t_cb] = LE[ilb, :, :]  # [lt, (lpt, lpcb)]
             mul!(tmp2, A2', reshape(tmp1, (slt * slpt, slpcb)))  # [(rt, rpt), lpcb]
             tmp3[:, pl_c_b] = tmp2
             tmp4 = reshape(tmp3, (srt * srpt, slpc, slpb))  # [(rt, rpt), lpc, lpb]
@@ -157,7 +157,7 @@ function update_env_left(
             tmp6 = reshape(tmp5, (srt, srpt * srpc, slpb))  # [(rt, rpt * rpc), lcb]
             tmp7 = reshape(tmp6[:, pr_t_c, :], (srt * srptc, slpb))  # [(rt, rptc), lpb]
             for irb ∈ 1:srb
-                mul!(tmp8, tmp7, (@view B[ilb, irb, :, :]))
+                mul!(tmp8, tmp7, B[ilb, irb, :, :])
                 tmp9 = reshape(tmp8, (srt, srptc * srpb))
                 Lout[irb, :, :] .+= tmp9[:, pr_tc_b]  # [rt, rc]
             end
@@ -198,7 +198,7 @@ function project_ket_on_bra(
         tmp5 = alloc_undef(R, onGPU, (srb * srpb, srpc, slpt))
         tmp8 = alloc_zeros(R, onGPU, (srb, srpbc * srpt))
         for ilt ∈ 1:slt
-            tmp1[:, pl_b_ct] = (@view LE[:, ilt, :])  # [lb, (lpb, lpct)]
+            tmp1[:, pl_b_ct] = LE[:, ilt, :]  # [lb, (lpb, lpct)]
             mul!(tmp2, B2', reshape(tmp1, (slb * slpb, slpct)))  # [(rb, rpb), lpct]
             tmp3[:, pl_c_t] = tmp2  # [(rb, rpb), (lpc, lpt)]
             tmp4 = reshape(tmp3, (srb * srpb, slpc, slpt))  # [(rb, rpb), lpc, lpt]
@@ -206,7 +206,7 @@ function project_ket_on_bra(
             tmp6 = reshape(tmp5, (srb, srpb * srpc, slpt))  # [rb, (rpb, rpc), lpt]
             tmp7 = reshape(tmp6[:, pr_b_c, :], (srb * srpbc, slpt))  # [(rb, rpbc), lpt]
             for irt ∈ 1:srt
-                tmp8[:, pr_bc_t] = (@view RE[:, irt, :])  # [rb, (rpbc, rpt)]
+                tmp8[:, pr_bc_t] = RE[:, irt, :]  # [rb, (rpbc, rpt)]
                 LR[ilt, irt, :, :] = tmp7' * reshape(tmp8, (srb * srpbc, srpt))  # [lpt, rpt]
             end
         end
@@ -222,7 +222,7 @@ function project_ket_on_bra(
         tmp5 = alloc_undef(R, onGPU, (slb * slpb, slpc, srpt))
         tmp8 = alloc_zeros(R, onGPU, (slb, slpbc * slpt))
         for irt ∈ 1:srt
-            tmp1[:, pr_b_ct] = (@view RE[:, irt, :])  # [rb, (rpb, rpct)]
+            tmp1[:, pr_b_ct] = RE[:, irt, :]  # [rb, (rpb, rpct)]
             mul!(tmp2, B2, reshape(tmp1, (srb * srpb, srpct)))  # [(lb, lpb), rpct]
             tmp3[:, pr_c_t] = tmp2  # [(lb, lpb), (rpc, rpt)]
             tmp4 = reshape(tmp3, (slb * slpb, srpc, srpt))  # [(lb, lpb), rpc, rpt]
@@ -230,7 +230,7 @@ function project_ket_on_bra(
             tmp6 = reshape(tmp5, (slb, slpb * slpc, srpt))  # [lb, (lpb, lpc), rpt]
             tmp7 = reshape(tmp6[:, pl_b_c, :], (slb * slpbc, srpt))  # [(lb, lpbc), rpt]
             for ilt ∈ 1:slt
-                tmp8[:, pl_bc_t] = (@view LE[:, ilt, :])  # [lb, (lpbc, lpt)]
+                tmp8[:, pl_bc_t] = LE[:, ilt, :]  # [lb, (lpbc, lpt)]
                 LR[ilt, irt, :, :] = reshape(tmp8, (slb * slpbc, slpt))' * tmp7  # [lct, rct]
             end
         end
@@ -246,6 +246,7 @@ function update_env_right(
     B::S,
 ) where {S<:Tensor{R,3}} where {R<:Real}
     p_lb, p_lc, p_lt, p_rb, p_rc, p_rt = M.projs
+
     slb, srb = size(B, 1), size(B, 2)
     slt, srt = size(A, 1), size(A, 2)
     slc = length(M.lp, p_lc)
@@ -275,7 +276,7 @@ function update_env_right(
         tmp8 = alloc_undef(R, onGPU, (slb * slpbc, slpt))
 
         for irt ∈ 1:srt
-            tmp1[:, pr_b_ct] = (@view RE[:, irt, :])  # [rb, (rpb, rpct)]
+            tmp1[:, pr_b_ct] = RE[:, irt, :]  # [rb, (rpb, rpct)]
             mul!(tmp2, B2, reshape(tmp1, (srb * srpb, srpct)))  # [(lb, lpb), rpct]
             tmp3[:, pr_c_t] = tmp2  # [(lb, lpb), (rpc, rpt)]
             tmp4 = reshape(tmp3, (slb * slpb, srpc, srpt))  # [(lb, lpb), rpc, rpt]
@@ -283,7 +284,7 @@ function update_env_right(
             tmp6 = reshape(tmp5, (slb, slpb * slpc, srpt))  # [lb, (lpb, lpc), rpt]
             tmp7 = reshape(tmp6[:, pl_b_c, :], (slb * slpbc, srpt))  # [(lb, lpbc), rpt]
             for ilt ∈ 1:slt
-                mul!(tmp8, tmp7, (@view A[ilt, irt, :, :])')
+                mul!(tmp8, tmp7, A[ilt, irt, :, :]')
                 tmp9 = reshape(tmp8, (slb, slpbc * slpt))
                 Rout[:, ilt, :] .+= tmp9[:, pl_bc_t]
             end
@@ -302,8 +303,9 @@ function update_env_right(
         tmp3 = alloc_zeros(R, onGPU, (slt * slpt, srpc * srpb))
         tmp5 = alloc_undef(R, onGPU, (slt * slpt, slpc, srpb))
         tmp8 = alloc_undef(R, onGPU, (slt * slptc, slpb))
+
         for irb ∈ 1:srb
-            tmp1[:, pr_t_cb] = (@view RE[irb, :, :])  # [rt, (rpt, rpcb)]
+            tmp1[:, pr_t_cb] = RE[irb, :, :]  # [rt, (rpt, rpcb)]
             mul!(tmp2, A2, reshape(tmp1, (srt * srpt, srpcb)))  # [(lt, lpt), rpcb]
             tmp3[:, pr_c_b] = tmp2  # [(lt, lpt), (rpc, rpb)]
             tmp4 = reshape(tmp3, (slt * slpt, srpc, srpb))  # [(lt, lpt), rpc, rpb]
@@ -311,7 +313,8 @@ function update_env_right(
             tmp6 = reshape(tmp5, (slt, slpt * slpc, srpb))  # [lt, (lpt, lpc), rpb]
             tmp7 = reshape(tmp6[:, pl_t_c, :], (slt * slptc, srpb))  # [(lb, lptc), rpb]
             for ilb ∈ 1:slb
-                mul!(tmp8, tmp7, (@view B[ilb, irb, :, :])')
+
+                mul!(tmp8, tmp7, B[ilb, irb, :, :]')
                 tmp9 = reshape(tmp8, (slt, slptc * slpb))
                 Rout[ilb, :, :] .+= tmp9[:, pl_tc_b]
             end
@@ -319,7 +322,6 @@ function update_env_right(
     end
     Rout
 end
-
 
 function update_reduced_env_right(
     K::Tensor{R,1},

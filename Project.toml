@@ -17,7 +17,7 @@ TensorOperations = "6aa20fa7-93e2-5fca-9bc0-fbd0db3c71a2"
 cuTENSOR = "011b41b2-24ef-40a8-b3eb-fa098493e9e1"
 
 [compat]
-CUDA = "5"
+CUDA = "5.5"
 DocStringExtensions = "0.9.3"
 LowRankApprox = "0.5.5"
 MKL = "0.4.2"

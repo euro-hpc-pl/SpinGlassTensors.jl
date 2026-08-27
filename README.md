@@ -1,4 +1,7 @@
 [![Coverage Status](https://coveralls.io/repos/github/iitis/SpinGlassTensors.jl/badge.svg?branch=master)](https://coveralls.io/github/iitis/SpinGlassTensors.jl?branch=master)
+
+## This repo is depracated in favor of [SpinGlassPEPS.jl](https://github.com/euro-hpc-pl/SpinGlassPEPS.jl)
+
 # SpinGlassTensors.jl
 Part of SpinGlassPEPS package. It constitutes the basis for the preparation of tensors and operations on them.
 
